@@ -1,0 +1,65 @@
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+dist/
+build/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Environment (never commit secrets)
+.env
+.env.local
+.env.*.local
+
+# DuckDB databases and sidecar files
+data/duckdb/*
+!data/duckdb/.gitkeep
+*.duckdb
+*.db
+*.wal
+*.tmp
+*.duckdb.wal
+
+# Landing zone — raw downloads, scrapes, exports (keep structure only)
+data/landing/*
+!data/landing/.gitkeep
+!data/landing/README.md
+
+# Generated reports and outputs
+reports/*
+!reports/.gitkeep
+output/
+*.log
+
+# Local data artifacts (outside landing/duckdb)
+*.parquet
+*.feather
+*.arrow
+
+# Scraped / cached HTML snapshots
+*.html.gz
+.cache/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Cursor local state (keep .cursor/skills, rules, mcp.json tracked)
+.cursor/plans/
+.cursor/*.log

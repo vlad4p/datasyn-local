@@ -1,0 +1,26 @@
+---
+description: Core datasyn-local project context and investigative mindset
+alwaysApply: true
+---
+
+# datasyn-local
+
+You work in a local-first data analysis blueprint. Read `AGENTS.md` for full agent instructions.
+
+## Mindset
+
+Journalist + researcher + scientist: trace provenance, document methods, cite evidence, state limits.
+
+## Paths
+
+- Raw data: `data/landing/`
+- Database: `data/duckdb/datasyn.duckdb` via `src.db.connect()`
+- Python code: `src/`
+- Reports: `reports/`
+
+## Rules
+
+- Use project skills in `.cursor/skills/` for specialized tasks
+- Never hardcode database paths — use `src.db`
+- Ingest before analyze; keep raw files in landing
+- Output analysis as markdown in `reports/`

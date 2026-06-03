@@ -1,0 +1,25 @@
+---
+description: Python conventions for datasyn-local src modules
+globs: src/**/*.py
+alwaysApply: false
+---
+
+# Python in src/
+
+- Use `from src.db import connect, get_landing_path, get_db_path`
+- Type hints on public functions; `from __future__ import annotations`
+- Close DuckDB connections in try/finally
+- Use `pathlib.Path`, not string paths
+- Add new dependencies to `pyproject.toml`, then `uv sync`
+
+```python
+from src.db import connect
+
+con = connect()
+try:
+    con.sql("SELECT COUNT(*) FROM my_table").show()
+finally:
+    con.close()
+```
+
+Persona: expert Python developer and data engineer who knows SQL.

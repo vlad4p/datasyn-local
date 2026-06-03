@@ -1,0 +1,20 @@
+# datasyn-local configuration
+# Override paths with environment variables (see .env.example)
+
+database:
+  path: data/duckdb/datasyn.duckdb
+  schema: main
+
+paths:
+  landing: data/landing
+  reports: reports
+  src: src
+
+ingest:
+  csv_auto_detect: true
+  json_format: auto
+
+mcp:
+  enabled: false
+  transport: stdio
+  log_level: info
