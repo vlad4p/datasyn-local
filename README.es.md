@@ -20,7 +20,7 @@
 
 Recolectas fuentes → el asistente guarda los originales → DuckDB tiene tablas estructuradas → los reportes tienen tus hallazgos. **No necesitas escribir SQL ni Python.**
 
-![De la fuente a la historia — recolectar, landing, DuckDB, reports](docs/diagrams/flow.svg)
+<p align="center"><img src="docs/diagrams/flow.svg" alt="De la fuente a la historia — recolectar, landing, DuckDB, reportes" width="860"/></p>
 
 | | |
 |---|---|
@@ -50,11 +50,11 @@ Tú traes las preguntas y la hipótesis. **El asistente de IA** configura el ent
 | **Hablar, no programar** | Pides en lenguaje claro; los **skills** convierten el pedido en SQL de DuckDB (vía MCP) |
 | **Mantener trazabilidad** | Cada respuesta indica *qué muestran los datos*, *cómo lo sabemos* y *cuáles son los límites* |
 
-### Figura 1 — Flujo de datos
+### Flujo de datos
 
 El asistente elige el **skill** correcto en cada etapa (naranja = archivos crudos, verde = base de datos, azul marino = reportes).
 
-![Flujo de datos: web-scraping → landing → ingest-data → DuckDB → reports](docs/diagrams/flow.svg)
+<p align="center"><img src="docs/diagrams/flow.svg" alt="De la fuente a la historia — recolectar, landing, DuckDB, reportes" width="860"/></p>
 
 | Paso | Tú | Skill | Salida |
 |:----:|----|-------|--------|
@@ -63,17 +63,17 @@ El asistente elige el **skill** correcto en cada etapa (naranja = archivos crudo
 | 3 | Haces preguntas en lenguaje claro | SQL + MCP | respuestas en el chat |
 | 4 | Pides análisis o un reporte | `statistical-report` / `sentiment-analysis` | `reports/` |
 
-### Figura 2 — Un pedido, de principio a fin
+### Un pedido, de principio a fin
 
 Un mensaje (“ingesta este archivo y resúmelo”) sigue siempre el mismo camino:
 
-![Ciclo de un pedido: preguntar → AGENTS.md → SQL vía MCP → reporte → respuesta auditable](docs/diagrams/request-lifecycle.svg)
+<p align="center"><img src="docs/diagrams/request-lifecycle.svg" alt="Un pedido — lenguaje claro a respuesta auditable vía MCP" width="560"/></p>
 
-### Figura 3 — Mapa del repositorio
+### Mapa del repositorio
 
 Izquierda: configuración y comportamiento del agente. Derecha: tu evidencia y salida publicable.
 
-![Mapa del repositorio: AGENTS.md, skills, db.py frente a landing, duckdb, reports](docs/diagrams/repo-layout.svg)
+<p align="center"><img src="docs/diagrams/repo-layout.svg" alt="Layout del repositorio datasyn — configuración del agente y carpetas de datos" width="680"/></p>
 
 ---
 
@@ -87,11 +87,11 @@ Izquierda: configuración y comportamiento del agente. Derecha: tu evidencia y s
 
 ## 🚀 Arranque — copia este prompt
 
-### Figura 4 — Configuración inicial
+### Configuración inicial
 
 Clona el repositorio, pega el prompt de abajo y sigue el resumen del asistente.
 
-![Flujo de arranque: clonar → pegar prompt → bootstrap → listo](docs/diagrams/startup.svg)
+<p align="center"><img src="docs/diagrams/startup.svg" alt="Configuración inicial — clonar, pegar prompt, bootstrap, listo" width="520"/></p>
 
 1. **Clona** este repositorio y ábrelo en el IDE.
 2. **Pega** el bloque en el chat del asistente.
@@ -135,11 +135,11 @@ Reglas: ingest y reportes son skills (SQL), no apps Python extra. Los archivos e
 
 ## 🗞️ Ejemplo completo — de titulares a sentimiento
 
-### Figura 5 — Un prompt, investigación completa
+### Un prompt, investigación completa
 
 **Extraer → ingestar → reporte de sentimiento** en un solo mensaje:
 
-![Ejemplo de investigación: NYT → tabla nyt_news → reporte de sentimiento](docs/diagrams/investigation-example.svg)
+<p align="center"><img src="docs/diagrams/investigation-example.svg" alt="Investigación completa — extracción, ingesta, reporte de sentimiento" width="720"/></p>
 
 Pégalo en el asistente:
 
@@ -162,15 +162,3 @@ cómo lo sabemos y cuáles son las salvedades.
 ```
 
 > ⚖️ **Fuentes:** respeta los términos de cada sitio y su `robots.txt`; prefiere feeds o APIs oficiales cuando existan. El asistente guarda URL de origen y fecha de captura para que los hallazgos sean auditables.
-
----
-
-## 📊 Todos los diagramas
-
-| Diagrama | Archivo |
-|----------|---------|
-| Flujo de datos | [docs/diagrams/flow.svg](docs/diagrams/flow.svg) |
-| Ciclo de un pedido | [docs/diagrams/request-lifecycle.svg](docs/diagrams/request-lifecycle.svg) |
-| Mapa del repositorio | [docs/diagrams/repo-layout.svg](docs/diagrams/repo-layout.svg) |
-| Arranque | [docs/diagrams/startup.svg](docs/diagrams/startup.svg) |
-| Ejemplo de investigación | [docs/diagrams/investigation-example.svg](docs/diagrams/investigation-example.svg) |
