@@ -80,9 +80,15 @@ Use the launcher script (works regardless of Cursor cwd):
 }
 ```
 
-Project copy: `.cursor/mcp.json`. Global copy: `~/.cursor/mcp.json`.
+Generate local config (gitignored, no personal paths in repo):
 
-**Do not** use relative paths like `scripts/mcp_server.py` in global MCP config — Cursor may run from `$HOME` and fail with "No such file or directory".
+```bash
+make mcp-config
+```
+
+Template: `.cursor/mcp.json.example`. Global copy: `~/.cursor/mcp.json`.
+
+**Do not** commit `.cursor/mcp.json` or use relative `command` paths in global MCP config — Cursor may run from `$HOME` and fail.
 
 ## Helper script
 

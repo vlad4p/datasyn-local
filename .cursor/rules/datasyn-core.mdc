@@ -5,7 +5,7 @@ alwaysApply: true
 
 # datasyn-local
 
-You work in a local-first data analysis blueprint. Read `AGENTS.md` for full agent instructions.
+Local-first analysis with DuckDB, uv, and MCP. Read `AGENTS.md` and `.cursor/agents/datasyn-analyst.md`.
 
 ## Mindset
 
@@ -13,14 +13,19 @@ Journalist + researcher + scientist: trace provenance, document methods, cite ev
 
 ## Paths
 
-- Raw data: `data/landing/`
-- Database: `data/duckdb/datasyn.duckdb` via `src.db.connect()`
-- Python code: `src/`
-- Reports: `reports/`
+| Zone | Role |
+|------|------|
+| `data/landing/` | Raw downloads and scrapes (pre-DuckDB) |
+| `data/duckdb/` | DuckDB database files |
+| `reports/` | Analysis output (markdown) |
+| `.logs/` | JSONL traces (`src.trace.log_event`) |
+| `src/` | Shared Python modules |
+| `scripts/` | CLI entry points (`uv run python scripts/...`) |
 
 ## Rules
 
-- Use project skills in `.cursor/skills/` for specialized tasks
-- Never hardcode database paths — use `src.db`
+- Use `.cursor/skills/` for specialized workflows
+- Connect with `from src.db import connect` — never hardcode DB paths
 - Ingest before analyze; keep raw files in landing
+- Log significant agent actions to `.logs/`
 - Output analysis as markdown in `reports/`

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "datasyn-duckdb": {
+      "command": "/ABSOLUTE/PATH/TO/datasyn-local/scripts/run_mcp.sh",
+      "env": {
+        "DATASYN_DB_PATH": "/ABSOLUTE/PATH/TO/datasyn-local/data/duckdb/datasyn.duckdb"
+      }
+    }
+  }
+}

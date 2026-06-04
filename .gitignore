@@ -22,6 +22,7 @@ htmlcov/
 # DuckDB databases and sidecar files
 data/duckdb/*
 !data/duckdb/.gitkeep
+!data/duckdb/README.md
 *.duckdb
 *.db
 *.wal
@@ -37,6 +38,12 @@ data/landing/*
 reports/*
 !reports/.gitkeep
 output/
+
+# Action traces (JSONL); keep structure and README
+.logs/*
+!.logs/.gitkeep
+!.logs/README.md
+
 *.log
 
 # Local data artifacts (outside landing/duckdb)
@@ -60,6 +67,14 @@ Thumbs.db
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
-# Cursor local state (keep .cursor/skills, rules, mcp.json tracked)
+# Cursor / IDE local config (machine-specific paths)
+.cursor/mcp.json
 .cursor/plans/
 .cursor/*.log
+kilo.json
+
+# Demo copy in landing (use samples/ + cp)
+data/landing/*.csv
+data/landing/*.json
+data/landing/*.xlsx
+uv.lock

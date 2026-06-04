@@ -7,6 +7,7 @@ import argparse
 import sys
 
 from src.db import connect, get_db_path, list_tables
+from src.trace import log_event
 
 
 def run_check() -> None:
@@ -16,8 +17,14 @@ def run_check() -> None:
         con.execute("LOAD duckdb_mcp")
         tables = list_tables(con)
         print(
-            f"duckdb_mcp loaded. DB: {get_db_path()}. "
+            f"duckdb_mcp loaded. DB file: {get_db_path().name} (data/duckdb/). "
             f"Tables: {', '.join(tables) or '(none)'}"
+        )
+        log_event(
+            "mcp.check",
+            actor="cli",
+            source="scripts/mcp_server.py",
+            data={"tables": tables},
         )
     finally:
         con.close()
@@ -29,10 +36,17 @@ def run_server() -> None:
     con.execute("INSTALL duckdb_mcp FROM community")
     con.execute("LOAD duckdb_mcp")
 
-    for table in list_tables(con):
+    tables = list_tables(con)
+    for table in tables:
         uri = f"data://tables/{table}"
         con.execute(f"PRAGMA mcp_publish_table('{table}', '{uri}', 'json')")
 
+    log_event(
+        "mcp.server_start",
+        actor="mcp",
+        source="scripts/mcp_server.py",
+        data={"tables": tables},
+    )
     # PRAGMA blocks and serves MCP until stdin closes. Never call con.close() here.
     con.execute("PRAGMA mcp_server_start('stdio')")
 

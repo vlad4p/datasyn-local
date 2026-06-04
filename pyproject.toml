@@ -3,6 +3,7 @@ name = "datasyn-local"
 version = "0.1.0"
 description = "Local data analysis blueprint with DuckDB, MCP, and AI-assisted workflows"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.11"
 dependencies = [
     "duckdb>=1.2.0",

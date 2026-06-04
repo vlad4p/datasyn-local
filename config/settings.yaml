@@ -8,6 +8,7 @@ database:
 paths:
   landing: data/landing
   reports: reports
+  logs: .logs
   src: src
 
 ingest:
@@ -15,6 +16,10 @@ ingest:
   json_format: auto
 
 mcp:
-  enabled: false
+  enabled: true
   transport: stdio
   log_level: info
+
+logging:
+  format: jsonl
+  # Daily files: .logs/traces_YYYYMMDD.jsonl

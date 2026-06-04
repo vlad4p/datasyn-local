@@ -1,228 +1,186 @@
 # datasyn-local
 
-**Local-first data analysis blueprint** for the [datasyn](https://github.com/) project. Collect data, structure it in [DuckDB](https://duckdb.org/docs/current/clients/python/overview), analyze with Python and SQL, and expose results to AI agents via [MCP](https://duckdb.org/community_extensions/extensions/duckdb_mcp).
+Plantilla **local-first** para análisis de datos con [DuckDB](https://duckdb.org/), Python ([uv](https://docs.astral.sh/uv/)) y agentes IA vía [duckdb_mcp](https://duckdb.org/community_extensions/extensions/duckdb_mcp).
 
-Think like a journalist, researcher, and scientist: reproducible pipelines, clear provenance, evidence-backed insights.
+Pensada para trabajo periodístico o de investigación: datos crudos con procedencia, SQL reproducible, reportes en markdown y trazas auditables.
 
-## What this repo provides
+## Requisitos
 
-| Layer | Purpose |
-|-------|---------|
-| `data/landing/` | Raw files (CSV, JSON, XLSX, scrapes) before ingestion |
-| `data/duckdb/` | Persistent DuckDB database |
-| `src/` | Python modules and pipelines |
-| `scripts/` | CLI utilities (ingest, reports, MCP server) |
-| `reports/` | Generated markdown analysis |
-| `.cursor/skills/` | Cursor agent skills for common workflows |
-| `AGENTS.md` | Agent personas and subagent definitions |
+| Herramienta | Versión |
+|-------------|---------|
+| Python | 3.11+ |
+| [uv](https://docs.astral.sh/uv/) | reciente |
+| [Cursor](https://cursor.com/) u otro cliente MCP | opcional |
 
-## Project structure
+## Inicio rápido (5 minutos)
+
+```bash
+git clone https://github.com/TU_ORG/datasyn-local.git
+cd datasyn-local
+
+# Instalar uv (si no lo tenés)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Dependencias + comprobar MCP
+make setup
+
+# Demo con datos de ejemplo
+cp samples/example.csv data/landing/demo.csv
+make ingest FILE=data/landing/demo.csv TABLE=demo
+make info
+make report TABLE=demo
+```
+
+Salida esperada:
+
+- Tabla `demo` en `data/duckdb/datasyn.duckdb` (no se sube a git)
+- Reporte en `reports/demo_report_*.md`
+- Trazas en `.logs/traces_*.jsonl` (gitignored)
+
+## Estructura del proyecto
 
 ```
 datasyn-local/
-├── AGENTS.md                 # Agent instructions & subagent personas
-├── Makefile                  # Common tasks
-├── pyproject.toml            # Dependencies (uv)
-├── config/settings.yaml      # Paths and defaults
 ├── data/
-│   ├── landing/              # Download / scrape / export zone
-│   └── duckdb/               # datasyn.duckdb lives here
-├── src/
-│   ├── db.py                 # DuckDB connection helpers
-│   └── cli.py                # CLI entry point
-├── scripts/
-│   ├── ingest.py             # CSV / JSON / XLSX → DuckDB
-│   ├── stat_report.py        # Statistical reports
-│   └── mcp_server.py         # MCP server for AI integration
-├── reports/                  # Analysis output (gitignored content)
-└── .cursor/
-    ├── skills/               # 8 task skills
-    ├── rules/                # Cursor rules
-    └── mcp.json              # MCP server config for Cursor
+│   ├── landing/          # Datos crudos ANTES de DuckDB (scrapes, CSV, JSON…)
+│   └── duckdb/           # Archivo .duckdb persistente
+├── src/                  # Librería Python (conexión DB, trazas)
+├── scripts/              # CLIs (ingest, reportes, MCP)
+├── reports/              # Reportes markdown generados
+├── .logs/                # Trazas JSONL de acciones
+├── samples/              # CSV de ejemplo (seguro para clonar)
+├── config/settings.yaml  # Rutas por defecto
+├── .cursor/
+│   ├── skills/           # Flujos para el agente de Cursor
+│   ├── agents/           # Persona del analista
+│   ├── rules/            # Reglas del proyecto
+│   └── mcp.json.example  # Plantilla MCP (sin rutas personales)
+├── AGENTS.md             # Instrucciones para agentes IA
+└── SECURITY.md           # Privacidad y checklist antes de publicar
 ```
 
-## Installation
+## Flujo de trabajo
 
-### Prerequisites
+```text
+1. Descargar / scrapear  →  data/landing/
+2. Ingestar              →  DuckDB (tabla)
+3. Consultar / analizar  →  SQL o Python (src/)
+4. Documentar            →  reports/
+5. Auditar (opcional)    →  .logs/
+```
 
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) package manager
+### 1. Poner datos en landing
 
-### Steps
+Todo archivo externo va primero a `data/landing/` sin modificar:
 
 ```bash
-# 1. Clone and enter the repo
-cd datasyn-local
-
-# 2. Install uv (if needed)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 3. Create virtualenv and install dependencies
-make install
-# equivalent: uv sync --all-extras
-
-# 4. Optional: copy environment config
-cp .env.example .env
+cp mi_export.csv data/landing/
+# o: scraper que guarda en data/landing/
 ```
 
-Verify:
+### 2. Ingestar a DuckDB
 
 ```bash
-make debug
-uv run python -c "import duckdb; print('DuckDB', duckdb.__version__)"
+make ingest FILE=data/landing/mi_export.csv TABLE=mi_export
 ```
 
-## Local configuration
+Formatos: `.csv`, `.json`, `.xlsx`. El nombre de tabla solo admite letras, números y `_` (protección contra inyección SQL).
 
-### Database path
-
-Default: `data/duckdb/datasyn.duckdb`
-
-Override via environment:
-
-```bash
-export DATASYN_DB_PATH=data/duckdb/my_project.duckdb
-```
-
-Or edit `config/settings.yaml`:
-
-```yaml
-database:
-  path: data/duckdb/datasyn.duckdb
-paths:
-  landing: data/landing
-```
-
-### Landing zone
-
-Drop raw files into `data/landing/` before ingestion. See `data/landing/README.md`.
-
-## Usage
-
-### Ingest data
-
-```bash
-# CSV, JSON, or XLSX
-make ingest FILE=data/landing/sales.csv TABLE=sales
-make ingest FILE=data/landing/articles.json TABLE=articles
-```
-
-### Query
+### 3. Consultar
 
 ```bash
 make info
-make sql QUERY="SELECT * FROM sales LIMIT 5"
+make sql QUERY="SELECT * FROM mi_export LIMIT 10"
 uv run python -m src.cli sql "SHOW TABLES"
 ```
 
-### Statistical report
+### 4. Reporte estadístico
 
 ```bash
-make report TABLE=sales
-# Output: reports/sales_report_YYYYMMDD_HHMMSS.md
+make report TABLE=mi_export
 ```
 
-### Python REPL
+Genera `reports/mi_export_report_YYYYMMDD_HHMMSS.md` con `DESCRIBE` y `SUMMARIZE`.
 
-```bash
-make shell
-```
+### 5. Trazas (auditoría local)
 
 ```python
-from src.db import connect
-con = connect()
-con.sql("SHOW TABLES").show()
+from src.trace import log_event
+
+log_event("analysis.done", actor="agent", data={"table": "mi_export"})
 ```
 
-## Cursor agent skills
+Archivos: `.logs/traces_YYYYMMDD.jsonl` — **no subir a git**.
 
-Skills live in `.cursor/skills/`. The agent uses them automatically when relevant:
-
-| Skill | Trigger |
-|-------|---------|
-| `ingest-data` | Import CSV, JSON, XLSX |
-| `statistical-report` | EDA, table profiling |
-| `sentiment-analysis` | Tone and sentiment on text |
-| `create-table` | New DuckDB schema |
-| `create-python-script` | New module in `src/` |
-| `web-scraping` | Fetch data from URLs |
-| `setup-uv` | Virtual environment setup |
-| `configure-duckdb-mcp` | MCP + DuckDB integration |
-
-See `AGENTS.md` for subagent personas (data engineer, analyst, journalist).
-
-## MCP configuration
-
-Expose DuckDB tables to Cursor and other MCP clients using the [duckdb_mcp](https://duckdb.org/community_extensions/extensions/duckdb_mcp) extension.
-
-1. Ensure tables exist in the database
-2. Check MCP setup:
+## Configuración opcional
 
 ```bash
-uv run python scripts/mcp_server.py --check
+cp .env.example .env
 ```
 
-3. Cursor reads `.cursor/mcp.json` (or `~/.cursor/mcp.json`) — use **absolute paths** via `scripts/run_mcp.sh`
+| Variable | Default |
+|----------|---------|
+| `DATASYN_DB_PATH` | `data/duckdb/datasyn.duckdb` |
+| `DATASYN_LANDING_PATH` | `data/landing` |
+| `DATASYN_REPORTS_PATH` | `reports` |
+| `DATASYN_LOGS_PATH` | `.logs` |
 
-4. Manual SQL (DuckDB CLI or Python):
+## Cursor: agente y skills
 
-```sql
-INSTALL duckdb_mcp FROM community;
-LOAD duckdb_mcp;
-SELECT mcp_server_start('stdio');
-SELECT mcp_publish_table('my_table', 'data://tables/my_table', 'json');
-```
+1. Abrí el repo en Cursor.
+2. El agente del proyecto está en `.cursor/agents/datasyn-analyst.md`.
+3. Los **skills** en `.cursor/skills/` se activan solos (ingest, scraping, reportes, MCP…).
+4. Leé `AGENTS.md` para convenciones completas.
 
-## Debugging
+## MCP (DuckDB en Cursor)
 
-### Environment check
+El servidor MCP expone las tablas de tu DuckDB al IDE. **No commitees** rutas de tu máquina.
 
 ```bash
-make debug
+# Genera .cursor/mcp.json local (gitignored)
+make mcp-config
+
+# Verificar extensión
+make mcp-check
 ```
 
-### Common issues
+Reiniciá Cursor o recargá MCP. La plantilla pública está en `.cursor/mcp.json.example`.
 
-| Symptom | Fix |
-|---------|-----|
-| `ModuleNotFoundError: src` | Run from repo root; use `uv run python` |
-| Database locked | Close other DuckDB connections / CLI sessions |
-| XLSX ingest fails | Extension installs on first run; retry ingest |
-| Empty table list | Ingest data first: `make ingest FILE=... TABLE=...` |
-| uv not found | Install uv and restart terminal |
+> **Seguridad:** MCP lee todas las tablas de tu base local. Usalo solo en proyectos de confianza. Ver [SECURITY.md](SECURITY.md).
 
-### Verbose DuckDB
+## Comandos Make
 
-```python
-from src.db import connect
-con = connect()
-con.sql("SET enable_progress_bar = true")
-con.sql("YOUR QUERY HERE").show()
-```
+| Comando | Descripción |
+|---------|-------------|
+| `make install` | Instalar dependencias (`uv sync`) |
+| `make setup` | install + MCP check + debug |
+| `make info` | Rutas y listado de tablas |
+| `make ingest FILE=… TABLE=…` | landing → DuckDB |
+| `make report TABLE=…` | Perfil estadístico → `reports/` |
+| `make sql QUERY='…'` | SQL ad hoc |
+| `make mcp-config` | Crear `.cursor/mcp.json` local |
+| `make mcp-check` | Probar extensión `duckdb_mcp` |
+| `make debug` | Comprobar entorno |
+| `make shell` | IPython |
 
-### Inspect landing files
+## Desarrollo
 
 ```bash
-ls -la data/landing/
-head data/landing/example.csv
+uv add nombre-paquete
+uv run ruff check src/ scripts/
 ```
 
-### Reset database
+Código reutilizable → `src/`. Entradas CLI → `scripts/`. Siempre ejecutar con `uv run python …`.
 
-```bash
-rm data/duckdb/datasyn.duckdb
-make ingest FILE=data/landing/example.csv TABLE=example
-```
+## Qué no va en git
 
-## Development
+Definido en `.gitignore`:
 
-```bash
-uv add <package>          # add dependency
-uv add --dev pytest       # dev dependency
-uv run ruff check src/    # lint
-```
+- Bases `.duckdb`, landing, reportes, `.logs`, `.env`
+- `.cursor/mcp.json`, `kilo.json` (config local con rutas absolutas)
 
-## License
+Antes de hacer el repo público: [SECURITY.md](SECURITY.md).
 
-Part of the datasyn project. Adapt freely for local investigative and analytical work.
-# datasyn-local
+## Licencia
+
+MIT — ver [LICENSE](LICENSE).

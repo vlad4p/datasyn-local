@@ -7,32 +7,35 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from src.db import connect, get_db_path
-
-REPORTS_DIR = Path(__file__).resolve().parent.parent / "reports"
+from src.db import PROJECT_ROOT, connect, get_db_path, get_reports_path, quote_identifier, validate_table_name
+from src.trace import log_event
 
 
 def generate_report(table_name: str) -> Path:
+    validate_table_name(table_name)
+    qtable = quote_identifier(table_name)
+
     con = connect()
     try:
         tables = [r[0] for r in con.sql("SHOW TABLES").fetchall()]
         if table_name not in tables:
             raise ValueError(f"Table '{table_name}' not found. Available: {', '.join(tables) or 'none'}")
 
-        row_count = con.sql(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
-        describe = con.sql(f"DESCRIBE {table_name}").df()
-        summarize = con.sql(f"SUMMARIZE {table_name}").df()
+        row_count = con.sql(f"SELECT COUNT(*) FROM {qtable}").fetchone()[0]
+        describe = con.sql(f"DESCRIBE {qtable}").df()
+        summarize = con.sql(f"SUMMARIZE {qtable}").df()
     finally:
         con.close()
 
-    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    out = REPORTS_DIR / f"{table_name}_report_{datetime.now():%Y%m%d_%H%M%S}.md"
+    reports_dir = get_reports_path()
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    out = reports_dir / f"{table_name}_report_{datetime.now():%Y%m%d_%H%M%S}.md"
 
     lines = [
         f"# Statistical Report: `{table_name}`",
         "",
         f"Generated: {datetime.now():%Y-%m-%d %H:%M:%S}",
-        f"Database: `{get_db_path()}`",
+        f"Database: `{get_db_path().name}` (under `data/duckdb/`)",
         "",
         "## Overview",
         "",
@@ -51,6 +54,16 @@ def generate_report(table_name: str) -> Path:
 
     out.write_text("\n".join(lines))
     print(f"Report written to {out}")
+    log_event(
+        "report.complete",
+        actor="cli",
+        source="scripts/stat_report.py",
+        data={
+            "table": table_name,
+            "path": str(out.relative_to(PROJECT_ROOT)),
+            "rows": row_count,
+        },
+    )
     return out
 
 

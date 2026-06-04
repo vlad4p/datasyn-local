@@ -1,3 +1,3 @@
-"""datasyn-local: local data analysis with DuckDB."""
+"""datasyn-local — local DuckDB analysis blueprint."""
 
 __version__ = "0.1.0"

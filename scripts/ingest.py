@@ -6,43 +6,51 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from src.db import connect, get_landing_path
+from src.db import PROJECT_ROOT, connect, quote_identifier, resolve_landing_file, validate_table_name
+from src.trace import log_event
 
 
 def ingest_file(file_path: Path, table_name: str) -> None:
-    if not file_path.exists():
-        raise FileNotFoundError(f"File not found: {file_path}")
+    validate_table_name(table_name)
+    resolved = resolve_landing_file(file_path)
+    qtable = quote_identifier(table_name)
 
-    landing = get_landing_path().resolve()
-    resolved = file_path.resolve()
-    if landing not in resolved.parents and resolved != landing:
-        print(f"Warning: {file_path} is outside landing zone ({landing})")
-
-    suffix = file_path.suffix.lower()
+    suffix = resolved.suffix.lower()
     con = connect()
     try:
+        path_arg = str(resolved)
         if suffix == ".csv":
-            con.sql(
-                f"CREATE OR REPLACE TABLE {table_name} AS "
-                f"SELECT * FROM read_csv_auto('{file_path}')"
+            con.execute(
+                f"CREATE OR REPLACE TABLE {qtable} AS SELECT * FROM read_csv_auto(?)",
+                [path_arg],
             )
         elif suffix == ".json":
-            con.sql(
-                f"CREATE OR REPLACE TABLE {table_name} AS "
-                f"SELECT * FROM read_json_auto('{file_path}')"
+            con.execute(
+                f"CREATE OR REPLACE TABLE {qtable} AS SELECT * FROM read_json_auto(?)",
+                [path_arg],
             )
         elif suffix in (".xlsx", ".xls"):
             con.execute("INSTALL excel FROM community")
             con.execute("LOAD excel")
-            con.sql(
-                f"CREATE OR REPLACE TABLE {table_name} AS "
-                f"SELECT * FROM read_xlsx('{file_path}')"
+            con.execute(
+                f"CREATE OR REPLACE TABLE {qtable} AS SELECT * FROM read_xlsx(?)",
+                [path_arg],
             )
         else:
             raise ValueError(f"Unsupported format: {suffix}. Use .csv, .json, or .xlsx")
 
-        count = con.sql(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
-        print(f"Ingested {count} rows into '{table_name}' from {file_path}")
+        count = con.sql(f"SELECT COUNT(*) FROM {qtable}").fetchone()[0]
+        print(f"Ingested {count} rows into '{table_name}' from {resolved.relative_to(PROJECT_ROOT)}")
+        log_event(
+            "ingest.complete",
+            actor="cli",
+            source="scripts/ingest.py",
+            data={
+                "table": table_name,
+                "file": str(resolved.relative_to(PROJECT_ROOT)),
+                "rows": count,
+            },
+        )
     finally:
         con.close()
 
