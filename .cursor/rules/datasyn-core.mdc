@@ -5,27 +5,25 @@ alwaysApply: true
 
 # datasyn-local
 
-Local-first analysis with DuckDB, uv, and MCP. Read `AGENTS.md` and `.cursor/agents/datasyn-analyst.md`.
+- **Prompts:** `AGENTS.md`
+- **Skills:** `skills/` (configure in your AI assistant)
+- **DB + MCP:** `scripts/python/db.py`
 
 ## Mindset
 
-Journalist + researcher + scientist: trace provenance, document methods, cite evidence, state limits.
+Journalist + researcher + scientist: provenance, methods, evidence, limits.
 
 ## Paths
 
 | Zone | Role |
 |------|------|
-| `data/landing/` | Raw downloads and scrapes (pre-DuckDB) |
-| `data/duckdb/` | DuckDB database files |
-| `reports/` | Analysis output (markdown) |
-| `.logs/` | JSONL traces (`src.trace.log_event`) |
-| `src/` | Shared Python modules |
-| `scripts/` | CLI entry points (`uv run python scripts/...`) |
+| `data/landing/` | Raw data before DuckDB |
+| `data/duckdb/` | Database files |
+| `reports/` | Agent-written outputs |
+| `scripts/python/db.py` | Connection + MCP |
 
 ## Rules
 
-- Use `.cursor/skills/` for specialized workflows
-- Connect with `from src.db import connect` — never hardcode DB paths
-- Ingest before analyze; keep raw files in landing
-- Log significant agent actions to `.logs/`
-- Output analysis as markdown in `reports/`
+- Ingest / reports: `skills/` (SQL), not Python pipelines
+- `import db` from `scripts/python/` when Python is needed
+- MCP via `scripts/python/db.py mcp-config` (see README bootstrap prompt)

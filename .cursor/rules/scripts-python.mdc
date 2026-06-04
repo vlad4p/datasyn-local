@@ -1,0 +1,23 @@
+---
+description: Python scripts under scripts/python/
+globs: scripts/python/**/*.py
+alwaysApply: false
+---
+
+# scripts/python/
+
+- Database and MCP: `scripts/python/db.py`
+- Run: `uv run python scripts/python/db.py <command>`
+- Import: add `scripts/python` to `sys.path`, then `import db`
+
+```python
+import db
+
+con = db.connect()
+try:
+    con.sql("SHOW TABLES").show()
+finally:
+    con.close()
+```
+
+Ingest and reports are **skills** (SQL), not extra Python modules.

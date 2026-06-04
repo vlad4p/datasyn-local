@@ -39,12 +39,8 @@ reports/*
 !reports/.gitkeep
 output/
 
-# Action traces (JSONL); keep structure and README
-.logs/*
-!.logs/.gitkeep
-!.logs/README.md
-
 *.log
+.logs/
 
 # Local data artifacts (outside landing/duckdb)
 *.parquet
@@ -70,7 +66,7 @@ Thumbs.db
 # Cursor / IDE local config (machine-specific paths)
 .cursor/mcp.json
 .cursor/plans/
-.cursor/*.log
+.cursor/*.
 kilo.json
 
 # Demo copy in landing (use samples/ + cp)

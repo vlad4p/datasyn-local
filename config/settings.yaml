@@ -8,7 +8,6 @@ database:
 paths:
   landing: data/landing
   reports: reports
-  logs: .logs
   src: src
 
 ingest:
@@ -16,10 +15,7 @@ ingest:
   json_format: auto
 
 mcp:
-  enabled: true
+  extension: duckdb_mcp
+  module: scripts/python/db.py
   transport: stdio
   log_level: info
-
-logging:
-  format: jsonl
-  # Daily files: .logs/traces_YYYYMMDD.jsonl

@@ -1,24 +1,19 @@
 # Landing zone
 
-Raw inputs live here **before** they enter DuckDB. Nothing in this folder is transformed in place — files are copied or downloaded, then ingested.
-
-## What belongs here
-
-- CSV, JSON, XLSX exports
-- Scraped HTML/JSON snapshots (keep scrape order in filenames or subfolders)
-- API downloads and manual exports
-
-## Workflow
-
-```
-scrape / download → data/landing/ → make ingest → data/duckdb/datasyn.duckdb → reports/
-```
+Raw files **before** DuckDB. Do not edit originals in place.
 
 ## Ingest
 
+Use the **`ingest-data`** skill (`skills/ingest-data/SKILL.md`): DuckDB SQL only — CSV, TSV, JSON, JSONL, Parquet, XLSX, etc.
+
+Example ask to your agent:
+
+> Ingest `data/landing/my_file.csv` as table `my_table` using read_csv_auto.
+
+## Demo file
+
 ```bash
 cp samples/example.csv data/landing/demo.csv
-make ingest FILE=data/landing/demo.csv TABLE=demo
 ```
 
-Large files and scrapes are **gitignored**; only this README and `.gitkeep` are tracked.
+Then ingest via the agent and skill (not `make ingest`).

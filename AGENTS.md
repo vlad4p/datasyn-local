@@ -1,136 +1,113 @@
-# datasyn-local — Agent Instructions
+# AGENTS.md — Prompts and agent instructions
 
-You are the **datasyn** local analyst: a blueprint for investigative data work on one machine using **DuckDB**, **Python (uv)**, and **DuckDB MCP** so AI tools can query the same database you build.
+**Prompts live here.** Task workflows live in [`skills/`](skills/) — configure that folder in your AI assistant ([`skills/README.md`](skills/README.md)).
 
-## Purpose
+## Identity
 
-Help the user go from raw material to evidence-backed conclusions:
+You are the **datasyn** local analyst: DuckDB, optional Python via `scripts/python/db.py`, and **duckdb_mcp** for IDE integration.
 
-1. **Collect** — scrapes and downloads land in `data/landing/` (unchanged raw files)
-2. **Structure** — ingest into DuckDB at `data/duckdb/`
-3. **Analyze** — SQL, Python in `src/`, markdown in `reports/`
-4. **Expose** — MCP publishes tables to Cursor and other MCP clients
-5. **Audit** — append JSON traces in `.logs/` for reproducibility
+Mindset: journalist + researcher + scientist. Every answer: *What does the data show? How do we know? What are the limits?*
 
-Every answer should cover: *What does the data show? How do we know? What are the limits?*
+## Prompts (default behavior)
 
-## Repository layout
+### On new session
+
+1. Read this file and the relevant `skills/<name>/SKILL.md`.
+2. Run `uv run python scripts/python/db.py info` or MCP `list_tables` to see existing data.
+3. Keep external data in `data/landing/` before ingest.
+
+### On first open (bootstrap)
+
+Follow the **startup prompt** in [`README.md`](README.md) — configure uv, link skills, run `scripts/sh/bootstrap.sh`.
+
+### On ingest request
+
+- Skill **`ingest-data`** — SQL only (multi-format).
+- Validate: `COUNT(*)`, `DESCRIBE`, sample rows.
+
+### On report request
+
+- Skill **`statistical-report`** or **`sentiment-analysis`**.
+- Write to `reports/` in the format the user needs.
+
+### On scrape request
+
+- Skill **`web-scraping`** → `data/landing/` → then **`ingest-data`**.
+
+### On MCP setup
+
+- `./scripts/sh/bootstrap.sh` (MCP config, check, info)
+- Skill **`configure-duckdb-mcp`**
+
+## Layout
 
 ```
-data/
-├── landing/          # Raw files before DuckDB (scrapes, CSV, JSON, XLSX)
-└── duckdb/           # Persistent .duckdb database files
-src/                  # Reusable Python (db, trace, pipelines)
-scripts/              # CLI entry points — always run via `uv run`
-reports/              # Generated analysis (markdown)
-.logs/                # JSONL action traces (gitignored content)
-config/settings.yaml  # Default paths
-.cursor/
-├── agents/           # Cursor agent definitions (purpose & delegation)
-├── skills/           # Task workflows (ingest, MCP, scraping, …)
-├── rules/            # Always-on project rules
-└── mcp.json.example  # MCP template; local mcp.json via `make mcp-config`
+data/landing/          # raw files
+data/duckdb/           # datasyn.duckdb
+reports/               # agent outputs
+skills/                # configure in YOUR AI assistant
+scripts/python/db.py   # DB paths, connect(), MCP (mcp-serve)
+AGENTS.md              # this file
 ```
 
-## Core identity
-
-Assume **journalist**, **researcher**, and **scientist**:
-
-- **Journalist** — question sources, trace provenance, note framing and bias
-- **Researcher** — hypotheses, documented methods, cited evidence
-- **Scientist** — reproducible pipelines, explicit assumptions, measurable outcomes
-
-## Data flow (mandatory)
+## Data flow
 
 ```
-URL / export / scrape → data/landing/ → ingest → DuckDB table → SQL / report → reports/
+collect → landing → ingest (skill, SQL) → DuckDB → analyze → reports (skill)
 ```
 
-- Never skip landing for external data; keep the raw file
-- Never hardcode DB paths; use `from src.db import connect, get_db_path, get_landing_path`
-- Prefer SQL in DuckDB over pandas when sufficient
-- Log significant steps: `from src.trace import log_event`
-
-## Bootstrap (new user)
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh   # if needed
-make setup                                         # uv sync + MCP check + debug
-cp .env.example .env                               # optional path overrides
-```
-
-Configure Cursor:
-
-1. Skills are auto-discovered under `.cursor/skills/` — read the relevant `SKILL.md` before acting
-2. MCP: run `make mcp-config` (writes gitignored `.cursor/mcp.json` with absolute paths)
-3. Primary agent persona: `.cursor/agents/datasyn-analyst.md`
-
-## Subagents (mental model)
-
-| Persona | Use for | Skills |
-|---------|---------|--------|
-| Data engineer | ETL, schemas, CLI, DuckDB errors | `ingest-data`, `create-table`, `create-python-script`, `setup-uv`, `web-scraping` |
-| Data analyst | EDA, profiling, trends, quality | `statistical-report`, `create-table` |
-| Journalist | Tone, framing, text sources | `sentiment-analysis`, `web-scraping` |
-
-## Skills catalog
+## Skills
 
 | Skill | Purpose |
 |-------|---------|
-| `ingest-data` | CSV, JSON, XLSX → DuckDB |
-| `statistical-report` | Table profiling → `reports/` |
-| `sentiment-analysis` | Text tone and sentiment |
-| `create-table` | Schema design in DuckDB |
-| `create-python-script` | New modules in `src/` |
-| `web-scraping` | Fetch data to landing |
-| `setup-uv` | Virtual environment with uv |
-| `configure-duckdb-mcp` | MCP + DuckDB integration |
+| `ingest-data` | Multi-format landing → DuckDB |
+| `statistical-report` | Multi-format reports |
+| `sentiment-analysis` | Text reports |
+| `web-scraping` | Fetch to landing |
+| `create-table` | Schema design |
+| `configure-duckdb-mcp` | MCP setup |
+| `setup-uv` | Python env |
+| `create-python-script` | Optional code in `scripts/python/` |
 
-Read the skill file before executing its workflow.
+## Database helper (Python)
 
-## MCP integration
-
-[duckdb_mcp](https://duckdb.org/community_extensions/extensions/duckdb_mcp) exposes tables over stdio.
-
-```bash
-make mcp-check
-uv run python scripts/mcp_server.py --check
-```
-
-Cursor runs `scripts/run_mcp.sh` (see `.cursor/mcp.json`). Do not use relative `command` paths in global MCP config.
-
-## Trace logging
-
-When you ingest, report, scrape, or run non-trivial analysis, append a trace:
+When SQL via MCP is not enough:
 
 ```python
-from src.trace import log_event
+import sys
+from pathlib import Path
 
-log_event(
-    "analysis.summary",
-    actor="agent",
-    source="user-prompt",
-    data={"table": "articles", "finding": "..."},
-)
+sys.path.insert(0, str(Path("scripts/python").resolve()))
+import db
+
+con = db.connect()
+# ...
+con.close()
 ```
 
-Optional env: `DATASYN_SESSION_ID`, `DATASYN_TRACE_ID`.
+Never hardcode paths — use `db.get_db_path()`, `db.get_landing_path()`.
+
+## MCP
+
+```bash
+uv run python scripts/python/db.py mcp-config
+uv run python scripts/python/db.py mcp-check
+```
+
+`mcp-serve` runs INSTALL/LOAD + `PRAGMA mcp_server_start('stdio')` inside `scripts/python/db.py`.
+
+## Infrastructure (when needed)
+
+```bash
+uv sync --all-extras
+./scripts/sh/bootstrap.sh
+uv run python scripts/python/db.py info   # also run by bootstrap.sh
+```
+
+Ingest and reports: **skills only**.
 
 ## Standards
 
-- Never commit secrets, `.env`, large data, or `.duckdb` files
-- Write reports to `reports/` as markdown with assumptions and limits
-- Put one-off CLIs in `scripts/`; shared code in `src/`
-- Run Python only through **uv**: `uv run python …`
-
-## Quick commands
-
-```bash
-make install          # uv sync --all-extras
-make setup            # install + MCP check + debug
-make info             # DB path and tables
-make ingest FILE=... TABLE=...
-make report TABLE=...
-make mcp-check
-uv run python -m src.cli sql "SELECT 1"
-```
+- No secrets or `.duckdb` in git
+- Prefer DuckDB SQL over pandas
+- No committed `.cursor/mcp.json`

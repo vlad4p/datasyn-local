@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg style="background-color:#fffceb" xmlns="http://www.w3.org/2000/svg" width="680" height="430" viewBox="0 0 680 430" role="img" aria-label="datasyn-local repository layout">
+  <rect width="100%" height="100%" fill="#fffceb"/>
+  <text x="340" y="36" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="bold" fill="#49443b" letter-spacing="1">WHAT GOES WHERE</text>
+
+  <!-- Brain / config column -->
+  <text x="60" y="74" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#0e2d58" letter-spacing="1">&#129302; THE BRAIN</text>
+  <g transform="translate(40,84)">
+    <rect width="280" height="50" rx="5" fill="#ffffff" stroke="#0e2d58" stroke-width="2.5"/>
+    <text x="16" y="22" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">&#128203; AGENTS.md</text>
+    <text x="16" y="40" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">agent tone &amp; rules, read each session</text>
+  </g>
+  <g transform="translate(40,142)">
+    <rect width="280" height="50" rx="5" fill="#ffffff" stroke="#0e2d58" stroke-width="2.5"/>
+    <text x="16" y="22" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">&#128296; skills/</text>
+    <text x="16" y="40" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">task guides: ingest, report, scrape&#8230;</text>
+  </g>
+  <g transform="translate(40,200)">
+    <rect width="280" height="50" rx="5" fill="#ffffff" stroke="#395a8e" stroke-width="2.5"/>
+    <text x="16" y="22" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">&#129516; scripts/python/db.py</text>
+    <text x="16" y="40" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">database paths, connect(), MCP</text>
+  </g>
+  <g transform="translate(40,258)">
+    <rect width="280" height="50" rx="5" fill="#ffffff" stroke="#395a8e" stroke-width="2.5"/>
+    <text x="16" y="22" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">&#9881;&#65039; scripts/sh/bootstrap.sh</text>
+    <text x="16" y="40" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">one-shot setup: MCP + status</text>
+  </g>
+
+  <!-- Data column -->
+  <text x="380" y="74" font-family="Arial,sans-serif" font-size="11" font-weight="bold" fill="#de6433" letter-spacing="1">&#128190; YOUR DATA</text>
+  <g transform="translate(360,84)">
+    <rect width="280" height="50" rx="5" fill="#ffffff" stroke="#de6433" stroke-width="2.5"/>
+    <text x="16" y="22" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">&#128193; data/landing/</text>
+    <text x="16" y="40" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">raw evidence, kept as downloaded</text>
+  </g>
+  <g transform="translate(360,142)">
+    <rect width="280" height="50" rx="5" fill="#ffffff" stroke="#559778" stroke-width="2.5"/>
+    <text x="16" y="22" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">&#128451;&#65039; data/duckdb/datasyn.duckdb</text>
+    <text x="16" y="40" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">structured, queryable database</text>
+  </g>
+  <g transform="translate(360,200)">
+    <rect width="280" height="50" rx="5" fill="#ffffff" stroke="#0e2d58" stroke-width="2.5"/>
+    <text x="16" y="22" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">&#128202; reports/</text>
+    <text x="16" y="40" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">published output you can cite</text>
+  </g>
+  <g transform="translate(360,258)">
+    <rect width="280" height="50" rx="5" fill="#ffffff" stroke="#7e7f7e" stroke-width="2.5"/>
+    <text x="16" y="22" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">&#128196; samples/example.csv</text>
+    <text x="16" y="40" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">safe demo file to try things</text>
+  </g>
+
+  <!-- footer note -->
+  <g transform="translate(40,338)">
+    <rect width="600" height="58" rx="6" fill="#fffceb" stroke="#f4bd48" stroke-width="2" stroke-dasharray="4 3"/>
+    <text x="300" y="26" text-anchor="middle" font-family="Arial,sans-serif" font-size="11.5" font-weight="bold" fill="#49443b">Ingest &amp; reports happen through skills (DuckDB SQL) &#8212; not extra Python apps</text>
+    <text x="300" y="46" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">External files always land in data/landing/ first &#183; secrets &amp; .duckdb stay out of git</text>
+  </g>
+</svg>
