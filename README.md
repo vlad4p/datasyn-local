@@ -132,6 +132,30 @@ Say things like:
 
 The assistant reads **AGENTS.md** each session and picks the right skill.
 
+### 🗞️ Worked example — from headlines to sentiment
+
+A full investigation in one prompt: **scrape → ingest → analyze**. Paste this into the assistant:
+
+```text
+Run a full pipeline for me, explaining each step in plain language:
+
+1. Scrape recent New York Times news headlines (web-scraping skill) and
+   save the raw results to data/landing/ — keep the source URL and the
+   capture date for provenance.
+2. Ingest that file into DuckDB as a table called nyt_news
+   (ingest-data skill). Then show COUNT(*), DESCRIBE, and 5 sample rows.
+3. Run a sentiment analysis on the headline/summary text
+   (sentiment-analysis skill) and write a markdown report to reports/
+   with: overall tone, a positive/neutral/negative breakdown, a few
+   representative quotes, and the limits of the method.
+
+Remember: external files go to data/landing/ first, ingest and reports
+are skills (DuckDB SQL), and tell me what the data shows, how we know,
+and what the caveats are.
+```
+
+> ⚖️ **Note on sources:** respect each site's terms and `robots.txt`, and prefer official feeds/APIs where available. The assistant keeps the source and capture date so your findings stay auditable.
+
 ---
 
 ## 📂 Project layout

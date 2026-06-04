@@ -122,6 +122,30 @@ Podés pedir, por ejemplo:
 
 En cada sesión el asistente lee **AGENTS.md** y elige el skill correcto.
 
+### 🗞️ Ejemplo completo — de los titulares al sentimiento
+
+Una investigación entera en un solo prompt: **scrapear → ingestar → analizar**. Pegá esto en el asistente:
+
+```text
+Ejecutá un pipeline completo y explicá cada paso en lenguaje claro:
+
+1. Scrapeá titulares recientes de noticias del New York Times
+   (skill web-scraping) y guardá los resultados crudos en data/landing/
+   — conservá la URL de origen y la fecha de captura para la trazabilidad.
+2. Ingestá ese archivo en DuckDB como una tabla llamada nyt_news
+   (skill ingest-data). Después mostrá COUNT(*), DESCRIBE y 5 filas de ejemplo.
+3. Hacé un análisis de sentimiento sobre el texto de los titulares/resúmenes
+   (skill sentiment-analysis) y escribí un reporte markdown en reports/
+   con: tono general, desglose positivo/neutral/negativo, algunas citas
+   representativas y los límites del método.
+
+Recordá: los archivos externos van primero a data/landing/, la ingesta y
+los reportes son skills (SQL de DuckDB), y contame qué muestran los datos,
+cómo lo sabemos y cuáles son las salvedades.
+```
+
+> ⚖️ **Nota sobre las fuentes:** respetá los términos de cada sitio y su `robots.txt`, y preferí feeds/APIs oficiales cuando existan. El asistente guarda el origen y la fecha de captura para que tus hallazgos sean auditables.
+
 ---
 
 ## 📂 Estructura del proyecto
