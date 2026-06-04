@@ -16,68 +16,86 @@
 
 ---
 
+## At a glance
+
+You collect sources → the assistant stores originals → DuckDB holds structured tables → reports hold your findings. **You never need to write SQL or Python.**
+
+![From source to story — collect, landing, DuckDB, reports](docs/diagrams/flow.svg)
+
+| | |
+|---|---|
+| **You** | Journalist, researcher, investigator |
+| **Assistant** | Cursor, Claude Code, etc. + [skills](skills/) |
+| **Rules** | [AGENTS.md](AGENTS.md) — provenance, method, evidence, limits |
+
+---
+
 ## ✨ Who is this for?
 
 **Journalists, researchers, and curious investigators** who work with sources, documents, and public records — not necessarily with SQL or Python.
 
-You bring the questions and the story. **Your AI assistant** (Cursor, Claude Code, etc.) handles setup using a **startup prompt** below. Day-to-day workflows live in **[skills](skills/)**; tone and rules in **[AGENTS.md](AGENTS.md)**.
+You bring the questions and the story. **Your AI assistant** handles setup with the **startup prompt** below. Day-to-day work uses **[skills](skills/)**; tone and rules live in **[AGENTS.md](AGENTS.md)**.
 
-> **You do not need to be a data analyst.** Keep raw files, ask plain-language questions, and let the assistant ingest, query, and draft reports.
-
----
-
-## 🧭 How it works (simple)
-
-<p align="center">
-  <img src="docs/diagrams/flow.svg" alt="From source to story: collect → landing → DuckDB → reports" width="780" />
-</p>
-
-| Step | What you do | What the machine does |
-|------|-------------|------------------------|
-| 1 | Save downloads, scrapes, exports | Stores originals in `data/landing/` |
-| 2 | Ask the assistant to “ingest” a file | Loads a table in DuckDB (via **ingest-data** skill) |
-| 3 | Ask questions in plain language | SQL + MCP behind the scenes |
-| 4 | Request a report | Writes markdown/JSON/HTML under `reports/` (**statistical-report** skill) |
-
-### 🔄 What happens behind one request
-
-<p align="center">
-  <img src="docs/diagrams/request-lifecycle.svg" alt="How one request becomes an auditable answer" width="520" />
-</p>
+> **You do not need to be a data analyst.** Keep raw files, ask in plain language, and let the assistant ingest, query, and draft reports.
 
 ---
 
-## 🗂️ What goes where
+## 🧭 How it works
 
-<p align="center">
-  <img src="docs/diagrams/repo-layout.svg" alt="Repository layout: the brain vs your data" width="700" />
-</p>
+### Principles
 
-| | Piece | Location |
-|---|--------|----------|
-| ✨ | **Startup prompt** | This README ↓ |
-| 📋 | **Agent behavior** | [`AGENTS.md`](AGENTS.md) |
-| 🛠️ | **Task guides** | [`skills/`](skills/) — configure in your IDE |
-| 🗄️ | **Database + MCP** | [`scripts/python/db.py`](scripts/python/db.py) |
-| 📁 | **Raw evidence** | `data/landing/` |
-| 💾 | **Structured data** | `data/duckdb/datasyn.duckdb` |
-| 📊 | **Published output** | `reports/` |
+| Principle | What it means for you |
+|-----------|------------------------|
+| **Preserve originals** | Downloads and scrapes stay in `data/landing/` — never overwritten |
+| **Speak, don’t code** | You ask in plain language; **skills** turn requests into DuckDB SQL (via MCP) |
+| **Stay auditable** | Every answer states *what the data shows*, *how we know*, and *the limits* |
+
+### Figure 1 — Data pipeline
+
+The assistant picks the right **skill** at each stage (orange = raw files, green = database, navy = reports).
+
+![Data pipeline: web-scraping → landing → ingest-data → DuckDB → reports](docs/diagrams/flow.svg)
+
+| Step | You | Skill | Output |
+|:----:|-----|-------|--------|
+| 1 | Save downloads, scrapes, exports | `web-scraping` | `data/landing/` |
+| 2 | Ask to “ingest” a file | `ingest-data` | DuckDB table |
+| 3 | Ask questions in plain language | SQL + MCP | answers in chat |
+| 4 | Request analysis or a report | `statistical-report` / `sentiment-analysis` | `reports/` |
+
+### Figure 2 — One request, end to end
+
+One message (“ingest this file and summarize it”) follows the same path every time:
+
+![Request lifecycle: ask → AGENTS.md → SQL via MCP → report → auditable answer](docs/diagrams/request-lifecycle.svg)
+
+### Figure 3 — Repository map
+
+Left: configuration and agent behavior. Right: your evidence and published output.
+
+![Repository map: AGENTS.md, skills, db.py vs landing, duckdb, reports](docs/diagrams/repo-layout.svg)
 
 ---
 
 ## 📌 Requirements
 
 - **Python 3.11+** (installed by the assistant if needed)
-- **[uv](https://docs.astral.sh/uv/)** — fast Python environment tool (the prompt configures it)
+- **[uv](https://docs.astral.sh/uv/)** — Python environment (configured by the startup prompt)
 - **An AI assistant with skills** (e.g. Cursor)
 
 ---
 
 ## 🚀 Startup — copy this prompt
 
-1. **Clone** this repo and open it in your IDE.  
-2. **Paste** the block below into the assistant chat.  
-3. **Follow** the assistant’s summary — you should not need to run commands yourself.
+### Figure 4 — First-time setup
+
+Clone the repo, paste the prompt below, follow the assistant’s summary.
+
+![Startup flow: clone → paste prompt → assistant runs bootstrap → ready](docs/diagrams/startup.svg)
+
+1. **Clone** this repo and open it in your IDE.
+2. **Paste** the block below into the assistant chat.
+3. **Follow** the summary — you should not need to run commands yourself.
 
 <details>
 <summary><strong>📋 Click to expand the startup prompt</strong></summary>
@@ -99,11 +117,6 @@ Bootstrap datasyn-local in this workspace. The user is a journalist/researcher, 
    ./scripts/sh/bootstrap.sh
    (MCP config, MCP check, and database status.)
 
-If there are no tables, propose a demo:
-- cp samples/example.csv data/landing/demo.csv
-- ingest with ingest-data skill (DuckDB SQL only)
-- markdown EDA report with statistical-report skill
-
 Rules: ingest and reports are skills (SQL), not extra Python apps. External files always go to data/landing/ first. Summarize each step for a non-technical reader.
 ```
 
@@ -116,25 +129,19 @@ Rules: ingest and reports are skills (SQL), not extra Python apps. External file
 | 🐍 | `uv` + `.venv` with dependencies |
 | 🔌 | `.cursor/mcp.json` (local, gitignored) |
 | 🛠️ | `skills/` linked for your IDE |
-| 📊 | Optional demo table `demo` + a sample report |
+| 🗄️ | MCP connected to `data/duckdb/datasyn.duckdb` |
 
 ---
 
-## 💬 After startup — example requests
+## 🗞️ Full example — headlines to sentiment
 
-Say things like:
+### Figure 5 — One prompt, full investigation
 
-| 💬 You say | 🛠️ Skill used |
-|-----------|--------------|
-| *“Ingest `data/landing/interviews.csv` as interviews”* | `ingest-data` |
-| *“Profile the interviews table — markdown summary”* | `statistical-report` |
-| *“Check if MCP is connected”* | `configure-duckdb-mcp` |
+**Scrape → ingest → sentiment report** in a single chat message:
 
-The assistant reads **AGENTS.md** each session and picks the right skill.
+![Investigation example: NYT scrape → nyt_news table → sentiment report](docs/diagrams/investigation-example.svg)
 
-### 🗞️ Worked example — from headlines to sentiment
-
-A full investigation in one prompt: **scrape → ingest → analyze**. Paste this into the assistant:
+Paste into the assistant:
 
 ```text
 Run a full pipeline for me, explaining each step in plain language:
@@ -154,44 +161,16 @@ are skills (DuckDB SQL), and tell me what the data shows, how we know,
 and what the caveats are.
 ```
 
-> ⚖️ **Note on sources:** respect each site's terms and `robots.txt`, and prefer official feeds/APIs where available. The assistant keeps the source and capture date so your findings stay auditable.
+> ⚖️ **Sources:** respect each site's terms and `robots.txt`; prefer official feeds or APIs when available. The assistant records source URL and capture date so findings stay auditable.
 
 ---
 
-## 📂 Project layout
+## 📊 All diagrams
 
-```text
-datasyn-local/
-├── 📋 AGENTS.md              ← agent rules (sessions)
-├── 📖 README.md / README.es.md
-├── 🛠️ skills/
-├── scripts/
-│   ├── python/db.py          ← database + MCP
-│   └── sh/bootstrap.sh       ← one-shot setup script
-├── 📁 data/landing/          ← raw files (your sources)
-├── 💾 data/duckdb/           ← local database
-├── 📊 reports/               ← your written output
-└── 📄 samples/example.csv    ← safe demo file
-```
-
----
-
-## 🎨 Brand palette (datasyn)
-
-Light, editorial look from [`docs/colors/`](docs/colors/):
-
-| Role | Color | Hex | Use in this repo |
-|------|-------|-----|------------------|
-| Background | Ivory | `#fffceb` | Calm canvas |
-| Ink | Ink | `#49443b` | Headings, borders |
-| Muted | Grey | `#7e7f7e` | Secondary text |
-| **AI / agent** | Navy | `#0e2d58` | Assistant, prompts |
-| **SQL / DuckDB** | Green | `#559778` | Database, success |
-| **UI / tools** | Blue | `#395a8e` | IDE, brain |
-| **Storage / landing** | Orange | `#de6433` | Raw files |
-| Warning | Yellow | `#f4bd48` | Caution notes |
-| Error | Red | `#a33a29` | Failures |
-
-<p align="center">
-  <img src="docs/colors/core-palette.svg" alt="datasyn core palette" width="720" />
-</p>
+| Diagram | File |
+|---------|------|
+| Data pipeline | [docs/diagrams/flow.svg](docs/diagrams/flow.svg) |
+| Request lifecycle | [docs/diagrams/request-lifecycle.svg](docs/diagrams/request-lifecycle.svg) |
+| Repository map | [docs/diagrams/repo-layout.svg](docs/diagrams/repo-layout.svg) |
+| Startup | [docs/diagrams/startup.svg](docs/diagrams/startup.svg) |
+| Full investigation example | [docs/diagrams/investigation-example.svg](docs/diagrams/investigation-example.svg) |

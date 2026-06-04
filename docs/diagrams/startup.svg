@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg style="background-color:#fffceb" xmlns="http://www.w3.org/2000/svg" width="520" height="400" viewBox="0 0 520 400" role="img" aria-label="Startup flow: clone, paste prompt, assistant configures">
+  <defs>
+    <marker id="st" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#395a8e"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#fffceb"/>
+  <text x="260" y="34" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="bold" fill="#49443b" letter-spacing="1">FIRST-TIME SETUP</text>
+  <text x="260" y="54" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#7e7f7e">You paste one prompt &#183; the assistant does the rest</text>
+
+  <g transform="translate(60,76)">
+    <rect width="400" height="58" rx="6" fill="#ffffff" stroke="#395a8e" stroke-width="2.5"/>
+    <circle cx="36" cy="29" r="18" fill="#395a8e"/>
+    <text x="36" y="35" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#fffceb">1</text>
+    <text x="68" y="26" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#49443b">Clone repo + open in IDE</text>
+    <text x="68" y="44" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">Cursor, Claude Code, or similar</text>
+  </g>
+  <line x1="260" y1="134" x2="260" y2="154" stroke="#395a8e" stroke-width="3" stroke-linecap="round" marker-end="url(#st)"/>
+
+  <g transform="translate(60,154)">
+    <rect width="400" height="58" rx="6" fill="#ffffff" stroke="#0e2d58" stroke-width="2.5"/>
+    <circle cx="36" cy="29" r="18" fill="#0e2d58"/>
+    <text x="36" y="35" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#fffceb">2</text>
+    <text x="68" y="26" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#49443b">Paste startup prompt from README</text>
+    <text x="68" y="44" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">Plain-language instructions for the assistant</text>
+  </g>
+  <line x1="260" y1="212" x2="260" y2="232" stroke="#395a8e" stroke-width="3" stroke-linecap="round" marker-end="url(#st)"/>
+
+  <g transform="translate(60,232)">
+    <rect width="400" height="72" rx="6" fill="#0e2d58" stroke="#49443b" stroke-width="2.5"/>
+    <circle cx="36" cy="36" r="18" fill="#fffceb"/>
+    <text x="36" y="42" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#0e2d58">3</text>
+    <text x="68" y="30" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#fffceb">Assistant runs bootstrap</text>
+    <text x="68" y="48" font-family="Arial,sans-serif" font-size="10" fill="#b3c8cd">uv sync &#183; link skills &#183; MCP config + check</text>
+    <text x="68" y="64" font-family="Arial,sans-serif" font-size="10" fill="#b3c8cd">scripts/sh/bootstrap.sh</text>
+  </g>
+  <line x1="260" y1="304" x2="260" y2="324" stroke="#559778" stroke-width="3" stroke-linecap="round" marker-end="url(#st)"/>
+
+  <g transform="translate(60,324)">
+    <rect width="400" height="52" rx="6" fill="#559778" stroke="#49443b" stroke-width="2.5"/>
+    <text x="200" y="32" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#fffceb">Ready: DuckDB + MCP + skills linked</text>
+  </g>
+</svg>

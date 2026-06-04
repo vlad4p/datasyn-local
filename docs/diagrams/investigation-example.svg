@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg style="background-color:#fffceb" xmlns="http://www.w3.org/2000/svg" width="720" height="340" viewBox="0 0 720 340" role="img" aria-label="Full investigation example: scrape, ingest, sentiment">
+  <defs>
+    <marker id="ex" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#49443b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#fffceb"/>
+  <text x="360" y="34" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="bold" fill="#49443b" letter-spacing="1">FULL INVESTIGATION IN ONE PROMPT</text>
+  <text x="360" y="54" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#7e7f7e">Example: New York Times headlines &#8594; sentiment report</text>
+
+  <!-- Step 1 -->
+  <g transform="translate(40,80)">
+    <rect width="200" height="200" rx="8" fill="#ffffff" stroke="#de6433" stroke-width="2.5"/>
+    <circle cx="100" cy="44" r="22" fill="#de6433"/>
+    <text x="100" y="50" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="bold" fill="#fffceb">1</text>
+    <text x="100" y="88" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">web-scraping</text>
+    <text x="100" y="108" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">Fetch NYT headlines</text>
+    <rect x="20" y="124" width="160" height="56" rx="4" fill="#fffceb" stroke="#de6433" stroke-width="1.5"/>
+    <text x="100" y="146" text-anchor="middle" font-family="Arial,sans-serif" font-size="9.5" fill="#49443b">data/landing/</text>
+    <text x="100" y="164" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#7e7f7e">URL + capture date</text>
+  </g>
+  <line x1="240" y1="180" x2="268" y2="180" stroke="#49443b" stroke-width="2.5" marker-end="url(#ex)"/>
+
+  <!-- Step 2 -->
+  <g transform="translate(270,80)">
+    <rect width="200" height="200" rx="8" fill="#ffffff" stroke="#559778" stroke-width="2.5"/>
+    <circle cx="100" cy="44" r="22" fill="#559778"/>
+    <text x="100" y="50" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="bold" fill="#fffceb">2</text>
+    <text x="100" y="88" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">ingest-data</text>
+    <text x="100" y="108" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">Load into DuckDB</text>
+    <rect x="20" y="124" width="160" height="56" rx="4" fill="#e6f0df" stroke="#559778" stroke-width="1.5"/>
+    <text x="100" y="146" text-anchor="middle" font-family="Arial,sans-serif" font-size="9.5" font-weight="bold" fill="#49443b">nyt_news</text>
+    <text x="100" y="164" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#7e7f7e">COUNT &#183; DESCRIBE &#183; sample</text>
+  </g>
+  <line x1="470" y1="180" x2="498" y2="180" stroke="#49443b" stroke-width="2.5" marker-end="url(#ex)"/>
+
+  <!-- Step 3 -->
+  <g transform="translate(500,80)">
+    <rect width="200" height="200" rx="8" fill="#ffffff" stroke="#0e2d58" stroke-width="2.5"/>
+    <circle cx="100" cy="44" r="22" fill="#0e2d58"/>
+    <text x="100" y="50" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" font-weight="bold" fill="#fffceb">3</text>
+    <text x="100" y="88" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">sentiment-analysis</text>
+    <text x="100" y="108" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">Tone + quotes + limits</text>
+    <rect x="20" y="124" width="160" height="56" rx="4" fill="#fffceb" stroke="#0e2d58" stroke-width="1.5"/>
+    <text x="100" y="146" text-anchor="middle" font-family="Arial,sans-serif" font-size="9.5" fill="#49443b">reports/*.md</text>
+    <text x="100" y="164" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#7e7f7e">auditable markdown</text>
+  </g>
+
+  <g transform="translate(40,296)">
+    <rect width="640" height="32" rx="5" fill="#fffceb" stroke="#f4bd48" stroke-width="2" stroke-dasharray="4 3"/>
+    <text x="320" y="21" text-anchor="middle" font-family="Arial,sans-serif" font-size="10.5" fill="#49443b">One chat message triggers all three skills &#183; you never touch SQL or Python</text>
+  </g>
+</svg>
