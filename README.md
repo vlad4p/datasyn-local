@@ -1,231 +1,155 @@
-# datasyn-local
+<div align="center">
 
-**Investigate with data on your own machine.** You ask questions in plain language. Your AI assistant does the technical work — you do not write SQL or Python.
+# 📰 datasyn-local
 
-*Also available in [Español neutro](README.es.md)*
+**Analiza con los datos en tu propia compu** — Utilizando Lenguaje Natural.
 
----
+<p>
+  <span style="background:#0e2d58;color:#fffceb;padding:4px 10px;border-radius:4px;font-weight:600">🤖 Asistente IA</span>
+  <span style="background:#559778;color:#fffceb;padding:4px 10px;border-radius:4px;font-weight:600">🗄️ DuckDB</span>
+  <span style="background:#395a8e;color:#fffceb;padding:4px 10px;border-radius:4px;font-weight:600">🔌 MCP</span>
+</p>
 
-## Who is this for?
+*Versión en [English](README.en.md)*
 
-Journalists, researchers, and investigators who work with documents, downloads, and public records. You bring the story and the questions. The assistant handles setup, queries, and reports.
-
----
-
-## How this repo works (step by step)
-
-This project is a **workspace on your computer**. Data moves in one direction: **collect → store originals → load into a database → analyze → write reports**. You never edit the database by hand — you talk to the assistant.
-
-### The full path (overview)
-
-Every investigation follows the same route:
-
-<p align="center"><img src="docs/diagrams/flow.svg" alt="From source to story — collect, landing, DuckDB, reports" width="860"/></p>
-
-| Stage | What happens | Where it lives |
-|-------|----------------|----------------|
-| **Collect** | You download, export, or ask the assistant to scrape a site | Assistant uses the `web-scraping` skill |
-| **Landing** | Raw files are saved **unchanged** (your evidence) | `data/landing/` |
-| **Database** | The assistant loads files into queryable tables | `data/duckdb/datasyn.duckdb` |
-| **Reports** | Analysis and write-ups you can cite | `reports/` |
-
-The assistant chooses the right **skill** for each step (see [Step 6](#step-6--ask-for-a-report)). Rules and tone are in [AGENTS.md](AGENTS.md).
+</div>
 
 ---
 
-### Step 1 — Set up the workspace (one time)
+## En resumen
 
-You only do this once per machine.
+Recolectas fuentes → el asistente guarda los originales → DuckDB tiene tablas estructuradas → Consulta mediante IA sobre los datos. **Sin necesidad de escribir SQL ni Python. Si tener Python instaldo**
 
-1. **Clone** this repository and open the folder in your IDE (Cursor, Claude Code, or similar).
-2. **Open a chat** with your AI assistant in that folder.
-3. **Paste** the startup prompt below and send it. The assistant installs tools, links skills, and connects the database — you follow its summary in plain language.
+<p align="center"><img src="docs/diagrams/flow.svg" alt="De la fuente a la historia — recolectar, landing, DuckDB, reportes" width="860"/></p>
 
-<p align="center"><img src="docs/diagrams/startup.svg" alt="First-time setup — clone, paste prompt, bootstrap, ready" width="520"/></p>
+
+---
+
+## ✨ ¿Para quién es?
+
+**Periodistas, investigadores y equipos que trabajan con fuentes, documentos o datos que puedan alcanzar en tu compu**
+
+**El asistente de IA** configura el entorno con el **prompt de arranque** de abajo. El trabajo diario usa **[skills](skills/)**; el tono y las reglas están en **[AGENTS.md](AGENTS.md)**.
+
+---
+
+## 🧭 Cómo funciona
+
+### Principios
+
+| Principio | Qué significa para ti |
+|-----------|------------------------|
+| **Conservar originales** | Descargas y extracciones quedan en `data/landing/` — sin sobrescribir |
+| **Usar Lenguaje Natural** | Pides en lenguaje claro; los **skills** convierten el pedido en SQL de DuckDB (vía MCP) |
+
+
+### Flujo de datos
+
+El asistente elige el **skill** correcto en cada etapa (naranja = archivos crudos, verde = base de datos, azul marino = reportes).
+
+<p align="center"><img src="docs/diagrams/flow.svg" alt="De la fuente a la historia — recolectar, landing, DuckDB, reportes" width="860"/></p>
+
+| Paso | Tú | Skill | Salida |
+|:----:|----|-------|--------|
+| 1 | Guardas descargas, scrapes, exportaciones | `web-scraping` | `data/landing/` |
+| 2 | Pides “ingestar” un archivo | `ingest-data` | tabla en DuckDB |
+| 3 | Haces preguntas en lenguaje claro | SQL + MCP | respuestas en el chat |
+| 4 | Pides análisis o un reporte | `statistical-report` / `sentiment-analysis` | `reports/` |
+
+### Un pedido, de principio a fin
+
+Un mensaje (“ingesta este archivo y resúmelo”) sigue siempre el mismo camino:
+
+<p align="center"><img src="docs/diagrams/request-lifecycle.svg" alt="Un pedido — lenguaje claro a respuesta auditable vía MCP" width="560"/></p>
+
+### Mapa del repositorio
+
+Izquierda: configuración y comportamiento del agente. Derecha: tu evidencia y salida publicable.
+
+<p align="center"><img src="docs/diagrams/repo-layout.svg" alt="Layout del repositorio datasyn — configuración del agente y carpetas de datos" width="680"/></p>
+
+---
+
+## 📌 Requisitos
+
+- **Python 3.11+** (lo instala el asistente si falta)
+- **[uv](https://docs.astral.sh/uv/)** — entorno Python (lo configura el prompt de arranque)
+- **Un asistente de IA con skills** (por ejemplo Cursor)
+
+---
+
+## 🚀 Arranque — copia este prompt
+
+### Configuración inicial
+
+Clona el repositorio, pega el prompt de abajo y sigue el resumen del asistente.
+
+1. **Clona** este repositorio y ábrelo en el IDE.
+2. **Pega** el bloque en el chat del asistente.
+3. **Sigue** el resumen — no deberías tener que ejecutar comandos por tu cuenta.
 
 <details>
-<summary><strong>Startup prompt — click to copy</strong></summary>
+<summary><strong>📋 Clic para ver el prompt de arranque</strong></summary>
 
 ```text
-Bootstrap datasyn-local in this workspace. The user is a journalist/researcher, not a data engineer — explain steps in plain language.
+Bootstrap datasyn-local en este workspace. El usuario es periodista/investigador — explica los pasos en lenguaje claro.
 
-0. Configure the uv environment first:
-   - If uv is missing: install it (curl -LsSf https://astral.sh/uv/install.sh | sh or brew install uv)
-   - From the repo root: uv sync --all-extras
-   - Verify: uv --version and uv run python -c "import duckdb; print('duckdb', duckdb.__version__)"
+0. Configura el entorno uv primero:
+   - Si no hay uv: instálalo (curl -LsSf https://astral.sh/uv/install.sh | sh o brew install uv)
+   - Desde la raíz del repo: uv sync --all-extras
+   - Verifica: uv --version y uv run python -c "import duckdb; print('duckdb', duckdb.__version__)"
 
-1. Read AGENTS.md and skills/README.md (use setup-uv skill if more detail is needed).
+1. Lee AGENTS.md y skills/README.md (usa el skill setup-uv si hace falta más detalle).
 
-2. If using Cursor: link skills with ln -sfn "$(pwd)/skills" .cursor/skills
+2. Si uso Cursor: enlaza skills con ln -sfn "$(pwd)/skills" .cursor/skills
 
-3. Run infrastructure bootstrap from repo root:
+3. Ejecuta el bootstrap desde la raíz del repo:
    chmod +x scripts/sh/bootstrap.sh
    ./scripts/sh/bootstrap.sh
-   (MCP config, MCP check, and database status.)
+   (configura MCP, verifica MCP y muestra estado de la base.)
 
-Rules: ingest and reports are skills (SQL), not extra Python apps. External files always go to data/landing/ first. Summarize each step for a non-technical reader.
+Reglas: ingest y reportes son skills (SQL), no apps Python extra. Los archivos externos siempre van primero a data/landing/. Resume cada paso para alguien no técnico.
 ```
 
 </details>
 
-**When setup is done, you should have:**
+### ✅ Cuando termine el asistente
 
-- A Python environment (`uv` + `.venv`)
-- Skills linked so the assistant knows how to ingest and report
-- A connection from the IDE to your local DuckDB file (via MCP)
-- An empty or ready database at `data/duckdb/datasyn.duckdb`
-
-You do not need to run terminal commands yourself if the assistant completed the prompt.
-
----
-
-### Step 2 — Know where things go
-
-The repo has two sides: **how the assistant thinks** (left) and **your data** (right).
-
-<p align="center"><img src="docs/diagrams/repo-layout.svg" alt="datasyn repository layout — agent config and your data folders" width="680"/></p>
-
-| Folder / file | Your role |
-|---------------|-----------|
-| `data/landing/` | Put every new file here first — CSV, JSON, HTML exports, scrapes. Originals stay here. |
-| `data/duckdb/datasyn.duckdb` | The assistant loads tables here. You query through chat, not by opening the file. |
-| `reports/` | Finished write-ups (markdown, HTML, etc.) the assistant saves for you. |
-| `skills/` | Instructions for the assistant (ingest, scrape, reports). You configure once; you do not edit these for normal work. |
-| `AGENTS.md` | How the assistant should answer: evidence, method, limits. |
-
-**Important:** Anything from outside the repo (download, scrape, export) goes to **`data/landing/` first**, then you ask to ingest.
+| | Deberías tener |
+|---|----------------|
+| 🐍 | `uv` + `.venv` con dependencias |
+| 🔌 | `.cursor/mcp.json` (local, no se sube a git) |
+| 🛠️ | `skills/` enlazados en el IDE |
+| 🗄️ | MCP conectado a `data/duckdb/datasyn.duckdb` |
 
 ---
 
-### Step 3 — Collect your sources
+## 🗞️ Ejemplo completo — de titulares a sentimiento
 
-**What you do:** Save files, or ask the assistant to fetch data from the web.
+### Un prompt, investigación completa
 
-**Examples of what to say:**
+**Extraer → ingestar → reporte de sentimiento** en un solo mensaje:
 
-- “Download this CSV to landing and note the source URL.”
-- “Scrape headlines from [site] and save the raw result to `data/landing/` with the capture date.”
+<p align="center"><img src="docs/diagrams/investigation-example.svg" alt="Investigación completa — extracción, ingesta, reporte de sentimiento" width="720"/></p>
 
-**What the assistant does:** Uses the `web-scraping` skill (or saves your upload) and keeps **provenance** — source URL, date, original format.
-
-**Result:** New files in `data/landing/` only. Nothing is overwritten.
-
----
-
-### Step 4 — Ingest into the database
-
-**What you do:** Ask to load a landing file into DuckDB.
-
-**Example:**
-
-> “Ingest `data/landing/my_export.csv` as a table called `contracts_2024`. Show row count, schema, and five sample rows.”
-
-**What the assistant does:** Uses the `ingest-data` skill (SQL via MCP). Validates with `COUNT(*)`, `DESCRIBE`, and samples.
-
-**Result:** A table inside `data/duckdb/datasyn.duckdb` you can question in the next steps.
-
----
-
-### Step 5 — Explore and ask questions
-
-**What you do:** Ask in plain language — counts, filters, comparisons, duplicates, trends.
-
-**Examples:**
-
-- “How many rows per year?”
-- “List the ten largest amounts and which source file they came from.”
-- “Are there missing values in the `date` column?”
-
-**What the assistant does:** Runs SQL on DuckDB through MCP and answers in chat. Good answers include **what the data shows**, **how we know** (query or table), and **limits** (sample size, missing fields, bias).
-
-You still do not write SQL yourself.
-
----
-
-### Step 6 — Ask for a report
-
-**What you do:** Request a structured output when you need something to share or archive.
-
-**Examples:**
-
-- “Write a statistical summary of `contracts_2024` to `reports/`.”
-- “Run sentiment on the `headline` column and save a markdown report with quotes and caveats.”
-
-**What the assistant does:** Uses `statistical-report` or `sentiment-analysis` (and related skills). Saves the file under `reports/`.
-
-**Result:** A document you can open, link, or cite — with method and limitations spelled out.
-
----
-
-### Step 7 — What happens when you send one message
-
-Whether you ingest one file or run a full investigation, **each request** follows the same path inside the assistant:
-
-<p align="center"><img src="docs/diagrams/request-lifecycle.svg" alt="One request — plain language to auditable answer via MCP" width="560"/></p>
-
-1. **You** type a normal-language request.  
-2. **Assistant** reads [AGENTS.md](AGENTS.md) and picks a skill (`ingest-data`, `web-scraping`, `sentiment-analysis`, …).  
-3. **Assistant** runs SQL on your local DuckDB (MCP).  
-4. **Assistant** writes to `reports/` when you asked for a report.  
-5. **You** get an answer you can audit: findings, how they were derived, and what not to overclaim.
-
----
-
-### Step 8 — Run a full example (scrape → ingest → report)
-
-Once setup is done, you can do the whole pipeline in **one chat message**. The diagram below is the NYT headline example; you can swap the source for your own story.
-
-<p align="center"><img src="docs/diagrams/investigation-example.svg" alt="Full investigation — scrape, ingest, sentiment report" width="720"/></p>
-
-Paste this into the assistant:
+Pégalo en el asistente:
 
 ```text
-Run a full pipeline for me, explaining each step in plain language:
+Ejecuta un pipeline completo y explica cada paso en lenguaje claro:
 
-1. Scrape recent New York Times news headlines (web-scraping skill) and
-   save the raw results to data/landing/ — keep the source URL and the
-   capture date for provenance.
-2. Ingest that file into DuckDB as a table called nyt_news
-   (ingest-data skill). Then show COUNT(*), DESCRIBE, and 5 sample rows.
-3. Run a sentiment analysis on the headline/summary text
-   (sentiment-analysis skill) and write a markdown report to reports/
-   with: overall tone, a positive/neutral/negative breakdown, a few
-   representative quotes, and the limits of the method.
+1. Extrae titulares recientes de noticias del New York Times
+   (skill web-scraping) y guarda los resultados crudos en data/landing/
+   — conserva la URL de origen y la fecha de captura para la trazabilidad.
+2. Ingesta ese archivo en DuckDB como una tabla llamada nyt_news
+   (skill ingest-data). Después muestra COUNT(*), DESCRIBE y 5 filas de ejemplo.
+3. Realiza un análisis de sentimiento sobre el texto de titulares y resúmenes
+   (skill sentiment-analysis) y escribe un reporte markdown en reports/
+   con: tono general, desglose positivo/neutral/negativo, algunas citas
+   representativas y los límites del método.
 
-Remember: external files go to data/landing/ first, ingest and reports
-are skills (DuckDB SQL), and tell me what the data shows, how we know,
-and what the caveats are.
+Recuerda: los archivos externos van primero a data/landing/, la ingesta y
+los reportes son skills (SQL de DuckDB), e indica qué muestran los datos,
+cómo lo sabemos y cuáles son las salvedades.
 ```
 
-Respect each website’s terms and `robots.txt`; prefer official APIs or feeds when they exist.
-
----
-
-## Quick reference
-
-### What you need before starting
-
-- An AI assistant that supports **project skills** (e.g. Cursor)
-- **Python 3.11+** and **[uv](https://docs.astral.sh/uv/)** — the assistant installs these during Step 1 if missing
-
-### Skills the assistant uses (you only ask; it reads the guides)
-
-| Ask for… | Skill |
-|----------|--------|
-| Fetch or save web data | `web-scraping` |
-| Load a landing file into DuckDB | `ingest-data` |
-| Tables, charts, numeric summaries | `statistical-report` |
-| Tone and framing of text | `sentiment-analysis` |
-| Design a new table layout | `create-table` |
-
-Full list: [skills/README.md](skills/README.md).
-
-### Three rules to remember
-
-1. **Originals first** — `data/landing/` before ingest.  
-2. **Plain language** — you ask; the assistant runs SQL.  
-3. **Auditable answers** — what the data shows, how we know, what the limits are ([AGENTS.md](AGENTS.md)).
-
-### Diagram files
-
-Diagram sources: [`docs/diagrams/`](docs/diagrams/) — `flow.svg`, `startup.svg`, `repo-layout.svg`, `request-lifecycle.svg`, `investigation-example.svg`.
+> ⚖️ **Fuentes:** respeta los términos de cada sitio y su `robots.txt`; prefiere feeds o APIs oficiales cuando existan. El asistente guarda URL de origen y fecha de captura para que los hallazgos sean auditables.
