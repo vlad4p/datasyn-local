@@ -61,7 +61,7 @@ Five accents plus three structural neutrals:
 
 ## 5. Diagram SVGs
 
-The five README diagrams live in [`../diagrams/`](../diagrams/) — edit the `.svg` files; the README references them with `<img src="docs/diagrams/…">`.
+The four README diagrams live in [`../diagrams/`](../diagrams/) — edit the `.svg` files; the README references them with `<img src="docs/diagrams/…">`.
 
 ```bash
 xmllint --noout docs/diagrams/*.svg

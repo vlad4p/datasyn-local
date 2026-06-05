@@ -53,8 +53,7 @@ output/
 
 # IDE / OS
 .idea/
-.vscode/*
-!.vscode/settings.json
+.vscode/
 *.swp
 *.swo
 .DS_Store
@@ -64,13 +63,11 @@ Thumbs.db
 .ipynb_checkpoints/
 *.ipynb_checkpoints
 
-# Cursor / IDE local config (machine-specific paths)
-.cursor/mcp.json
-.cursor/plans/
-.cursor/*.
+# Cursor (local IDE config — bootstrap writes mcp.json)
+.cursor/
 kilo.json
 
-# Demo copy in landing (use samples/ + cp)
+# User data in landing (not committed)
 data/landing/*.csv
 data/landing/*.json
 data/landing/*.xlsx

@@ -32,11 +32,6 @@ META: dict[str, tuple[int, str, str]] = {
         "From source to story — collect, landing, DuckDB, reports",
         "De la fuente a la historia — recolectar, landing, DuckDB, reportes",
     ),
-    "startup": (
-        520,
-        "First-time setup — clone, paste prompt, bootstrap, ready",
-        "Configuración inicial — clonar, pegar prompt, bootstrap, listo",
-    ),
     "repo-layout": (
         680,
         "datasyn repository layout — agent config and your data folders",
@@ -56,7 +51,6 @@ META: dict[str, tuple[int, str, str]] = {
 
 DETECT = [
     (("FROM SOURCE TO STORY", "data flow"), "flow"),
-    (("FIRST-TIME SETUP", "Startup flow"), "startup"),
     (("WHAT GOES WHERE", "repository layout"), "repo-layout"),
     (("HOW ONE REQUEST", "plain-language request"), "request-lifecycle"),
     (("FULL INVESTIGATION", "investigation example"), "investigation-example"),
@@ -111,7 +105,7 @@ uv run python scripts/python/embed_readme_diagrams.py README.md
 ```"""
     new = (
         "Diagram sources: [`docs/diagrams/`](docs/diagrams/) — "
-        "`flow.svg`, `startup.svg`, `repo-layout.svg`, "
+        "`flow.svg`, `repo-layout.svg`, "
         "`request-lifecycle.svg`, `investigation-example.svg`."
     )
     return content.replace(old, new)

@@ -43,12 +43,6 @@
     <text x="16" y="22" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">&#128202; reports/</text>
     <text x="16" y="40" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">published output you can cite</text>
   </g>
-  <g transform="translate(360,258)">
-    <rect width="280" height="50" rx="5" fill="#ffffff" stroke="#7e7f7e" stroke-width="2.5"/>
-    <text x="16" y="22" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">&#128196; samples/example.csv</text>
-    <text x="16" y="40" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">safe demo file to try things</text>
-  </g>
-
   <!-- footer note -->
   <g transform="translate(40,338)">
     <rect width="600" height="58" rx="6" fill="#fffceb" stroke="#f4bd48" stroke-width="2" stroke-dasharray="4 3"/>
