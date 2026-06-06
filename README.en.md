@@ -54,7 +54,7 @@ The assistant picks the right **skill** at each stage (orange = raw files, green
 | 1 | Save downloads, scrapes, exports | `web-scraping` | `data/landing/` |
 | 2 | Ask to "ingest" a file | `ingest-data` | table in DuckDB |
 | 3 | Ask questions in plain language | SQL + MCP | answers in chat |
-| 4 | Request analysis or a report | `statistical-report` / `sentiment-analysis` | `reports/` |
+| 4 | Request analysis or a report | `statistical-report` / `sentiment-analysis` / `graph-analysis` | `reports/` |
 
 ### One request, start to finish
 
@@ -74,7 +74,7 @@ Left: agent configuration and behavior. Right: your evidence and publishable out
 
 - **Python 3.11+** (the assistant installs it if missing)
 - **[uv](https://docs.astral.sh/uv/)** — Python environment (configured by the startup prompt)
-- **An AI assistant with skills** (for example Cursor)
+- **An AI assistant with skills** (Cursor, VS Code + GitHub Copilot, or similar)
 
 ---
 
@@ -101,9 +101,21 @@ Bootstrap datasyn-local in this workspace. The user is a journalist/researcher �
 
 1. Read AGENTS.md and skills/README.md (use setup-uv skill if more detail is needed).
 
-2. If using Cursor: link skills with ln -sfn "$(pwd)/skills" .cursor/skills
+2. Link skills for your IDE:
+   - **Cursor:** ln -sfn "$(pwd)/skills" .cursor/skills
+   - **VS Code:** no symlink needed — reads skills/ directly
 
-3. Run bootstrap from the repo root:
+3. Configure the DuckDB MCP server (so the AI assistant can query the database):
+   - Run: uv run python scripts/python/db.py mcp-config
+     (this generates .cursor/mcp.json with the configuration)
+   - **VS Code:** copy .cursor/mcp.json to .vscode/mcp.json:
+     cp .cursor/mcp.json .vscode/mcp.json
+     (VS Code 1.96+ uses .vscode/mcp.json automatically)
+   - **VS Code alternative:** you can also paste the contents of .cursor/mcp.json
+     into .vscode/settings.json under the key "github.copilot.chat.agent.mcpServers"
+   - **Cursor:** .cursor/mcp.json is already ready
+
+4. Run bootstrap from the repo root:
    chmod +x scripts/sh/bootstrap.sh
    ./scripts/sh/bootstrap.sh
    (configures MCP, verifies MCP, and shows database status.)
@@ -118,7 +130,7 @@ Rules: ingest and reports are skills (SQL), not extra Python apps. External file
 | | You should have |
 |---|----------------|
 | 🐍 | `uv` + `.venv` with dependencies |
-| 🔌 | `.cursor/mcp.json` (local, not committed to git) |
+| 🔌 | `.cursor/mcp.json` (Cursor) or `.vscode/mcp.json` (VS Code) — both local, not committed to git |
 | 🛠️ | `skills/` linked in the IDE |
 | 🗄️ | MCP connected to `data/duckdb/datasyn.duckdb` |
 

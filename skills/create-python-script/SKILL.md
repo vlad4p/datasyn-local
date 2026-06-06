@@ -11,6 +11,7 @@ description: >-
 
 - **Allowed:** extend `scripts/python/db.py` or new modules in `scripts/python/`
 - **Not for:** ingest or report pipelines — use skills `ingest-data` and `statistical-report`
+- **SQL queries:** prefer MCP (`db.py run-sql`) over direct `db.connect()` + `con.execute()`
 
 ## Workflow
 
@@ -20,7 +21,19 @@ description: >-
 4. `uv add <package>` if needed
 5. Document usage in `scripts/python/README.md`
 
-## Import pattern
+## SQL execution
+
+When the script needs to run SQL, **prefer MCP** (subprocess call to `db.py run-sql`):
+
+```python
+import subprocess
+sql = "SELECT COUNT(*) FROM my_table;"
+subprocess.run(["uv", "run", "python", "scripts/python/db.py", "run-sql", sql])
+```
+
+Only use direct `db.connect()` when MCP cannot handle the task (e.g., pandas/DataFrame operations, multi-step procedural logic).
+
+## Import pattern (for direct DB connection — fallback only)
 
 ```python
 import sys

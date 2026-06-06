@@ -193,6 +193,26 @@ def cmd_info() -> int:
     return 0
 
 
+def cmd_run_sql(sql: str) -> int:
+    """Execute one or more SQL statements (;) and show results."""
+    con = connect()
+    try:
+        statements = [s.strip() for s in sql.split(";") if s.strip()]
+        for stmt in statements:
+            try:
+                result = con.sql(stmt)
+                if result is not None and result.description:
+                    result.show(max_width=120)
+                else:
+                    print("✅ OK")
+            except Exception as e:
+                print(f"❌ Error: {e}", file=sys.stderr)
+                return 1
+        return 0
+    finally:
+        con.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="datasyn-local database and MCP")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -201,6 +221,11 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("mcp-check", help="Verify duckdb_mcp extension")
     sub.add_parser("mcp-config", help="Write .cursor/mcp.json")
     sub.add_parser("mcp-serve", help="Start MCP stdio server (blocking)")
+    sql_parser = sub.add_parser("run-sql", help="Execute SQL statements")
+    sql_parser.add_argument("sql", nargs="?", help="SQL statement(s) to execute")
+    sql_parser.add_argument(
+        "--file", "-f", type=str, help="Read SQL from file instead of argument"
+    )
 
     args = parser.parse_args(argv)
 
@@ -213,6 +238,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "mcp-serve":
         mcp_serve()
         return 0
+    if args.command == "run-sql":
+        if args.file:
+            sql = Path(args.file).read_text()
+        elif args.sql:
+            sql = args.sql
+        else:
+            sql = sys.stdin.read()
+        return cmd_run_sql(sql)
     return 1
 
 

@@ -1,14 +1,16 @@
 ---
 name: statistical-report
 description: >-
-  Generate analysis reports from DuckDB tables using SQL only (no Python report
-  scripts). Supports markdown EDA, executive brief, JSON metrics, CSV extracts,
-  and HTML summary. Use for profiling, EDA, data quality, or report requests.
+  Generate analysis reports from DuckDB tables using SQL via MCP only (no Python
+  report scripts, no direct Python DuckDB connections). Supports markdown EDA,
+  executive brief, JSON metrics, CSV extracts, and HTML summary.
+  Use for profiling, EDA, data quality, or report requests.
 ---
 
-# Generate reports (skill — SQL only)
+# Generate reports (skill — SQL via MCP only)
 
-Do **not** run `make report` or Python report modules. Query with DuckDB, then **write the file** under `reports/`.
+Do **not** run `make report` or Python report modules. Query with DuckDB via MCP
+(`uv run python scripts/python/db.py run-sql "SQL..."`), then **write the file** under `reports/`.
 
 ## Prerequisites
 

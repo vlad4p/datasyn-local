@@ -54,7 +54,7 @@ El asistente elige el **skill** correcto en cada etapa (naranja = archivos crudo
 | 1 | Guardas descargas, scrapes, exportaciones | `web-scraping` | `data/landing/` |
 | 2 | Pides “ingestar” un archivo | `ingest-data` | tabla en DuckDB |
 | 3 | Haces preguntas en lenguaje claro | SQL + MCP | respuestas en el chat |
-| 4 | Pides análisis o un reporte | `statistical-report` / `sentiment-analysis` | `reports/` |
+| 4 | Pides análisis o un reporte | `statistical-report` / `sentiment-analysis` / `graph-analysis` | `reports/` |
 
 ### Un pedido, de principio a fin
 
@@ -74,7 +74,7 @@ Izquierda: configuración y comportamiento del agente. Derecha: tu evidencia y s
 
 - **Python 3.11+** (lo instala el asistente si falta)
 - **[uv](https://docs.astral.sh/uv/)** — entorno Python (lo configura el prompt de arranque)
-- **Un asistente de IA con skills** (por ejemplo Cursor)
+- **Un asistente de IA con skills** (Cursor, VS Code + GitHub Copilot, o similar)
 
 ---
 
@@ -101,9 +101,21 @@ Bootstrap datasyn-local en este workspace. El usuario es periodista/investigador
 
 1. Lee AGENTS.md y skills/README.md (usa el skill setup-uv si hace falta más detalle).
 
-2. Si uso Cursor: enlaza skills con ln -sfn "$(pwd)/skills" .cursor/skills
+2. Enlaza skills según el IDE:
+   - **Cursor:** ln -sfn "$(pwd)/skills" .cursor/skills
+   - **VS Code:** no necesita enlace — lee skills/ directamente
 
-3. Ejecuta el bootstrap desde la raíz del repo:
+3. Configura el servidor MCP de DuckDB (para que el asistente pueda consultar la base de datos):
+   - Ejecuta: uv run python scripts/python/db.py mcp-config
+     (esto genera .cursor/mcp.json con la configuración)
+   - **VS Code:** copia .cursor/mcp.json a .vscode/mcp.json:
+     cp .cursor/mcp.json .vscode/mcp.json
+     (VS Code 1.96+ usa .vscode/mcp.json automáticamente)
+   - **VS Code alternativo:** también puedes pegar el contenido de .cursor/mcp.json
+     dentro de .vscode/settings.json bajo la clave "github.copilot.chat.agent.mcpServers"
+   - **Cursor:** el archivo .cursor/mcp.json ya está listo
+
+4. Ejecuta el bootstrap desde la raíz del repo:
    chmod +x scripts/sh/bootstrap.sh
    ./scripts/sh/bootstrap.sh
    (configura MCP, verifica MCP y muestra estado de la base.)
@@ -118,7 +130,7 @@ Reglas: ingest y reportes son skills (SQL), no apps Python extra. Los archivos e
 | | Deberías tener |
 |---|----------------|
 | 🐍 | `uv` + `.venv` con dependencias |
-| 🔌 | `.cursor/mcp.json` (local, no se sube a git) |
+| 🔌 | `.cursor/mcp.json` (Cursor) o `.vscode/mcp.json` (VS Code) — ambos locales, no se suben a git |
 | 🛠️ | `skills/` enlazados en el IDE |
 | 🗄️ | MCP conectado a `data/duckdb/datasyn.duckdb` |
 

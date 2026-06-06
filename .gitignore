@@ -20,7 +20,7 @@ htmlcov/
 .env.*.local
 
 # DuckDB databases and sidecar files
-data/duckdb/*
+data/duckdb/**
 !data/duckdb/.gitkeep
 !data/duckdb/README.md
 *.duckdb
@@ -30,12 +30,12 @@ data/duckdb/*
 *.duckdb.wal
 
 # Landing zone — raw downloads, scrapes, exports (keep structure only)
-data/landing/*
+data/landing/**
 !data/landing/.gitkeep
 !data/landing/README.md
 
 # Generated reports and outputs
-reports/*
+reports/**
 !reports/.gitkeep
 output/
 

@@ -1,108 +1,48 @@
 ---
 name: ingest-data
 description: >-
-  Ingest files from data/landing into DuckDB using SQL only (no Python scripts).
-  Supports CSV, TSV, JSON, JSONL, Parquet, XLSX, and DuckDB-native loads.
-  Use when importing, ETL, loading files, or landing zone ingestion.
+  Entry point for the medallion architecture (bronze → silver → gold).
+  Routes ingestion requests to the correct zone. Use when the user asks
+  to ingest, import, load, clean, join, or prepare data for analysis.
 ---
 
-# Ingest data (skill — SQL only)
+# Ingest data (medallion architecture)
 
-Do **not** use Python ingest scripts. Use DuckDB SQL via MCP or `scripts/python/db.py` + SQL.
+Data flows through three quality zones. Start each request by analyzing which
+zone fits the source and goal.
 
-## Prerequisites
-
-- Raw file already in `data/landing/` (keep original; never mutate in place)
-- Table name: `snake_case`, letters/digits/underscore only
-- DB: `data/duckdb/datasyn.duckdb`
-
-## Workflow
-
-1. **Inspect** — format, encoding, headers, rough row count (`head`, `file`, or `SELECT * FROM read_* LIMIT 5`)
-2. **Choose load strategy** from the matrix below
-3. **Create table** — `CREATE OR REPLACE TABLE {name} AS SELECT ...`
-4. **Validate** — `COUNT(*)`, `DESCRIBE`, sample rows
-
-## Format matrix
-
-| Format | Extension | DuckDB approach | Notes |
-|--------|-----------|-----------------|-------|
-| CSV | `.csv` | `read_csv_auto('path')` | Add `header=true`, `delim=';'`, `encoding='UTF-8'` as needed |
-| TSV | `.tsv`, `.txt` | `read_csv('path', delim='\t', header=true)` | |
-| JSON array | `.json` | `read_json_auto('path')` | |
-| JSON Lines | `.jsonl`, `.ndjson` | `read_json_auto('path', format='newline_delimited')` | |
-| Parquet | `.parquet` | `read_parquet('path')` | |
-| XLSX / XLS | `.xlsx`, `.xls` | `read_xlsx('path')` | Run `INSTALL excel FROM community; LOAD excel;` first |
-| Multiple CSV | `*.csv` | `read_csv(['a.csv','b.csv'], union_by_name=true)` | Or ingest separately |
-| Existing DuckDB | `.duckdb` | `ATTACH 'path' AS src; CREATE TABLE t AS SELECT * FROM src.main.table` | |
-| Plain SQL dump | `.sql` | Execute statements in a controlled session | Review before run |
-
-## SQL templates
-
-Paths must stay under `data/landing/`. Use absolute or project-relative paths consistently.
-
-```sql
--- CSV (default)
-CREATE OR REPLACE TABLE my_table AS
-SELECT * FROM read_csv_auto('data/landing/file.csv');
-
--- TSV
-CREATE OR REPLACE TABLE my_table AS
-SELECT * FROM read_csv('data/landing/file.tsv', delim = '\t', header = true);
-
--- JSON Lines
-CREATE OR REPLACE TABLE my_table AS
-SELECT * FROM read_json_auto('data/landing/file.jsonl', format = 'newline_delimited');
-
--- Parquet
-CREATE OR REPLACE TABLE my_table AS
-SELECT * FROM read_parquet('data/landing/file.parquet');
-
--- XLSX (sheet optional)
-INSTALL excel FROM community;
-LOAD excel;
-CREATE OR REPLACE TABLE my_table AS
-SELECT * FROM read_xlsx('data/landing/file.xlsx', sheet = 'Sheet1');
+```
+landing/ ──→ bronze ──→ silver ──→ gold ──→ reports
+  raw         raw       clean      ready
+  files       SQL        joins     aggregates
 ```
 
-### Typed / messy CSV
+| Zone | Schema | Purpose | Source | Skill |
+|------|--------|---------|--------|-------|
+| 🟤 **Bronze** | `bronze.*` | Raw ingest, preserve originals | `data/landing/` files, scrapes | [`ingest-data-bronze`](../ingest-data-bronze/SKILL.md) |
+| ⚪ **Silver** | `silver.*` | Clean, dedupe, normalize, join | `bronze.*` tables | [`ingest-data-silver`](../ingest-data-silver/SKILL.md) |
+| 🟡 **Gold** | `gold.*` | Aggregated, analysis‑ready datasets | `silver.*` tables | [`ingest-data-gold`](../ingest-data-gold/SKILL.md) |
 
-```sql
-CREATE OR REPLACE TABLE my_table AS
-SELECT * FROM read_csv(
-  'data/landing/file.csv',
-  header = true,
-  ignore_errors = true,
-  encoding = 'latin-1'
-);
-```
+## Decision flow
 
-### Nested JSON
+1. **What is the source?** → landing file? → **bronze** · existing table? → **silver** or **gold**
+2. **What transformation is needed?** → none → **bronze** · clean/join → **silver** · aggregate/summarize → **gold**
+3. **Route to the right skill** → read that skill's workflow and templates
 
-```sql
-CREATE OR REPLACE TABLE my_table AS
-SELECT * FROM read_json('data/landing/file.json');
--- follow with UNNEST / struct extraction in further SQL
-```
+## Example scenarios
 
-## Validation queries
+| User says | Zone | Skill |
+|-----------|------|-------|
+| "Ingestá este CSV" | Bronze | `ingest-data-bronze` |
+| "Scrapeá y guardá en la DB" | Bronze | `ingest-data-bronze` |
+| "Limpiá duplicados y normalizá nombres" | Silver | `ingest-data-silver` |
+| "Creá una tabla uniendo empresas con socios" | Silver | `ingest-data-silver` |
+| "Creá un dataset para reportes diarios" | Gold | `ingest-data-gold` |
+| "Agrupá por sector y calculá totales" | Gold | `ingest-data-gold` |
 
-```sql
-SELECT COUNT(*) AS n FROM my_table;
-DESCRIBE my_table;
-SELECT * FROM my_table LIMIT 5;
-```
+## General rules (all zones)
 
-## Error handling
-
-| Issue | Action |
-|-------|--------|
-| Wrong delimiter | Set `delim` explicitly |
-| Encoding | `encoding='latin-1'` or convert file in landing |
-| Type inference | `read_csv(..., dtypes={...})` or cast in `SELECT` |
-| Huge files | `LIMIT` while exploring; consider `WHERE` on ingest |
-| XLSX fails | Confirm `excel` extension loaded |
-
-## Persona
-
-**Data engineer**: reproducible SQL, document assumptions in a short note to the user, never skip landing provenance.
+- **SQL via MCP** for queries; `db.py run-sql` for DDL (CREATE TABLE, INSERT)
+- Never mutate landing files — they are the source of truth
+- Always validate: `COUNT(*)`, `DESCRIBE`, sample rows after each step
+- Each sub-skill starts by analyzing the source and confirming the correct zone

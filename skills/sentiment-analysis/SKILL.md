@@ -12,15 +12,44 @@ description: >-
 
 Act as an **expert journalist**: identify tone, bias signals, emotional framing, and narrative stance — not just positive/negative scores.
 
+## SQL execution — always prefer MCP (duckdb_mcp)
+
+The `duckdb_mcp` extension exposes tools (`query`, `describe`, `list_tables`, `export`)
+to the AI agent. **Always prefer MCP** for SQL queries — no terminal commands.
+
+### MCP tools available
+
+| Tool | Purpose |
+|------|---------|
+| `query` | Run SELECT queries (read-only) |
+| `describe` | Show table schema |
+| `export` | Export query results (json/csv/markdown) |
+
+### Fallback: `db.py run-sql`
+
+Use only for DDL (`CREATE TABLE`, `INSERT`) or when MCP cannot handle the task:
+
+```bash
+kill $(lsof -t data/duckdb/datasyn.duckdb 2>/dev/null) 2>/dev/null
+uv run python scripts/python/db.py run-sql "SQL..."
+```
+
+This connects directly to `data/duckdb/datasyn.duckdb` — not through MCP.
+
+---
+
 ## Workflow
 
-1. Identify text column(s) in the table (`headline`, `body`, `content`, `text`)
-2. Create a sentiment results table in DuckDB
-3. Summarize findings with journalistic language
+1. Identify text column(s) — via MCP `describe` and `query` to profile
+2. Choose approach (A: TextBlob Python · B: SQL keyword heuristics)
+3. Create sentiment results table — via `db.py run-sql` (DDL)
+4. Summarize findings with journalistic language — write to `reports/`
 
-## Approach A: TextBlob (Python)
+---
 
-Add under `scripts/python/` or run inline:
+## Approach A: TextBlob (Python — fallback, requires direct DB connection)
+
+Only when SQL keyword heuristics are insufficient. Uses `db.connect()` — **not MCP**:
 
 ```python
 from textblob import TextBlob
@@ -28,10 +57,9 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path("scripts/python").resolve()))
 import db
-con = db.connect()
 import pandas as pd
 
-con = connect()
+con = db.connect()  # direct connection — fallback for Python NLP
 df = con.sql("SELECT id, body FROM articles").df()
 
 def analyze(text):
@@ -53,22 +81,51 @@ df[["sentiment", "polarity", "subjectivity"]] = df["body"].apply(
 )
 con.register("sentiment_df", df)
 con.sql("CREATE OR REPLACE TABLE articles_sentiment AS SELECT * FROM sentiment_df")
+con.close()
 ```
 
-## Approach B: SQL + keyword heuristics (no extra deps)
+---
 
-For quick news tone scanning:
+## Approach B: SQL + keyword heuristics (prefer MCP)
+
+For quick news tone scanning. **Profile data via MCP `query` first**, then create table:
+
+### Step 1: Profile text via MCP
+
+Use MCP `query` to explore the text data:
 
 ```sql
+SELECT id, SUBSTRING(body, 1, 200) AS preview FROM articles LIMIT 5;
+SELECT COUNT(*) FROM articles WHERE body IS NULL OR TRIM(body) = '';
+```
+
+### Step 2: Create sentiment table via `db.py run-sql`
+
+```bash
+kill $(lsof -t data/duckdb/datasyn.duckdb) 2>/dev/null
+uv run python scripts/python/db.py run-sql "
 CREATE OR REPLACE TABLE articles_sentiment AS
 SELECT *,
   CASE
-    WHEN regexp_matches(lower(body), '(crisis|scandal|attack|fail|loss)') THEN 'negative'
-    WHEN regexp_matches(lower(body), '(success|growth|win|breakthrough|hope)') THEN 'positive'
+    WHEN regexp_matches(lower(body), '(crisis|scandal|attack|fail|loss|fraud|collapse)') THEN 'negative'
+    WHEN regexp_matches(lower(body), '(success|growth|win|breakthrough|hope|launch|record)') THEN 'positive'
     ELSE 'neutral'
   END AS tone_heuristic
 FROM articles;
+"
 ```
+
+### Step 3: Analyze results via MCP
+
+```sql
+SELECT tone_heuristic, COUNT(*) AS n,
+       ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER(), 1) AS pct
+FROM articles_sentiment GROUP BY 1 ORDER BY 2 DESC;
+
+SELECT * FROM articles_sentiment WHERE tone_heuristic = 'negative' LIMIT 5;
+```
+
+---
 
 ## Journalistic summary template
 
@@ -89,9 +146,11 @@ FROM articles;
 - Method limitations, language bias, sample size
 ```
 
-## Validation
+---
+
+## Validation (via MCP)
 
 ```sql
-SELECT sentiment, COUNT(*) AS n, ROUND(AVG(polarity), 3) AS avg_polarity
-FROM articles_sentiment GROUP BY 1 ORDER BY 2 DESC;
+SELECT tone_heuristic, COUNT(*) AS n FROM articles_sentiment GROUP BY 1 ORDER BY 2 DESC;
+SELECT * FROM articles_sentiment LIMIT 10;
 ```
