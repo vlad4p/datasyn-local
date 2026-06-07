@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg style="background-color:#fffceb" xmlns="http://www.w3.org/2000/svg" width="860" height="320" viewBox="0 0 860 320" role="img" aria-label="datasyn-local data flow">
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="6" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#49443b"/></marker>
+  </defs>
+  <rect width="100%" height="100%" fill="#fffceb"/>
+  <text x="430" y="36" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="15" font-weight="bold" fill="#49443b" letter-spacing="1">FROM SOURCE TO STORY</text>
+  <text x="430" y="56" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" fill="#7e7f7e">You ask in plain language &#183; the assistant does the data work</text>
+
+  <!-- AI assistant band -->
+  <g transform="translate(60,84)">
+    <rect width="740" height="48" rx="6" fill="#0e2d58" stroke="#49443b" stroke-width="2.5"/>
+    <text x="370" y="22" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#fffceb">&#129302; AI assistant &#183; AGENTS.md + skills</text>
+    <text x="370" y="39" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#b3c8cd">picks the right skill for each request</text>
+  </g>
+
+  <!-- connectors from band to stages -->
+  <line x1="130" y1="132" x2="130" y2="168" stroke="#49443b" stroke-width="2" stroke-dasharray="3 3"/>
+  <line x1="335" y1="132" x2="335" y2="168" stroke="#49443b" stroke-width="2" stroke-dasharray="3 3"/>
+  <line x1="535" y1="132" x2="535" y2="168" stroke="#49443b" stroke-width="2" stroke-dasharray="3 3"/>
+  <line x1="730" y1="132" x2="730" y2="168" stroke="#49443b" stroke-width="2" stroke-dasharray="3 3"/>
+
+  <!-- Stage 1: Collect -->
+  <g transform="translate(60,168)">
+    <rect width="140" height="92" rx="6" fill="#ffffff" stroke="#de6433" stroke-width="2.5"/>
+    <text x="70" y="34" text-anchor="middle" font-family="Arial,sans-serif" font-size="22">&#128229;</text>
+    <text x="70" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#49443b">Collect</text>
+    <text x="70" y="78" text-anchor="middle" font-family="Arial,sans-serif" font-size="9.5" fill="#7e7f7e">scrape / download</text>
+  </g>
+  <line x1="200" y1="214" x2="262" y2="214" stroke="#49443b" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 2: landing -->
+  <g transform="translate(265,168)">
+    <rect width="140" height="92" rx="6" fill="#ffffff" stroke="#de6433" stroke-width="2.5"/>
+    <text x="70" y="34" text-anchor="middle" font-family="Arial,sans-serif" font-size="22">&#128193;</text>
+    <text x="70" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#49443b">landing/</text>
+    <text x="70" y="78" text-anchor="middle" font-family="Arial,sans-serif" font-size="9.5" fill="#7e7f7e">originals, unchanged</text>
+  </g>
+  <line x1="405" y1="214" x2="462" y2="214" stroke="#49443b" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 3: DuckDB -->
+  <g transform="translate(465,168)">
+    <rect width="140" height="92" rx="6" fill="#ffffff" stroke="#559778" stroke-width="2.5"/>
+    <text x="70" y="34" text-anchor="middle" font-family="Arial,sans-serif" font-size="22">&#128451;&#65039;</text>
+    <text x="70" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#49443b">DuckDB</text>
+    <text x="70" y="78" text-anchor="middle" font-family="Arial,sans-serif" font-size="9.5" fill="#7e7f7e">ingest + query (SQL)</text>
+  </g>
+  <line x1="605" y1="214" x2="662" y2="214" stroke="#49443b" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- Stage 4: reports -->
+  <g transform="translate(665,168)">
+    <rect width="140" height="92" rx="6" fill="#ffffff" stroke="#0e2d58" stroke-width="2.5"/>
+    <text x="70" y="34" text-anchor="middle" font-family="Arial,sans-serif" font-size="22">&#128202;</text>
+    <text x="70" y="60" text-anchor="middle" font-family="Arial,sans-serif" font-size="13" font-weight="bold" fill="#49443b">reports/</text>
+    <text x="70" y="78" text-anchor="middle" font-family="Arial,sans-serif" font-size="9.5" fill="#7e7f7e">your findings</text>
+  </g>
+
+  <text x="430" y="296" text-anchor="middle" font-family="Arial,sans-serif" font-size="10.5" fill="#7e7f7e">web-scraping &#8594; ingest-data &#8594; statistical-report / sentiment-analysis</text>
+</svg>
