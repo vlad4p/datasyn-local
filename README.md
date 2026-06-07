@@ -2,7 +2,7 @@
 
 # 📰 datasyn-local
 
-**Analiza con los datos en tu propia compu** — Utilizando Lenguaje Natural.
+**Analiza tus datos en tu propia computadora** — usando lenguaje natural.
 
 <p>
   <span style="background:#0e2d58;color:#fffceb;padding:4px 10px;border-radius:4px;font-weight:600">🤖 Asistente IA</span>
@@ -18,71 +18,20 @@
 
 ## En resumen
 
-Recolectas fuentes → el asistente guarda los originales → DuckDB tiene tablas estructuradas → Consulta mediante IA sobre los datos. **Sin necesidad de escribir SQL ni Python. Si tener Python instaldo**
+**datasyn-local** convierte tu computadora en un espacio de análisis de datos que se maneja **conversando**. Le pides en lenguaje natural —"ingesta este CSV", "limpia los duplicados", "crea un reporte de sentimiento"— y un asistente de IA traduce ese pedido en **SQL de DuckDB**, construye los datasets y entrega resultados auditables. Todo corre **local**: tus fuentes nunca salen de tu máquina.
 
-<p align="center"><img src="docs/diagrams/flow.svg" alt="De la fuente a la historia — recolectar, landing, DuckDB, reportes" width="860"/></p>
-
-
----
-
-## ✨ ¿Para quién es?
-
-**Periodistas, investigadores y equipos que trabajan con fuentes, documentos o datos que puedan alcanzar en tu compu**
-
-**El asistente de IA** configura el entorno con el **prompt de arranque** de abajo. El trabajo diario usa **[skills](skills/)**; el tono y las reglas están en **[AGENTS.md](AGENTS.md)**.
-
----
-
-## 🧭 Cómo funciona
-
-### Principios
-
-| Principio | Qué significa para ti |
-|-----------|------------------------|
-| **Conservar originales** | Descargas y extracciones quedan en `data/landing/` — sin sobrescribir |
-| **Usar Lenguaje Natural** | Pides en lenguaje claro; los **skills** convierten el pedido en SQL de DuckDB (vía MCP) |
-
-
-### Flujo de datos
-
-El asistente elige el **skill** correcto en cada etapa (naranja = archivos crudos, verde = base de datos, azul marino = reportes).
-
-<p align="center"><img src="docs/diagrams/flow.svg" alt="De la fuente a la historia — recolectar, landing, DuckDB, reportes" width="860"/></p>
-
-| Paso | Tú | Skill | Salida |
-|:----:|----|-------|--------|
-| 1 | Guardas descargas, scrapes, exportaciones | `web-scraping` | `data/landing/` |
-| 2 | Pides “ingestar” un archivo | `ingest-data` | tabla en DuckDB |
-| 3 | Haces preguntas en lenguaje claro | SQL + MCP | respuestas en el chat |
-| 4 | Pides análisis o un reporte | `statistical-report` / `sentiment-analysis` / `graph-analysis` | `reports/` |
-
-### Un pedido, de principio a fin
-
-Un mensaje (“ingesta este archivo y resúmelo”) sigue siempre el mismo camino:
-
-<p align="center"><img src="docs/diagrams/request-lifecycle.svg" alt="Un pedido — lenguaje claro a respuesta auditable vía MCP" width="560"/></p>
-
-### Mapa del repositorio
-
-Izquierda: configuración y comportamiento del agente. Derecha: tu evidencia y salida publicable.
-
-<p align="center"><img src="docs/diagrams/repo-layout.svg" alt="Layout del repositorio datasyn — configuración del agente y carpetas de datos" width="680"/></p>
-
----
 
 ## 📌 Requisitos
-
-- **Python 3.11+** (lo instala el asistente si falta)
+A continuacion se listan los requisitos, que de ser necesario instalará tu asistente.
+- **Python 3.11+** 
 - **[uv](https://docs.astral.sh/uv/)** — entorno Python (lo configura el prompt de arranque)
-- **Un asistente de IA con skills** (Cursor, VS Code + GitHub Copilot, o similar)
+- **Un asistente de IA** (Cursor, VS Code + GitHub Copilot, o similar)
 
 ---
 
 ## 🚀 Arranque — copia este prompt
 
-### Configuración inicial
-
-Clona el repositorio, pega el prompt de abajo y sigue el resumen del asistente.
+No instalas nada a mano: clonas el repositorio, pegas el prompt de abajo en tu asistente y él configura `uv` (Python), enlaza los [skills](skills/) y conecta el servidor MCP de DuckDB.
 
 1. **Clona** este repositorio y ábrelo en el IDE.
 2. **Pega** el bloque en el chat del asistente.
@@ -136,11 +85,46 @@ Reglas: ingest y reportes son skills (SQL), no apps Python extra. Los archivos e
 
 ---
 
-## 🗞️ Ejemplo completo — de titulares a sentimiento
+## 🧭 Cómo funciona
 
-### Un prompt, investigación completa
+### Principios
 
-**Extraer → ingestar → reporte de sentimiento** en un solo mensaje:
+| Principio | Qué significa para ti |
+|-----------|------------------------|
+| **Conservar originales** | Descargas y extracciones quedan en `data/landing/` — sin sobrescribir |
+| **Usar lenguaje natural** | Pides en lenguaje claro; los **skills** convierten el pedido en SQL de DuckDB (vía MCP) |
+
+### Las piezas
+
+| Pieza | Rol |
+|-------|-----|
+| 🤖 **Asistente IA + [skills](skills/)** | Convierten tu pedido en lenguaje natural en pasos concretos de SQL |
+| 📋 **[AGENTS.md](AGENTS.md)** | Define el tono, las reglas y el flujo de trabajo del asistente |
+| 🗄️ **DuckDB** (`data/duckdb/`) | Motor analítico local donde viven las tablas |
+| 🔌 **MCP** | Puente que deja al asistente ejecutar SQL sobre la base |
+| 📂 **`data/landing/` → `reports/`** | Originales crudos a la entrada, salidas publicables a la salida |
+
+### Del dato crudo al reporte
+
+Tus datos suben de calidad por etapas —el **patrón de medalla**— y en cada una un **skill** hace el trabajo. Tú solo describes lo que necesitas; el asistente elige la etapa y el skill correctos.
+
+<p align="center"><img src="docs/diagrams/flow.svg" alt="De la fuente a la historia — recolectar, landing, DuckDB, reportes" width="860"/></p>
+
+| Etapa | Qué pasa | Skill que lo hace |
+|-------|----------|-------------------|
+| **Landing** | Guardas descargas, scrapes y exportaciones sin tocarlas | [`web-scraping`](skills/web-scraping/SKILL.md) |
+| 🟤 **Bronze** | Los archivos crudos entran a DuckDB tal cual | [`ingest-data-bronze`](skills/ingest-data-bronze/SKILL.md) |
+| ⚪ **Silver** | Se limpia, deduplica, normaliza y une | [`ingest-data-silver`](skills/ingest-data-silver/SKILL.md) |
+| 🟡 **Gold** | Se agrega y resume en datasets listos para usar | [`ingest-data-gold`](skills/ingest-data-gold/SKILL.md) |
+| **Reportes** | Se generan análisis y documentos finales | [`statistical-report`](skills/statistical-report/SKILL.md) · [`sentiment-analysis`](skills/sentiment-analysis/SKILL.md) · [`graph-analysis`](skills/graph-analysis/SKILL.md) |
+
+> El skill [`ingest-data`](skills/ingest-data/SKILL.md) es el punto de entrada: analiza tu pedido y lo enruta a la etapa (bronze, silver o gold) correcta.
+
+---
+
+## 🗞️ Ejemplo completo — de titulares a *emociones...*
+
+**Extraer → ingestar → reporte de analisis de sentimiento** en un solo mensaje:
 
 <p align="center"><img src="docs/diagrams/investigation-example.svg" alt="Investigación completa — extracción, ingesta, reporte de sentimiento" width="720"/></p>
 
@@ -164,4 +148,62 @@ los reportes son skills (SQL de DuckDB), e indica qué muestran los datos,
 cómo lo sabemos y cuáles son las salvedades.
 ```
 
-> ⚖️ **Fuentes:** respeta los términos de cada sitio y su `robots.txt`; prefiere feeds o APIs oficiales cuando existan. El asistente guarda URL de origen y fecha de captura para que los hallazgos sean auditables.
+---
+
+## 🧩 Crear una nueva skill
+
+En este proyecto, una **skill** es una guía de trabajo en Markdown que le enseña al asistente *cómo* hacer una tarea concreta (ingestar un CSV, limpiar duplicados, escribir un reporte). No es código que se ejecuta: es una receta en lenguaje claro con reglas, pasos y plantillas de SQL. Cuando pides algo, el asistente busca la skill adecuada y la sigue.
+
+**Dónde se guardan:** cada skill vive en su propia carpeta dentro de [`skills/`](skills/), con un archivo `SKILL.md` adentro.
+
+```
+skills/
+└── mi-skill/
+    └── SKILL.md
+```
+
+**Cómo crear una:** crea la carpeta y un `SKILL.md` que empiece con un encabezado (frontmatter) con `name` y `description`. La `description` es clave: el asistente la usa para decidir cuándo aplicar la skill.
+
+````markdown
+---
+name: export-csv
+description: >-
+  Exporta una tabla de DuckDB a un archivo CSV en reports/.
+  Úsala cuando el usuario pida descargar, exportar o guardar
+  una tabla o consulta como CSV.
+---
+
+# Exportar a CSV
+
+Pasos:
+
+1. Confirma con el usuario qué tabla o consulta exportar.
+2. Ejecuta el COPY vía MCP:
+
+   ```sql
+   COPY (SELECT * FROM gold.mi_tabla)
+   TO 'reports/mi_tabla.csv' (HEADER, DELIMITER ',');
+   ```
+
+3. Valida: confirma que el archivo existe y su número de filas.
+````
+
+> 💡 Después de crearla, súmala al catálogo de [`skills/README.md`](skills/README.md) y, si tu IDE las cachea, vuelve a enlazar la carpeta (`ln -sfn "$(pwd)/skills" .cursor/skills`). Mira cualquier skill existente, como [`ingest-data`](skills/ingest-data/SKILL.md), como referencia de estilo.
+
+---
+
+## 🛠️ Herramientas que usa
+
+| Herramienta | Para qué sirve | Documentación |
+|-------------|----------------|----------------|
+| 🗄️ **DuckDB** | Base de datos analítica local; ejecuta el SQL que crea y consulta tus tablas | [duckdb.org/docs](https://duckdb.org/docs/) |
+| 🔌 **MCP** (Model Context Protocol) | Estándar abierto que conecta al asistente de IA con DuckDB para ejecutar SQL | [modelcontextprotocol.io](https://modelcontextprotocol.io/) · [duckdb_mcp](https://github.com/duckdb/duckdb-mcp-server) |
+| 🧩 **Skills** | Guías de tarea en Markdown que el asistente sigue (ver [`skills/`](skills/)) | [Agent Skills (Anthropic)](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/overview) · [Cursor Rules & Skills](https://docs.cursor.com/) |
+| 🐍 **uv** | Gestor de entornos y dependencias de Python | [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
+
+---
+
+## ⚠️ Disclaimer
+
+Este repositorio fue creado con ayuda de IA (modelos de **Anthropic**, **Gemini**, **DeepSeek** y algunos proveedores de **OpenRouter**). Revisa tus configuraciones de **billing**, **limita tus cuotas** y verifica los **permisos** antes de usarlo.
+
