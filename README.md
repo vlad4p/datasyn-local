@@ -25,7 +25,13 @@
 A continuacion se listan los requisitos, que de ser necesario instalará tu asistente.
 - **Python 3.11+** 
 - **[uv](https://docs.astral.sh/uv/)** — entorno Python (lo configura el prompt de arranque)
-- **Un asistente de IA** (Cursor, VS Code + GitHub Copilot, o similar)
+
+### Instalar un IDE
+
+Necesitas un editor con asistente de IA integrado:
+
+- **[OpenCode](https://opencode.ai):** `curl -fsSL https://opencode.ai/install | bash`
+- **[VS Code](https://code.visualstudio.com/):** [Descargar](https://code.visualstudio.com/download) · macOS: `brew install --cask visual-studio-code`
 
 ---
 

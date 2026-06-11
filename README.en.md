@@ -74,7 +74,13 @@ Left: agent configuration and behavior. Right: your evidence and publishable out
 
 - **Python 3.11+** (the assistant installs it if missing)
 - **[uv](https://docs.astral.sh/uv/)** — Python environment (configured by the startup prompt)
-- **An AI assistant with skills** (Cursor, VS Code + GitHub Copilot, or similar)
+
+### Install an IDE
+
+You need an editor with a built-in AI assistant:
+
+- **[OpenCode](https://opencode.ai):** `curl -fsSL https://opencode.ai/install | bash`
+- **[VS Code](https://code.visualstudio.com/):** [Download](https://code.visualstudio.com/download) · macOS: `brew install --cask visual-studio-code`
 
 ---
 
