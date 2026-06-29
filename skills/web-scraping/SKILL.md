@@ -12,8 +12,9 @@ description: >-
 
 - **Respect robots.txt** and site terms of service
 - **Rate limit** requests (≥1s between calls unless API allows otherwise)
-- **Save raw data** to `data/landing/` before transforming
+- **Save raw data** to `data/landing/` before transforming (gitignored — never commit)
 - **Prefer APIs** over HTML scraping when available
+- **Privacy** — scraped content may contain PII; follow **`data-privacy`** skill before any commit
 
 ## Workflow
 
