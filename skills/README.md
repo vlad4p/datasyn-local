@@ -29,6 +29,8 @@ Copy or link this folder into your tool’s skills directory:
 
 ### Analysis & reports
 
+All report skills write to **`report/<project>/<report-name>`** (see [`statistical-report`](statistical-report/SKILL.md)).
+
 | Skill | When to use |
 |-------|-------------|
 | [`graph-ingest`](graph-ingest/SKILL.md) | Build graph tables (vertices & edges) from entity-link data |

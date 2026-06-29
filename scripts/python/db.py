@@ -67,11 +67,29 @@ def get_landing_path() -> Path:
 
 
 def get_reports_path() -> Path:
+    """Root directory for all report outputs (default: report/)."""
     return _path_from_settings(
         "DATASYN_REPORTS_PATH",
         ("paths", "reports"),
-        "reports",
+        "report",
     )
+
+
+_PROJECT_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def get_report_path(project: str, name: str) -> Path:
+    """Return report/<project>/<name>, creating the project subdirectory."""
+    slug = project.strip().lower().replace("_", "-")
+    if not _PROJECT_SLUG_RE.fullmatch(slug):
+        raise ValueError(
+            f"Invalid report project {project!r}. Use kebab-case slug (e.g. redes, grafo, nyt)."
+        )
+    if not name or "/" in name or name in (".", ".."):
+        raise ValueError(f"Invalid report name {name!r}.")
+    out_dir = get_reports_path() / slug
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return out_dir / name
 
 
 def ensure_dirs() -> None:

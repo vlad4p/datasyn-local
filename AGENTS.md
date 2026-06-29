@@ -61,7 +61,7 @@ landing/ → bronze → silver → gold
 ### On report request
 
 - Skill **`statistical-report`** or **`sentiment-analysis`**.
-- Write to `reports/` in the format the user needs.
+- Write to `report/<project>/<report-name>` (see **`statistical-report`**).
 
 ### On scrape request
 
@@ -70,7 +70,7 @@ landing/ → bronze → silver → gold
 ### On graph / network request
 
 - Skill **`graph-ingest`** to build vertex & edge tables from entity-link data.
-- Skill **`graph-analysis`** for centrality, communities, density — write to `reports/`.
+- Skill **`graph-analysis`** for centrality, communities, density — write to `report/grafo/` (or domain project).
 - Always validate: `COUNT(*)` on vertices/edges, check isolated nodes.
 
 ### On MCP setup
@@ -83,7 +83,7 @@ landing/ → bronze → silver → gold
 ```
 data/landing/          # raw files
 data/duckdb/           # datasyn.duckdb
-reports/               # agent outputs
+report/                # agent outputs: report/<project>/<report-name>
 skills/                # configure in YOUR AI assistant
 scripts/python/db.py   # DB paths, connect(), MCP (mcp-serve)
 AGENTS.md              # this file
@@ -92,7 +92,7 @@ AGENTS.md              # this file
 ## Data flow
 
 ```
-collect → landing → ingest (skill, SQL) → DuckDB → analyze → reports (skill)
+collect → landing → ingest (skill, SQL) → DuckDB → analyze → report/<project>/ (skill)
 ```
 
 ## Skills
@@ -168,14 +168,14 @@ Ingest and reports: **skills only**.
 
 Read skill **`data-privacy`** before commits, PRs, scrapes, or reports that touch personal or scraped data.
 
-**Never commit:** `data/landing/**`, `data/duckdb/*.duckdb`, `reports/**`, `.data/**`, `.env`, credentials, `.cursor/mcp.json`, `.vscode/mcp.json`.
+**Never commit:** `data/landing/**`, `data/duckdb/*.duckdb`, `report/**`, `.data/**`, `.env`, credentials, `.cursor/mcp.json`, `.vscode/mcp.json`.
 
 **Agent rules:**
 
 1. Run `git status` and `git diff` before any commit the user requests — refuse to stage sensitive paths.
 2. Commit messages describe code/skills/SQL only — no sample rows, PII, or scraped text.
 3. In chat, prefer aggregates; sample with `LIMIT 3` and redact emails, phones, handles.
-4. Raw files → `data/landing/`; analysis outputs → `reports/`; both stay local (gitignored).
+4. Raw files → `data/landing/`; analysis outputs → `report/<project>/`; both stay local (gitignored).
 
 ## Standards
 

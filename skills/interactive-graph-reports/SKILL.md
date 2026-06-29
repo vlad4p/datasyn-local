@@ -3,7 +3,7 @@
 **Purpose:** Generate interactive, HTML-based graph visualizations with statistics and analytics from structured node/edge data.
 
 **Domain:** Data visualization, network analysis, knowledge graph exploration  
-**Output format:** HTML (vis.js + React) + Markdown analytics reports  
+**Output format:** HTML (vis.js + React) + Markdown analytics reports under `report/<project>/`  
 **Data requirement:** Nodes (entities), edges (relationships), optional node/edge attributes
 
 ---
@@ -506,7 +506,7 @@ A: Disable physics simulation: `physics: { enabled: false }`
 datasyn graph-report \
   --nodes data/nodes.json \
   --edges data/edges.json \
-  --output reports/ \
+  --output report/grafo/ \
   --title "Contrataciones Públicas" \
   --physics-enabled \
   --layout force-directed

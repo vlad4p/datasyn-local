@@ -7,14 +7,14 @@ Usage:
     export_graph_data(
         nodes=organismos,
         edges=relationships,
-        output_dir='reports/',
+        output_dir='report/grafo/',
         filename='grafo.json'
     )
     
     generate_html_report(
         grafo_json='grafo.json',
         title='Mi Grafo',
-        output_dir='reports/'
+        output_dir='report/grafo/'
     )
 """
 
@@ -26,7 +26,7 @@ from typing import List, Dict, Optional, Tuple
 def export_graph_data(
     nodes: List[Dict],
     edges: List[Dict],
-    output_dir: str = 'reports/',
+    output_dir: str = 'report/grafo/',
     filename: str = 'grafo.json'
 ) -> Path:
     """
@@ -75,7 +75,7 @@ def export_graph_data(
 
 def generate_html_interactive(
     grafo_json: str,
-    output_path: str = 'reports/grafo_interactivo.html',
+    output_path: str = 'report/grafo/grafo_interactivo.html',
     title: str = 'Grafo Interactivo',
     physics_enabled: bool = True,
     node_colors: Optional[Dict[str, str]] = None
@@ -267,7 +267,7 @@ def generate_html_interactive(
 
 def generate_analytics_html(
     grafo_json: str,
-    output_path: str = 'reports/analisis_grafo.html',
+    output_path: str = 'report/grafo/analisis_grafo.html',
     title: str = 'Análisis del Grafo'
 ) -> Path:
     """
@@ -442,11 +442,11 @@ if __name__ == '__main__':
     ]
     
     # Export graph
-    export_graph_data(nodes, edges, output_dir='reports/', filename='test_grafo.json')
-    
+    export_graph_data(nodes, edges, output_dir='report/grafo/', filename='test_grafo.json')
+
     # Generate reports
-    generate_html_interactive('reports/test_grafo.json', 'reports/test_interactivo.html')
-    generate_analytics_html('reports/test_grafo.json', 'reports/test_analytics.html')
+    generate_html_interactive('report/grafo/test_grafo.json', 'report/grafo/test_interactivo.html')
+    generate_analytics_html('report/grafo/test_grafo.json', 'report/grafo/test_analytics.html')
     
     # Calculate centrality
     top = get_top_nodes(nodes, edges, top_n=3)
