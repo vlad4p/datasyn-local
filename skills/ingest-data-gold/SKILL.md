@@ -154,8 +154,8 @@ ORDER BY avisos DESC;
 
 ---
 
-## After gold → reports
+## After gold → report
 
-Gold tables feed directly into reports. Use [`statistical-report`](../statistical-report/SKILL.md),
+Gold tables feed directly into `report/<project>/`. Use [`statistical-report`](../statistical-report/SKILL.md),
 [`graph-analysis`](../graph-analysis/SKILL.md), or [`sentiment-analysis`](../sentiment-analysis/SKILL.md)
 to produce final outputs.

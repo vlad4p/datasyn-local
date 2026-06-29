@@ -3,7 +3,7 @@ name: graph-analysis
 description: >-
   Analyze property graphs (vertices & edges) in DuckDB using SQL via MCP only.
   Computes centrality, degree distribution, density, communities,
-  co-occurrence networks. Produces markdown reports under reports/.
+  co-occurrence networks. Produces markdown reports under report/<project>/.
   Use for network analysis, connection mapping, community detection,
   or influence metrics from entity graphs.
 ---
@@ -11,13 +11,13 @@ description: >-
 # Graph analysis (skill — SQL via MCP only)
 
 Analyze graph tables (`grafo_vertices`, `grafo_edges`, `grafo_edges_agg`) using
-pure SQL through MCP. No graph extensions required. Write findings to `reports/`.
+pure SQL through MCP. No graph extensions required. Write findings to `report/grafo/` (or another project slug if the graph is domain-specific).
 
 ## Prerequisites
 
 - Graph tables exist: `grafo_vertices`, `grafo_edges`, `grafo_edges_agg`
 - If not, use skill `graph-ingest` first
-- Output: `reports/` directory
+- Output: `report/<project>/` — default project `grafo` for network analysis
 
 ## Workflow
 
@@ -25,7 +25,7 @@ pure SQL through MCP. No graph extensions required. Write findings to `reports/`
 2. **Rank by centrality** — find most connected nodes
 3. **Detect communities** — multi-entity links, shared entities across companies
 4. **Draft report** — markdown with findings
-5. **Save** — `reports/grafo_{YYYYMMDD}.md`
+5. **Save** — `report/grafo/reporte_{YYYYMMDD}.md` (see **`statistical-report`** for layout)
 
 ---
 

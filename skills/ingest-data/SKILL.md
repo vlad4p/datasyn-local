@@ -12,7 +12,7 @@ Data flows through three quality zones. Start each request by analyzing which
 zone fits the source and goal.
 
 ```
-landing/ ──→ bronze ──→ silver ──→ gold ──→ reports
+landing/ ──→ bronze ──→ silver ──→ gold ──→ report/<project>/
   raw         raw       clean      ready
   files       SQL        joins     aggregates
 ```

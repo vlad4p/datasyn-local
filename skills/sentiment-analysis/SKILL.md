@@ -43,7 +43,7 @@ This connects directly to `data/duckdb/datasyn.duckdb` — not through MCP.
 1. Identify text column(s) — via MCP `describe` and `query` to profile
 2. Choose approach (A: TextBlob Python · B: SQL keyword heuristics)
 3. Create sentiment results table — via `db.py run-sql` (DDL)
-4. Summarize findings with journalistic language — write to `reports/`
+4. Summarize findings with journalistic language — write to `report/<project>/<report-name>.md` (see **`statistical-report`**)
 
 ---
 

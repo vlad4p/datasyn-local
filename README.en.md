@@ -54,7 +54,7 @@ The assistant picks the right **skill** at each stage (orange = raw files, green
 | 1 | Save downloads, scrapes, exports | `web-scraping` | `data/landing/` |
 | 2 | Ask to "ingest" a file | `ingest-data` | table in DuckDB |
 | 3 | Ask questions in plain language | SQL + MCP | answers in chat |
-| 4 | Request analysis or a report | `statistical-report` / `sentiment-analysis` / `graph-analysis` | `reports/` |
+| 4 | Request analysis or a report | `statistical-report` / `sentiment-analysis` / `graph-analysis` | `report/<project>/` |
 
 ### One request, start to finish
 
@@ -161,7 +161,7 @@ Run a full pipeline for me, explaining each step in plain language:
 2. Ingest that file into DuckDB as a table called nyt_news
    (ingest-data skill). Then show COUNT(*), DESCRIBE, and 5 sample rows.
 3. Run a sentiment analysis on the headline and summary text
-   (sentiment-analysis skill) and write a markdown report to reports/
+   (sentiment-analysis skill) and write a markdown report to report/<project>/
    with: overall tone, a positive/neutral/negative breakdown, a few
    representative quotes, and the limits of the method.
 

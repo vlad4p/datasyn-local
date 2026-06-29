@@ -108,7 +108,7 @@ Reglas: ingest y reportes son skills (SQL), no apps Python extra. Los archivos e
 | 📋 **[AGENTS.md](AGENTS.md)** | Define el tono, las reglas y el flujo de trabajo del asistente |
 | 🗄️ **DuckDB** (`data/duckdb/`) | Motor analítico local donde viven las tablas |
 | 🔌 **MCP** | Puente que deja al asistente ejecutar SQL sobre la base |
-| 📂 **`data/landing/` → `reports/`** | Originales crudos a la entrada, salidas publicables a la salida |
+| 📂 **`data/landing/` → `report/<project>/`** | Originales crudos a la entrada, salidas publicables a la salida |
 
 ### Del dato crudo al reporte
 
@@ -145,7 +145,7 @@ Ejecuta un pipeline completo y explica cada paso en lenguaje claro:
 2. Ingesta ese archivo en DuckDB como una tabla llamada nyt_news
    (skill ingest-data). Después muestra COUNT(*), DESCRIBE y 5 filas de ejemplo.
 3. Realiza un análisis de sentimiento sobre el texto de titulares y resúmenes
-   (skill sentiment-analysis) y escribe un reporte markdown en reports/
+   (skill sentiment-analysis) y escribe un reporte markdown en report/<project>/
    con: tono general, desglose positivo/neutral/negativo, algunas citas
    representativas y los límites del método.
 
@@ -174,7 +174,7 @@ skills/
 ---
 name: export-csv
 description: >-
-  Exporta una tabla de DuckDB a un archivo CSV en reports/.
+  Exporta una tabla de DuckDB a un archivo CSV en report/<project>/.
   Úsala cuando el usuario pida descargar, exportar o guardar
   una tabla o consulta como CSV.
 ---
@@ -188,7 +188,7 @@ Pasos:
 
    ```sql
    COPY (SELECT * FROM gold.mi_tabla)
-   TO 'reports/mi_tabla.csv' (HEADER, DELIMITER ',');
+   TO 'report/mi-proyecto/mi_tabla.csv' (HEADER, DELIMITER ',');
    ```
 
 3. Valida: confirma que el archivo existe y su número de filas.
