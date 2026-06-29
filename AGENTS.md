@@ -66,6 +66,7 @@ landing/ → bronze → silver → gold
 ### On scrape request
 
 - Skill **`web-scraping`** → `data/landing/` → then **`ingest-data`**.
+- Skill **`scrape-sociavault`** → SociaVault API for Facebook, Twitter/X, Instagram, TikTok → `data/landing/redes/sociavault/` → `bronze.sv_*` / `silver.sv_*`.
 
 ### On graph / network request
 
@@ -109,6 +110,11 @@ collect → landing → ingest (skill, SQL) → DuckDB → analyze → report/<p
 | `statistical-report` | Multi-format reports |
 | `sentiment-analysis` | Text reports |
 | `web-scraping` | Fetch to landing |
+| `scrape-sociavault` | SociaVault pipeline — FB, TW, IG, TT → `sv_*` tables |
+| `scrape-sociavault-facebook` | Facebook page via SociaVault |
+| `scrape-sociavault-twitter` | X/Twitter account via SociaVault |
+| `scrape-sociavault-instagram` | Instagram account via SociaVault |
+| `scrape-sociavault-tiktok` | TikTok account via SociaVault |
 | `create-table` | Schema design |
 | `configure-duckdb-mcp` | MCP setup (Cursor, VS Code, Kilo Code) |
 | `setup-uv` | Python env |

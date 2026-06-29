@@ -51,6 +51,11 @@ All report skills write to **`report/<project>/<report-name>`** (see [`statistic
 | Skill | When to use |
 |-------|-------------|
 | [`web-scraping`](web-scraping/SKILL.md) | Fetch data to `data/landing/` |
+| [`scrape-sociavault`](scrape-sociavault/SKILL.md) | SociaVault pipeline entry — route platform, credits, ingest |
+| [`scrape-sociavault-facebook`](scrape-sociavault-facebook/SKILL.md) | Facebook page/profile via SociaVault |
+| [`scrape-sociavault-twitter`](scrape-sociavault-twitter/SKILL.md) | X/Twitter account via SociaVault |
+| [`scrape-sociavault-instagram`](scrape-sociavault-instagram/SKILL.md) | Instagram account via SociaVault |
+| [`scrape-sociavault-tiktok`](scrape-sociavault-tiktok/SKILL.md) | TikTok account via SociaVault |
 | [`create-table`](create-table/SKILL.md) | Schema design |
 | [`create-python-script`](create-python-script/SKILL.md) | Optional code in `scripts/python/` |
 | [`configure-duckdb-mcp`](configure-duckdb-mcp/SKILL.md) | MCP server setup (Cursor, VS Code, Kilo Code) |

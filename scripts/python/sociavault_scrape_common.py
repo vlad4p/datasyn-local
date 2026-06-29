@@ -1,0 +1,108 @@
+"""Shared helpers for SociaVault platform scrape scripts."""
+
+from __future__ import annotations
+
+import json
+import re
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import db
+from sociavault_client import SociaVaultClient
+
+
+def account_slug(value: str) -> str:
+    """Derive filesystem-safe slug from URL or handle."""
+    value = value.strip().rstrip("/")
+    if value.startswith("@"):
+        return re.sub(r"[^a-zA-Z0-9_-]", "_", value[1:]).lower()
+    if "://" in value:
+        path = urlparse(value).path.strip("/")
+        if path:
+            return re.sub(r"[^a-zA-Z0-9_-]", "_", path.split("/")[-1]).lower()
+    return re.sub(r"[^a-zA-Z0-9_-]", "_", value).lower()
+
+
+def repo_root() -> Path:
+    return Path(__file__).resolve().parent.parent.parent
+
+
+def repo_relative(path: Path) -> str:
+    return str(path.relative_to(repo_root()))
+
+
+def sociavault_root(platform: str) -> Path:
+    return db.get_landing_path() / "redes" / "sociavault" / platform
+
+
+def make_run_dir(platform: str, slug: str) -> Path:
+    date = datetime.now(timezone.utc).strftime("%Y%m%d")
+    run_dir = sociavault_root(platform) / f"{slug}_{date}"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir
+
+
+def write_json(path: Path, payload: Any) -> None:
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n")
+
+
+def append_jsonl(path: Path, record: dict[str, Any]) -> None:
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+
+
+def write_current_run(platform: str, paths: dict[str, str]) -> Path:
+    """Pointer file for bronze SQL ingest (gitignored landing)."""
+    meta_path = sociavault_root(platform) / "_current_run.json"
+    write_json(meta_path, paths)
+    return meta_path
+
+
+def write_manifest(
+    run_dir: Path,
+    *,
+    platform: str,
+    account: str,
+    client: SociaVaultClient,
+    extra: dict[str, Any] | None = None,
+) -> Path:
+    manifest = {
+        "platform": platform,
+        "account": account,
+        "run_dir": repo_relative(run_dir),
+        "scraped_at": datetime.now(timezone.utc).isoformat(),
+        "credits_used": client.credits_used,
+        "requests": client.requests,
+        **(extra or {}),
+    }
+    path = run_dir / "manifest.json"
+    write_json(path, manifest)
+    return path
+
+
+def run_ingest_sql(sql_file: str) -> int:
+    """Execute bronze/silver SQL via db.py."""
+    root = Path(__file__).resolve().parent.parent.parent
+    sql_path = root / "scripts" / "sql" / sql_file
+    if not sql_path.is_file():
+        print(f"SQL file not found: {sql_path}", file=sys.stderr)
+        return 1
+    result = subprocess.run(
+        ["uv", "run", "python", "scripts/python/db.py", "run-sql", "--file", str(sql_path)],
+        cwd=root,
+    )
+    return result.returncode
+
+
+def dig(data: Any, *keys: str, default: Any = None) -> Any:
+    node = data
+    for key in keys:
+        if not isinstance(node, dict):
+            return default
+        node = node.get(key)
+    return node if node is not None else default
