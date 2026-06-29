@@ -10,8 +10,10 @@ description: >-
 # Ingest data — Bronze (raw layer)
 
 **Zone:** Bronze — `bronze.*` schema.
-**Source:** files in `data/landing/` or direct scrapes.
+**Source:** files in `data/landing/` or direct scrapes (local only — gitignored).
 **Goal:** load raw data as-is into DuckDB tables. No cleaning, no joins.
+
+**Privacy:** landing files and the `.duckdb` database must not be committed. Commit ingest SQL/skills only — see **`data-privacy`**.
 
 ---
 

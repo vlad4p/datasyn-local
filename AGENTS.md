@@ -113,6 +113,8 @@ collect → landing → ingest (skill, SQL) → DuckDB → analyze → reports (
 | `configure-duckdb-mcp` | MCP setup (Cursor, VS Code, Kilo Code) |
 | `setup-uv` | Python env |
 | `create-python-script` | Optional code in `scripts/python/` |
+| `gitflow` | Branching model: feature, release, hotfix; PRs and tags |
+| `data-privacy` | Prevent data leaks — gitignore, commits, PII in outputs |
 
 ## SQL execution — prefer MCP over direct Python
 
@@ -162,8 +164,21 @@ uv run python scripts/python/db.py info   # also run by bootstrap.sh
 
 Ingest and reports: **skills only**.
 
+## Data privacy & git safety
+
+Read skill **`data-privacy`** before commits, PRs, scrapes, or reports that touch personal or scraped data.
+
+**Never commit:** `data/landing/**`, `data/duckdb/*.duckdb`, `reports/**`, `.data/**`, `.env`, credentials, `.cursor/mcp.json`, `.vscode/mcp.json`.
+
+**Agent rules:**
+
+1. Run `git status` and `git diff` before any commit the user requests — refuse to stage sensitive paths.
+2. Commit messages describe code/skills/SQL only — no sample rows, PII, or scraped text.
+3. In chat, prefer aggregates; sample with `LIMIT 3` and redact emails, phones, handles.
+4. Raw files → `data/landing/`; analysis outputs → `reports/`; both stay local (gitignored).
+
 ## Standards
 
-- No secrets or `.duckdb` in git
+- No secrets, datasets, `.duckdb`, or report outputs in git
 - Prefer DuckDB SQL over pandas
-- No committed `.cursor/mcp.json`
+- No committed `.cursor/mcp.json` or `.vscode/mcp.json`

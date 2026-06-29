@@ -15,7 +15,8 @@ Do **not** run `make report` or Python report modules. Query with DuckDB via MCP
 ## Prerequisites
 
 - Table exists in DuckDB (`SHOW TABLES`)
-- Output directory: `reports/` (gitignored content)
+- Output directory: `reports/` (gitignored — reports may contain PII or scraped text; never commit)
+- Before any git commit: follow **`data-privacy`** — commit SQL/templates only, not report outputs
 
 ## Workflow
 
