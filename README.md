@@ -198,6 +198,52 @@ Pasos:
 
 ---
 
+## 🔀 Gitflow — ramas y releases
+
+El repo usa **Gitflow**: `main` es producción; `develop` integra el trabajo terminado; las features son ramas cortas que se fusionan en `develop`.
+
+```
+main     ●─────────●─────────────────●  (tags: v1.0.0)
+          \       /
+develop    ●──●──●──●──●──●──●  ← integración
+                \    /
+feature          ●──●           ← trabajo nuevo
+```
+
+| Rama | Prefijo | Base | Merge a | Uso |
+|------|---------|------|---------|-----|
+| **main** | — | — | — | Código listo para release |
+| **develop** | — | `main` | — | Integración diaria |
+| **feature** | `feature/` | `develop` | `develop` | Skills, ingest, scripts |
+| **release** | `release/` | `develop` | `main` + `develop` | Estabilizar versión |
+| **hotfix** | `hotfix/` | `main` | `main` + `develop` | Fix urgente en producción |
+
+### Flujo típico (feature)
+
+```bash
+git checkout develop && git pull origin develop
+git checkout -b feature/mi-cambio
+# ... commits (solo código/skills/SQL — nunca data/landing/, .env, reportes)
+git push -u origin HEAD
+# PR → develop (preferido) o merge local --no-ff
+git checkout develop && git merge --no-ff feature/mi-cambio
+git branch -d feature/mi-cambio
+git push origin --delete feature/mi-cambio   # si quedó en remoto
+```
+
+### Estado actual
+
+```bash
+./scripts/sh/gitflow.sh status    # rama, tipo, divergencia vs main/develop
+./scripts/sh/gitflow.sh branches  # features locales y si ya están en develop
+```
+
+Guía completa para el asistente: [`skills/gitflow/SKILL.md`](skills/gitflow/SKILL.md) · referencia: [`skills/gitflow/reference.md`](skills/gitflow/reference.md)
+
+**Reglas de commit:** `feat(scope):`, `fix(scope):`, `docs(scope):` — sin PII ni datos crudos en mensajes. Ver skill **`data-privacy`** antes de commitear.
+
+---
+
 ## 🛠️ Herramientas que usa
 
 | Herramienta | Para qué sirve | Documentación |
