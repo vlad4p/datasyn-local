@@ -15,6 +15,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import db
 from sociavault_client import SociaVaultClient
 
+PLATFORM_SQL = {
+    "facebook": ("ingest_sociavault_facebook.sql", "ingest_sociavault_facebook_silver.sql"),
+    "twitter": ("ingest_sociavault_twitter.sql", "ingest_sociavault_twitter_silver.sql"),
+    "instagram": ("ingest_sociavault_instagram.sql", "ingest_sociavault_instagram_silver.sql"),
+    "tiktok": ("ingest_sociavault_tiktok.sql", "ingest_sociavault_tiktok_silver.sql"),
+}
+
 
 def account_slug(value: str) -> str:
     """Derive filesystem-safe slug from URL or handle."""
@@ -87,7 +94,7 @@ def write_manifest(
 
 def run_ingest_sql(sql_file: str) -> int:
     """Execute bronze/silver SQL via db.py."""
-    root = Path(__file__).resolve().parent.parent.parent
+    root = repo_root()
     sql_path = root / "scripts" / "sql" / sql_file
     if not sql_path.is_file():
         print(f"SQL file not found: {sql_path}", file=sys.stderr)
@@ -97,6 +104,68 @@ def run_ingest_sql(sql_file: str) -> int:
         cwd=root,
     )
     return result.returncode
+
+
+def run_ingest_full(
+    platform: str,
+    *,
+    classify: bool = True,
+    classify_limit: int = 500,
+) -> int:
+    """Run bronze → silver → entities → optional LLM classification."""
+    if platform not in PLATFORM_SQL:
+        print(f"Unknown platform: {platform}", file=sys.stderr)
+        return 1
+
+    bronze_sql, silver_sql = PLATFORM_SQL[platform]
+    steps = [
+        bronze_sql,
+        silver_sql,
+        "ingest_sociavault_classification.sql",
+        "ingest_sociavault_entities.sql",
+    ]
+    for sql_file in steps:
+        rc = run_ingest_sql(sql_file)
+        if rc != 0:
+            return rc
+
+    if classify:
+        root = repo_root()
+        cmd = [
+            "uv",
+            "run",
+            "python",
+            "scripts/python/classify_sv_comments.py",
+            "--platform",
+            platform,
+            "--limit",
+            str(classify_limit),
+        ]
+        result = subprocess.run(cmd, cwd=root)
+        if result.returncode != 0:
+            return result.returncode
+
+    return 0
+
+
+def write_selected_snapshot(
+    run_dir: Path,
+    *,
+    limits: Any,
+    pool: list[dict[str, Any]],
+    selected: list[dict[str, Any]],
+) -> Path:
+    path = run_dir / "selected.json"
+    write_json(
+        path,
+        {
+            "last": limits.last,
+            "api_pool_size": len(pool),
+            "selected_count": len(selected),
+            "items": selected,
+        },
+    )
+    return path
 
 
 def dig(data: Any, *keys: str, default: Any = None) -> Any:

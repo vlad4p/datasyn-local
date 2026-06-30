@@ -2,33 +2,32 @@
 name: scrape-sociavault
 description: >-
   SociaVault social-scrape pipeline entry point. Routes to platform skills
-  (Facebook, Twitter/X, Instagram, TikTok), checks API key and credits,
-  saves raw JSON to landing, and ingests bronze/silver sv_* tables. Use
-  when the user asks to scrape redes sociales, SociaVault, or multi-platform
-  social media collection.
+  (Facebook, Twitter/X, Instagram, TikTok), scrapes by count (--last N),
+  MERGE silver ingest, actor extraction, and LLM comment classification.
+  Use when the user asks to scrape redes sociales or SociaVault accounts.
 ---
 
 # SociaVault scrape pipeline
 
-Unified pipeline for collecting public social media data via [SociaVault](https://docs.sociavault.com) into DuckDB. Raw JSON lands in `data/landing/redes/sociavault/`; parallel `sv_*` schemas keep SociaVault data separate from legacy CSV dumps.
+Unified pipeline for collecting public social media data via [SociaVault](https://docs.sociavault.com) into DuckDB. Scrapes by **count** (last N posts/tweets/videos), not by date range.
 
 ```
-account URL/handle
+account URL/handle + --last N
        │
        ▼
 ┌──────────────────┐
-│ scrape-sociavault│  ← this skill (route + validate)
+│ scrape-sociavault│  ← route + validate
 └────────┬─────────┘
          │
     ┌────┴────┬─────────┬─────────┐
     ▼         ▼         ▼         ▼
- facebook  twitter  instagram  tiktok   ← platform skills
+ facebook  twitter  instagram  tiktok
     │         │         │         │
     ▼         ▼         ▼         ▼
- landing/  landing/  landing/  landing/
+ paginate → sort by date → take N → fetch all comments/replies
     │         │         │         │
     ▼         ▼         ▼         ▼
- bronze.sv_*  →  silver.sv_*  →  gold / reports
+ bronze.sv_*  →  silver.sv_* (MERGE)  →  sv_actor  →  LLM classify
 ```
 
 ## Platform skills
@@ -40,31 +39,45 @@ account URL/handle
 | Instagram | [`scrape-sociavault-instagram`](../scrape-sociavault-instagram/SKILL.md) | `scrape_sociavault_instagram.py` |
 | TikTok | [`scrape-sociavault-tiktok`](../scrape-sociavault-tiktok/SKILL.md) | `scrape_sociavault_tiktok.py` |
 
+## Count limits (`--last N`)
+
+| User request | CLI |
+|--------------|-----|
+| últimos 10 tweets | `--last 10` (default if omitted: 10) |
+| últimos 3 posts de FB | `--last 3` or `--max-posts 3` |
+| últimos 20 videos TikTok | `--last 20` or `--max-videos 20` |
+
+Implemented in [`scripts/python/sociavault_limits.py`](../../scripts/python/sociavault_limits.py):
+
+1. Paginate API until no cursor
+2. Dedupe by platform ID
+3. Sort by publish timestamp DESC
+4. Take first N → `selected.json`
+5. Fetch **all** comments/replies for selected items only
+
 ## Decision flow
 
-1. **Auth** — verify `SOCIAVAULT_API_KEY` in `.env` (see [`.env.example`](../../.env.example)). Never commit `.env`.
-2. **Credits** (optional) — check balance before large runs:
+1. **Auth** — `SOCIAVAULT_API_KEY` + `LLM_API_KEY` in `.env`
+2. **Credits** — estimate: profile + pagination + enrich (Twitter) + comments
+3. **Route** — pick platform skill
+4. **Collect** — handle/URL, `--last N`, fetch comments/replies
+5. **Execute** with `--ingest-full` or shell wrapper
+6. **Validate** via MCP
+
+## Example
 
 ```bash
-# via Python
-uv run python -c "
-from scripts.python.sociavault_client import SociaVaultClient
-print(SociaVaultClient().get_credits())
-"
+uv run python scripts/python/scrape_sociavault_twitter.py \
+  --handle myriambregman \
+  --last 10 \
+  --fetch-replies \
+  --ingest-full
 ```
 
-3. **Route** — pick platform skill from user request
-4. **Collect inputs** — URL/handle, `--max-posts` / `--max-videos`, fetch comments/replies flag
-5. **Estimate cost** — profile (1) + pagination pages + comments per post/tweet/video
-6. **Execute** platform scrape script
-7. **Ingest** — bronze SQL then silver SQL (or `--ingest` flag on script)
-8. **Validate** via MCP:
+Shell wrapper (default `--last 10`):
 
-```sql
-SELECT 'sv_fb_post' AS t, COUNT(*) FROM silver.sv_fb_post
-UNION ALL SELECT 'sv_tw_tweet', COUNT(*) FROM silver.sv_tw_tweet
-UNION ALL SELECT 'sv_ig_post', COUNT(*) FROM silver.sv_ig_post
-UNION ALL SELECT 'sv_tt_video', COUNT(*) FROM silver.sv_tt_video;
+```bash
+./scripts/sh/scrape_sociavault.sh twitter myriambregman --last 10 --fetch-replies
 ```
 
 ## Shared infrastructure
@@ -72,58 +85,10 @@ UNION ALL SELECT 'sv_tt_video', COUNT(*) FROM silver.sv_tt_video;
 | Component | Path |
 |-----------|------|
 | API client | [`scripts/python/sociavault_client.py`](../../scripts/python/sociavault_client.py) |
+| Count limits | [`scripts/python/sociavault_limits.py`](../../scripts/python/sociavault_limits.py) |
 | Scrape helpers | [`scripts/python/sociavault_scrape_common.py`](../../scripts/python/sociavault_scrape_common.py) |
-| Run pointer | `data/landing/redes/sociavault/{platform}/_current_run.json` |
-| Bronze SQL | `scripts/sql/ingest_sociavault_{platform}.sql` |
-| Silver SQL | `scripts/sql/ingest_sociavault_{platform}_silver.sql` |
-
-## Multi-platform run
-
-Run each platform separately (separate credits and landing folders):
-
-```bash
-uv run python scripts/python/scrape_sociavault_facebook.py --url "..." --fetch-comments
-uv run python scripts/python/scrape_sociavault_twitter.py --handle "..." --fetch-replies
-uv run python scripts/python/scrape_sociavault_instagram.py --handle "..." --fetch-comments
-uv run python scripts/python/scrape_sociavault_tiktok.py --handle "..." --fetch-comments
-```
-
-Then ingest each platform's SQL pair.
-
-## Default scrape depth
-
-Per plan: **profile + posts/tweets/videos + comments/replies**. Pass `--fetch-comments` or `--fetch-replies` on platform scripts.
-
-## Privacy and git safety
-
-- Landing JSON, manifest, and DuckDB stay **gitignored** — see **`data-privacy`**
-- Commit only skills, SQL, and Python helpers
-- Chat: aggregates + `LIMIT 3` samples with PII redaction
-
-## Legacy vs SociaVault data
-
-| Source | Landing | Bronze prefix |
-|--------|---------|---------------|
-| Internal CSV dumps | `data/landing/redes/data-fb/`, `data-tw/` | `fb_*`, `tw_*` |
-| SociaVault API | `data/landing/redes/sociavault/` | `sv_*` |
-
-Do **not** merge into legacy tables in v1. Cross-source analysis can join in gold layer later.
-
-## After silver
-
-- [`ingest-data-gold`](../ingest-data-gold/SKILL.md) — KPIs, daily summaries
-- [`sentiment-analysis`](../sentiment-analysis/SKILL.md) — text on `mensaje`/`text`/`caption` columns
-- [`graph-ingest`](../graph-ingest/SKILL.md) — co-occurrence from entity links
-
-## Errors
-
-| HTTP | Action |
-|------|--------|
-| 401 | Fix `SOCIAVAULT_API_KEY` in `.env` |
-| 402 | Stop run; report required vs available credits |
-| 400 | Check URL/handle format; page may be private |
+| Orchestrator | [`scripts/sh/scrape_sociavault.sh`](../../scripts/sh/scrape_sociavault.sh) |
 
 ## Related
 
-- Generic web scrape (non-API): [`web-scraping`](../web-scraping/SKILL.md)
-- Medallion ingest: [`ingest-data`](../ingest-data/SKILL.md)
+- [`web-scraping`](../web-scraping/SKILL.md) · [`ingest-data`](../ingest-data/SKILL.md)
