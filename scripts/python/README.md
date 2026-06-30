@@ -20,14 +20,14 @@ uv run python scripts/python/db.py mcp-serve   # Cursor MCP (stdio)
 SociaVault scrape (requires `.env` with `SOCIAVAULT_API_KEY`):
 
 ```bash
-uv run python scripts/python/scrape_sociavault_facebook.py \
-  --url "https://www.facebook.com/example" --max-posts 50 --fetch-comments
-
+# Last 10 tweets + all replies + full pipeline
 uv run python scripts/python/scrape_sociavault_twitter.py \
-  --handle example --fetch-replies
+  --handle myriambregman --last 10 --fetch-replies --ingest-full
 
-uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_facebook.sql
-uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_facebook_silver.sql
+uv run python scripts/python/scrape_sociavault_facebook.py \
+  --url "https://www.facebook.com/example" --last 5 --fetch-comments
+
+./scripts/sh/scrape_sociavault.sh twitter myriambregman --last 10 --fetch-replies
 ```
 
 Import from repo root in other Python code:

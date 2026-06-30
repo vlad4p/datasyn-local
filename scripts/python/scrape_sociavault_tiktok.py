@@ -2,7 +2,7 @@
 
 Usage:
     uv run python scripts/python/scrape_sociavault_tiktok.py \\
-        --handle tiktok --max-videos 30 --fetch-comments
+        --handle tiktok --last 10 --fetch-comments --ingest-full
 """
 
 from __future__ import annotations
@@ -14,16 +14,25 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sociavault_client import SociaVaultClient, SociaVaultCreditsError, SociaVaultError
+from sociavault_limits import (
+    ScrapeLimits,
+    add_limit_args,
+    item_dedupe_key,
+    page_cursor,
+    paginate_collect_items,
+    select_most_recent,
+)
 from sociavault_scrape_common import (
     account_slug,
     append_jsonl,
-    dig,
     make_run_dir,
     repo_relative,
+    run_ingest_full,
     run_ingest_sql,
     write_current_run,
     write_json,
     write_manifest,
+    write_selected_snapshot,
 )
 
 
@@ -32,11 +41,44 @@ def _video_url(video: dict) -> str | None:
 
 
 def _video_id(video: dict) -> str | None:
-    vid = video.get("id") or video.get("video_id") or video.get("aweme_id")
-    return str(vid) if vid is not None else None
+    return item_dedupe_key("tiktok", video)
 
 
-def scrape_tiktok(*, handle: str, max_videos: int, fetch_comments: bool, ingest: bool) -> Path:
+def _fetch_comments(client: SociaVaultClient, run_dir: Path, video: dict) -> None:
+    video_url = _video_url(video)
+    video_id = _video_id(video)
+    if not video_url and not video_id:
+        return
+    comments_path = run_dir / f"comments_{video_id or 'unknown'}.jsonl"
+    comment_cursor: str | None = None
+    while True:
+        cparams: dict = {}
+        if video_url:
+            cparams["url"] = video_url
+        else:
+            cparams["video_id"] = video_id
+        if comment_cursor:
+            cparams["cursor"] = comment_cursor
+        try:
+            comments_page = client.scrape("tiktok", "video/comments", cparams)
+        except SociaVaultError as exc:
+            append_jsonl(comments_path, {"error": str(exc), "video_id": video_id})
+            break
+        append_jsonl(comments_path, comments_page)
+        comment_cursor = page_cursor(comments_page)
+        if not comment_cursor:
+            break
+
+
+def scrape_tiktok(
+    *,
+    handle: str,
+    limits: ScrapeLimits,
+    fetch_comments: bool,
+    ingest: bool,
+    ingest_full: bool,
+    classify_limit: int,
+) -> Path:
     handle = handle.lstrip("@")
     slug = account_slug(handle)
     run_dir = make_run_dir("tiktok", slug)
@@ -46,52 +88,20 @@ def scrape_tiktok(*, handle: str, max_videos: int, fetch_comments: bool, ingest:
     write_json(run_dir / "profile.json", profile)
 
     videos_path = run_dir / "videos.jsonl"
-    collected = 0
-    cursor: str | None = None
+    pool = paginate_collect_items(
+        client,
+        platform="tiktok",
+        resource="videos",
+        base_params={"handle": handle},
+        raw_path=videos_path,
+    )
 
-    while collected < max_videos:
-        params: dict = {"handle": handle}
-        if cursor:
-            params["cursor"] = cursor
-        page = client.scrape("tiktok", "videos", params)
-        append_jsonl(videos_path, page)
+    selected = select_most_recent(pool, "tiktok", limits.last)
+    write_selected_snapshot(run_dir, limits=limits, pool=pool, selected=selected)
 
-        videos = dig(page, "data", "videos") or dig(page, "data", "data", "videos") or []
-        if isinstance(videos, dict):
-            videos = list(videos.values())
-
-        if fetch_comments:
-            for video in videos:
-                if not isinstance(video, dict):
-                    continue
-                video_url = _video_url(video)
-                video_id = _video_id(video)
-                if not video_url and not video_id:
-                    continue
-                comments_path = run_dir / f"comments_{video_id or 'unknown'}.jsonl"
-                comment_cursor: str | None = None
-                while True:
-                    cparams: dict = {}
-                    if video_url:
-                        cparams["url"] = video_url
-                    else:
-                        cparams["video_id"] = video_id
-                    if comment_cursor:
-                        cparams["cursor"] = comment_cursor
-                    try:
-                        comments_page = client.scrape("tiktok", "video/comments", cparams)
-                    except SociaVaultError as exc:
-                        append_jsonl(comments_path, {"error": str(exc), "video_id": video_id})
-                        break
-                    append_jsonl(comments_path, comments_page)
-                    comment_cursor = dig(comments_page, "data", "cursor")
-                    if not comment_cursor:
-                        break
-
-        collected += len(videos) if isinstance(videos, list) else 0
-        cursor = dig(page, "data", "cursor") or dig(page, "data", "nextCursor")
-        if not cursor or not videos:
-            break
+    if fetch_comments:
+        for video in selected:
+            _fetch_comments(client, run_dir, video)
 
     write_current_run(
         "tiktok",
@@ -99,12 +109,28 @@ def scrape_tiktok(*, handle: str, max_videos: int, fetch_comments: bool, ingest:
             "run_dir": repo_relative(run_dir),
             "profile_path": repo_relative(run_dir / "profile.json"),
             "videos_path": repo_relative(videos_path),
+            "selected_path": repo_relative(run_dir / "selected.json"),
             "comments_glob": repo_relative(run_dir / "comments_*.jsonl"),
+            "limits": limits.to_manifest_dict(),
         },
     )
-    write_manifest(run_dir, platform="tiktok", account=handle, client=client)
+    write_manifest(
+        run_dir,
+        platform="tiktok",
+        account=handle,
+        client=client,
+        extra={
+            "limits": limits.to_manifest_dict(),
+            "api_pool_size": len(pool),
+            "selected_count": len(selected),
+        },
+    )
 
-    if ingest:
+    if ingest_full:
+        rc = run_ingest_full("tiktok", classify_limit=classify_limit)
+        if rc != 0:
+            raise SociaVaultError(f"Ingest full failed with exit code {rc}")
+    elif ingest:
         run_ingest_sql("ingest_sociavault_tiktok.sql")
         run_ingest_sql("ingest_sociavault_tiktok_silver.sql")
 
@@ -114,20 +140,28 @@ def scrape_tiktok(*, handle: str, max_videos: int, fetch_comments: bool, ingest:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Scrape TikTok account via SociaVault")
     parser.add_argument("--handle", required=True, help="TikTok handle")
-    parser.add_argument("--max-videos", type=int, default=30)
+    add_limit_args(parser, alias_flag="max-videos")
     parser.add_argument("--fetch-comments", action="store_true")
     parser.add_argument("--ingest", action="store_true")
+    parser.add_argument("--ingest-full", action="store_true")
+    parser.add_argument("--classify-limit", type=int, default=500)
     args = parser.parse_args()
 
     try:
+        limits = ScrapeLimits.from_args(args)
         run_dir = scrape_tiktok(
             handle=args.handle,
-            max_videos=args.max_videos,
+            limits=limits,
             fetch_comments=args.fetch_comments,
             ingest=args.ingest,
+            ingest_full=args.ingest_full,
+            classify_limit=args.classify_limit,
         )
         print(f"Saved to {run_dir}")
         return 0
+    except ValueError as exc:
+        print(f"Invalid arguments: {exc}", file=sys.stderr)
+        return 1
     except SociaVaultCreditsError as exc:
         print(f"Insufficient credits: {exc}", file=sys.stderr)
         return 2

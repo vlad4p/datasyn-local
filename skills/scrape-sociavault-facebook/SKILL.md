@@ -1,10 +1,8 @@
 ---
 name: scrape-sociavault-facebook
 description: >-
-  Scrape a public Facebook page via SociaVault API: profile, posts, and
-  comments. Saves JSON to data/landing/redes/sociavault/facebook/ and
-  ingests to bronze.sv_fb_* / silver.sv_fb_* tables. Use when the user
-  asks to scrape a Facebook account, fanpage, or page with SociaVault.
+  Scrape a public Facebook page via SociaVault API: last N posts by publish
+  date, all comments per selected post. MERGEs sv_fb_*, actors, LLM classify.
 ---
 
 # Scrape Facebook (SociaVault)
@@ -14,8 +12,16 @@ description: >-
 ## Prerequisites
 
 1. `SOCIAVAULT_API_KEY` in `.env` (copy from [`.env.example`](../../.env.example))
-2. Public Facebook **page** URL (personal profiles may fail)
-3. Follow **`data-privacy`** — landing data and reports stay local
+2. `LLM_API_KEY` in `.env` for comment classification (`uv sync --extra llm`)
+3. Public Facebook **page** URL (personal profiles may fail)
+4. Follow **`data-privacy`** — landing data and reports stay local
+
+## Count flag
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--last N` | 10 | N most recent posts (by `publishTime`) |
+| `--max-posts N` | — | Alias for `--last` |
 
 ## SociaVault endpoints
 
@@ -25,19 +31,20 @@ description: >-
 | Posts | `GET /v1/scrape/facebook/profile/posts?url=` or `pageId=` | ~1/page (≤3 posts/page) |
 | Comments | `GET /v1/scrape/facebook/post/comments?url=` | ~1/page |
 
-Docs: [Profile](https://docs.sociavault.com/api-reference/facebook/profile) · [Profile Posts](https://docs.sociavault.com/api-reference/facebook/profile-posts) · [Post Comments](https://docs.sociavault.com/api-reference/facebook/post-comments)
-
 ## Workflow
 
-1. **Confirm** public page URL and `--max-posts` / `--fetch-comments`
-2. **Estimate credits:** 1 (profile) + pages for posts + 1 per post comment page
-3. **Scrape:**
+1. **Confirm** URL, time window, and `--fetch-comments`
+2. **Estimate credits:** 1 (profile) + post pages + comment pages per post
+3. **Scrape + full pipeline:**
 
 ```bash
 uv run python scripts/python/scrape_sociavault_facebook.py \
   --url "https://www.facebook.com/example" \
-  --max-posts 50 \
-  --fetch-comments
+  --last 10 \
+  --fetch-comments \
+  --ingest-full
+
+./scripts/sh/scrape_sociavault.sh facebook "https://www.facebook.com/example" --last 5
 ```
 
 4. **Landing output** (gitignored):
@@ -47,39 +54,46 @@ data/landing/redes/sociavault/facebook/{slug}_{YYYYMMDD}/
   profile.json
   posts.jsonl
   comments_{post_id}.jsonl
-  manifest.json
+  manifest.json   # includes window, posts_collected
 ```
 
-5. **Ingest bronze:**
+5. **Manual ingest** (if not using `--ingest` / `--ingest-full`):
 
 ```bash
 uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_facebook.sql
-```
-
-6. **Ingest silver:**
-
-```bash
 uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_facebook_silver.sql
+uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_classification.sql
+uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_entities.sql
+uv run python scripts/python/classify_sv_comments.py --platform facebook --limit 500
 ```
-
-Or pass `--ingest` to the scrape script to run both SQL files automatically.
 
 ## DuckDB tables
 
 | Zone | Tables |
 |------|--------|
-| Bronze | `bronze.sv_fb_profile`, `bronze.sv_fb_post`, `bronze.sv_fb_comment` |
-| Silver | `silver.sv_fb_profile`, `silver.sv_fb_post`, `silver.sv_fb_comment` |
+| Bronze | `bronze.sv_fb_profile`, `bronze.sv_fb_post`, `bronze.sv_fb_comment` (current run) |
+| Silver | `silver.sv_fb_*` (MERGE upsert by `post_id` / `comment_id`) |
+| Actors | `silver.sv_actor`, `silver.sv_actor_activity`, `silver.sv_actor_stats` |
+| Classification | `silver.sv_fb_comment_classification` (`free_criteria` legacy schema) |
 
-Silver column names align with legacy [`silver.fb_post`](../../scripts/sql/ingest_fb_silver.sql) where possible (`post_id`, `mensaje`, `comentarios`).
+Silver comments include `user_id`, `user_name`, `user_url`, `fecha_comentario_ts`.
 
 ## Validation
 
 ```sql
-SELECT COUNT(*) FROM bronze.sv_fb_profile;
 SELECT COUNT(*) FROM silver.sv_fb_post;
 SELECT COUNT(*) FROM silver.sv_fb_comment;
-SELECT post_id, LEFT(mensaje, 80) FROM silver.sv_fb_post LIMIT 3;
+SELECT COUNT(DISTINCT user_id) FROM silver.sv_fb_comment;
+
+SELECT criterio_label, COUNT(*) AS n
+FROM silver.sv_fb_comment_classification
+GROUP BY 1 ORDER BY n DESC;
+
+SELECT a.display_name, s.comment_count, s.troll_count
+FROM silver.sv_actor_stats s
+JOIN silver.sv_actor a USING (actor_id)
+WHERE a.platform = 'facebook'
+ORDER BY s.troll_count DESC LIMIT 10;
 ```
 
 Redact PII in chat outputs.
@@ -88,9 +102,10 @@ Redact PII in chat outputs.
 
 - Public pages only; private content returns errors
 - Facebook returns up to ~3 posts per API page — pagination via `cursor`
-- Legacy CSV dumps in `data/landing/redes/data-fb/` are a **separate** pipeline — do not merge into `fb_*` tables
+- `user_id` depends on SociaVault response; fallback identity uses `name_only`
+- Legacy CSV dumps in `data/landing/redes/data-fb/` are a **separate** pipeline
 
 ## Related
 
 - Pipeline entry: [`scrape-sociavault`](../scrape-sociavault/SKILL.md)
-- After silver: [`ingest-data-gold`](../ingest-data-gold/SKILL.md), [`sentiment-analysis`](../sentiment-analysis/SKILL.md)
+- [`ingest-data-gold`](../ingest-data-gold/SKILL.md) · [`graph-ingest`](../graph-ingest/SKILL.md)

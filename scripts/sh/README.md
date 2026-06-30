@@ -4,6 +4,7 @@
 |--------|---------|
 | `bootstrap.sh` | MCP config, MCP check, and `db.py info` |
 | `gitflow.sh` | Gitflow branch status, naming validation, merged-feature cleanup |
+| `scrape_sociavault.sh` | SociaVault scrape + ingest + entities + classify (`--last N`) |
 
 Run from repository root:
 
@@ -37,4 +38,10 @@ git checkout -b feature/short-kebab-name
 ```bash
 git branch -d feature/short-kebab-name
 git push origin --delete feature/short-kebab-name   # optional
+```
+
+## SociaVault scrape
+
+```bash
+./scripts/sh/scrape_sociavault.sh twitter myriambregman --last 10 --fetch-replies
 ```

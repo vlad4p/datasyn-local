@@ -2,7 +2,7 @@
 
 Usage:
     uv run python scripts/python/scrape_sociavault_instagram.py \\
-        --handle instagram --max-posts 30 --fetch-comments
+        --handle instagram --last 10 --fetch-comments --ingest-full
 """
 
 from __future__ import annotations
@@ -14,16 +14,25 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from sociavault_client import SociaVaultClient, SociaVaultCreditsError, SociaVaultError
+from sociavault_limits import (
+    ScrapeLimits,
+    add_limit_args,
+    item_dedupe_key,
+    page_cursor,
+    paginate_collect_items,
+    select_most_recent,
+)
 from sociavault_scrape_common import (
     account_slug,
     append_jsonl,
-    dig,
     make_run_dir,
     repo_relative,
+    run_ingest_full,
     run_ingest_sql,
     write_current_run,
     write_json,
     write_manifest,
+    write_selected_snapshot,
 )
 
 
@@ -32,11 +41,48 @@ def _post_url(post: dict) -> str | None:
 
 
 def _post_id(post: dict) -> str | None:
-    pid = post.get("id") or post.get("pk") or post.get("code")
-    return str(pid) if pid is not None else None
+    return item_dedupe_key("instagram", post)
 
 
-def scrape_instagram(*, handle: str, max_posts: int, fetch_comments: bool, ingest: bool) -> Path:
+def _fetch_comments(
+    client: SociaVaultClient,
+    run_dir: Path,
+    handle: str,
+    post: dict,
+) -> None:
+    post_url = _post_url(post)
+    post_id = _post_id(post)
+    if not post_url:
+        return
+    comments_path = run_dir / f"comments_{post_id or 'unknown'}.jsonl"
+    comment_cursor: str | None = None
+    while True:
+        if post_url.startswith("http"):
+            cparams = {"url": post_url}
+        else:
+            cparams = {"handle": handle, "post_id": post_id}
+        if comment_cursor:
+            cparams["cursor"] = comment_cursor
+        try:
+            comments_page = client.scrape("instagram", "post/comments", cparams)
+        except SociaVaultError as exc:
+            append_jsonl(comments_path, {"error": str(exc), "post_id": post_id})
+            break
+        append_jsonl(comments_path, comments_page)
+        comment_cursor = page_cursor(comments_page)
+        if not comment_cursor:
+            break
+
+
+def scrape_instagram(
+    *,
+    handle: str,
+    limits: ScrapeLimits,
+    fetch_comments: bool,
+    ingest: bool,
+    ingest_full: bool,
+    classify_limit: int,
+) -> Path:
     handle = handle.lstrip("@")
     slug = account_slug(handle)
     run_dir = make_run_dir("instagram", slug)
@@ -46,51 +92,20 @@ def scrape_instagram(*, handle: str, max_posts: int, fetch_comments: bool, inges
     write_json(run_dir / "profile.json", profile)
 
     posts_path = run_dir / "posts.jsonl"
-    collected = 0
-    cursor: str | None = None
+    pool = paginate_collect_items(
+        client,
+        platform="instagram",
+        resource="posts",
+        base_params={"handle": handle},
+        raw_path=posts_path,
+    )
 
-    while collected < max_posts:
-        params: dict = {"handle": handle}
-        if cursor:
-            params["cursor"] = cursor
-        page = client.scrape("instagram", "posts", params)
-        append_jsonl(posts_path, page)
+    selected = select_most_recent(pool, "instagram", limits.last)
+    write_selected_snapshot(run_dir, limits=limits, pool=pool, selected=selected)
 
-        posts = dig(page, "data", "posts") or dig(page, "data", "data", "posts") or []
-        if isinstance(posts, dict):
-            posts = list(posts.values())
-
-        if fetch_comments:
-            for post in posts:
-                if not isinstance(post, dict):
-                    continue
-                post_url = _post_url(post)
-                post_id = _post_id(post)
-                if not post_url:
-                    continue
-                comments_path = run_dir / f"comments_{post_id or 'unknown'}.jsonl"
-                comment_cursor: str | None = None
-                while True:
-                    if post_url.startswith("http"):
-                        cparams = {"url": post_url}
-                    else:
-                        cparams = {"handle": handle, "post_id": post_id}
-                    if comment_cursor:
-                        cparams["cursor"] = comment_cursor
-                    try:
-                        comments_page = client.scrape("instagram", "post/comments", cparams)
-                    except SociaVaultError as exc:
-                        append_jsonl(comments_path, {"error": str(exc), "post_id": post_id})
-                        break
-                    append_jsonl(comments_path, comments_page)
-                    comment_cursor = dig(comments_page, "data", "cursor")
-                    if not comment_cursor:
-                        break
-
-        collected += len(posts) if isinstance(posts, list) else 0
-        cursor = dig(page, "data", "cursor") or dig(page, "data", "nextCursor")
-        if not cursor or not posts:
-            break
+    if fetch_comments:
+        for post in selected:
+            _fetch_comments(client, run_dir, handle, post)
 
     write_current_run(
         "instagram",
@@ -98,12 +113,28 @@ def scrape_instagram(*, handle: str, max_posts: int, fetch_comments: bool, inges
             "run_dir": repo_relative(run_dir),
             "profile_path": repo_relative(run_dir / "profile.json"),
             "posts_path": repo_relative(posts_path),
+            "selected_path": repo_relative(run_dir / "selected.json"),
             "comments_glob": repo_relative(run_dir / "comments_*.jsonl"),
+            "limits": limits.to_manifest_dict(),
         },
     )
-    write_manifest(run_dir, platform="instagram", account=handle, client=client)
+    write_manifest(
+        run_dir,
+        platform="instagram",
+        account=handle,
+        client=client,
+        extra={
+            "limits": limits.to_manifest_dict(),
+            "api_pool_size": len(pool),
+            "selected_count": len(selected),
+        },
+    )
 
-    if ingest:
+    if ingest_full:
+        rc = run_ingest_full("instagram", classify_limit=classify_limit)
+        if rc != 0:
+            raise SociaVaultError(f"Ingest full failed with exit code {rc}")
+    elif ingest:
         run_ingest_sql("ingest_sociavault_instagram.sql")
         run_ingest_sql("ingest_sociavault_instagram_silver.sql")
 
@@ -113,20 +144,28 @@ def scrape_instagram(*, handle: str, max_posts: int, fetch_comments: bool, inges
 def main() -> int:
     parser = argparse.ArgumentParser(description="Scrape Instagram account via SociaVault")
     parser.add_argument("--handle", required=True, help="Instagram handle")
-    parser.add_argument("--max-posts", type=int, default=30)
+    add_limit_args(parser, alias_flag="max-posts")
     parser.add_argument("--fetch-comments", action="store_true")
     parser.add_argument("--ingest", action="store_true")
+    parser.add_argument("--ingest-full", action="store_true")
+    parser.add_argument("--classify-limit", type=int, default=500)
     args = parser.parse_args()
 
     try:
+        limits = ScrapeLimits.from_args(args)
         run_dir = scrape_instagram(
             handle=args.handle,
-            max_posts=args.max_posts,
+            limits=limits,
             fetch_comments=args.fetch_comments,
             ingest=args.ingest,
+            ingest_full=args.ingest_full,
+            classify_limit=args.classify_limit,
         )
         print(f"Saved to {run_dir}")
         return 0
+    except ValueError as exc:
+        print(f"Invalid arguments: {exc}", file=sys.stderr)
+        return 1
     except SociaVaultCreditsError as exc:
         print(f"Insufficient credits: {exc}", file=sys.stderr)
         return 2
