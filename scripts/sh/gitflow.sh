@@ -14,10 +14,15 @@ Usage: scripts/sh/gitflow.sh <command>
 Commands:
   status    Show current branch, gitflow type, and divergence from main/develop
   check     Validate branch name against gitflow prefixes (exit 1 if invalid)
+  branches  List local feature/* branches and whether they are merged into develop
+  cleanup   Delete local feature/* branches already merged into develop (dry-run with --dry-run)
 
 Examples:
   ./scripts/sh/gitflow.sh status
   ./scripts/sh/gitflow.sh check
+  ./scripts/sh/gitflow.sh branches
+  ./scripts/sh/gitflow.sh cleanup --dry-run
+  ./scripts/sh/gitflow.sh cleanup
 EOF
 }
 
@@ -107,11 +112,91 @@ cmd_check() {
   esac
 }
 
+develop_ref() {
+  if git rev-parse --verify develop >/dev/null 2>&1; then
+    echo "develop"
+  elif git rev-parse --verify origin/develop >/dev/null 2>&1; then
+    echo "origin/develop"
+  else
+    echo ""
+  fi
+}
+
+cmd_branches() {
+  local base
+  base=$(develop_ref)
+  if [[ -z "$base" ]]; then
+    echo -e "${YELLOW}develop branch not found${NC}"
+    exit 1
+  fi
+
+  echo "=== Feature branches (merge target: $base) ==="
+  local found=0
+  while IFS= read -r branch; do
+    [[ -z "$branch" ]] && continue
+    found=1
+    local ahead
+    ahead=$(git rev-list --count "$base..$branch" 2>/dev/null || echo "?")
+    if [[ "$ahead" == "0" ]]; then
+      echo -e "  ${GREEN}synced${NC}   $branch (no commits ahead of $base)"
+    elif git merge-base --is-ancestor "$branch" "$base" 2>/dev/null; then
+      echo -e "  ${GREEN}merged${NC}   $branch"
+    else
+      echo -e "  ${YELLOW}open${NC}     $branch (+${ahead} commits)"
+    fi
+  done < <(git branch --list 'feature/*' | sed 's/^[* ] //')
+
+  if [[ "$found" -eq 0 ]]; then
+    echo "  (none)"
+  fi
+}
+
+cmd_cleanup() {
+  local dry_run=0
+  if [[ "${1:-}" == "--dry-run" ]]; then
+    dry_run=1
+  fi
+
+  local base
+  base=$(develop_ref)
+  if [[ -z "$base" ]]; then
+    echo -e "${YELLOW}develop branch not found${NC}"
+    exit 1
+  fi
+
+  local current deleted=0
+  current=$(current_branch)
+
+  while IFS= read -r branch; do
+    [[ -z "$branch" ]] && continue
+    if ! git merge-base --is-ancestor "$branch" "$base" 2>/dev/null; then
+      continue
+    fi
+    if [[ "$branch" == "$current" ]]; then
+      echo -e "${YELLOW}skip${NC} $branch (current branch)"
+      continue
+    fi
+    if [[ "$dry_run" -eq 1 ]]; then
+      echo -e "${GREEN}would delete${NC} $branch"
+    else
+      git branch -d "$branch"
+      echo -e "${GREEN}deleted${NC} $branch"
+    fi
+    deleted=$((deleted + 1))
+  done < <(git branch --merged "$base" --list 'feature/*' | sed 's/^[* ] //')
+
+  if [[ "$deleted" -eq 0 ]]; then
+    echo "No merged feature branches to clean up."
+  fi
+}
+
 main() {
   local cmd="${1:-status}"
   case "$cmd" in
     status) cmd_status ;;
     check) cmd_check ;;
+    branches) cmd_branches ;;
+    cleanup) cmd_cleanup "${2:-}" ;;
     -h|--help|help) usage ;;
     *)
       echo "Unknown command: $cmd" >&2

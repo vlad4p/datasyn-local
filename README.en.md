@@ -171,3 +171,49 @@ how we know, and what the caveats are.
 ```
 
 > ⚖️ **Sources:** respect each site's terms and `robots.txt`; prefer official feeds or APIs when available. The assistant keeps source URL and capture date so findings are auditable.
+
+---
+
+## 🔀 Gitflow — branches and releases
+
+This repo uses **Gitflow**: `main` is production-ready; `develop` holds integrated work; short-lived **feature** branches merge into `develop`.
+
+```
+main     ●─────────●─────────────────●  (tags: v1.0.0)
+          \       /
+develop    ●──●──●──●──●──●──●  ← integration
+                \    /
+feature          ●──●           ← new work
+```
+
+| Branch | Prefix | Base | Merge into | Purpose |
+|--------|--------|------|------------|---------|
+| **main** | — | — | — | Releasable production |
+| **develop** | — | `main` | — | Daily integration |
+| **feature** | `feature/` | `develop` | `develop` | Skills, ingest, scripts |
+| **release** | `release/` | `develop` | `main` + `develop` | Version stabilization |
+| **hotfix** | `hotfix/` | `main` | `main` + `develop` | Urgent production fix |
+
+### Typical feature workflow
+
+```bash
+git checkout develop && git pull origin develop
+git checkout -b feature/my-change
+# ... commits (skills/SQL/scripts only — never data/landing/, .env, reports)
+git push -u origin HEAD
+# PR → develop (preferred) or local --no-ff merge
+git checkout develop && git merge --no-ff feature/my-change
+git branch -d feature/my-change
+git push origin --delete feature/my-change   # if pushed to remote
+```
+
+### Check branch state
+
+```bash
+./scripts/sh/gitflow.sh status    # current branch, type, divergence from main/develop
+./scripts/sh/gitflow.sh branches  # local feature branches and merge status
+```
+
+Full agent workflow: [`skills/gitflow/SKILL.md`](skills/gitflow/SKILL.md) · cheat sheet: [`skills/gitflow/reference.md`](skills/gitflow/reference.md)
+
+**Commit style:** `feat(scope):`, `fix(scope):`, `docs(scope):` — no PII or raw data in messages. Read **`data-privacy`** before committing.
