@@ -42,4 +42,4 @@ import db
 con = db.connect()
 ```
 
-Skills: [`scrape-sociavault`](../../skills/scrape-sociavault/SKILL.md)
+Skills: [`scrape-sociavault`](../../skills/collect/sociavault/scrape-sociavault/SKILL.md) · [`ingest-data`](../../skills/ingest/ingest-data/SKILL.md) · layout: [`docs/skills-layout.md`](../../docs/skills-layout.md)

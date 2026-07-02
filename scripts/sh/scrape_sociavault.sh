@@ -50,6 +50,10 @@ echo "  Account:  $ACCOUNT"
 echo "  Args:     $SCRAPE_ARGS"
 echo "================================================"
 
+echo ""
+echo "Releasing DB lock for ingest (re-enable MCP in Cursor after ingest to query)..."
+uv run python scripts/python/db.py mcp-stop || true
+
 case "$PLATFORM" in
   facebook)
     uv run python scripts/python/scrape_sociavault_facebook.py \
@@ -87,11 +91,11 @@ esac
 
 echo ""
 echo "Ensuring classification schema..."
-uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_classification.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_sociavault_classification.sql
 
 echo ""
 echo "Building entities..."
-uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_entities.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_sociavault_entities.sql
 
 if [ "$SKIP_CLASSIFY" -eq 0 ]; then
   echo ""

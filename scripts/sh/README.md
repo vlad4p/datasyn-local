@@ -3,21 +3,48 @@
 | Script | Purpose |
 |--------|---------|
 | `bootstrap.sh` | MCP config, MCP check, and `db.py info` |
+| `run_mcp.sh` | **MCP entrypoint** for Cursor/VS Code (→ `sh/mcp-serve.sh`) |
+| `mcp-serve.sh` | DuckDB MCP stdio server (`uv run` → `db.py mcp-serve`) |
 | `gitflow.sh` | Gitflow branch status, naming validation, merged-feature cleanup |
 | `scrape_sociavault.sh` | SociaVault scrape + ingest + entities + classify (`--last N`) |
 
 Run from repository root:
 
 ```bash
-chmod +x scripts/sh/bootstrap.sh
+chmod +x scripts/sh/bootstrap.sh scripts/run_mcp.sh
 ./scripts/sh/bootstrap.sh
 ```
+
+## DuckDB MCP
+
+**Setup:** `./scripts/sh/bootstrap.sh` or `uv run python scripts/python/db.py mcp-config`
+
+**Cursor:** Settings → MCP → enable `datasyn-duckdb` → Restart
+
+**Query in chat** (MCP tools): *"List silver tables"*, *"Describe sv_tw_tweet"*, *"How many rows in silver.sv_tw_tweet?"*
+
+**Before ingest** (Python writes): `uv run python scripts/python/db.py mcp-stop`
+
+Full guide: [`skills/infra/configure-duckdb-mcp/SKILL.md`](../../skills/infra/configure-duckdb-mcp/SKILL.md)
+
+Skills layout: [`docs/skills-layout.md`](../../docs/skills-layout.md)
+
+### Troubleshooting `run_mcp.sh ENOENT`
+
+If Cursor logs `spawn .../scripts/run_mcp.sh ENOENT`:
+
+```bash
+chmod +x scripts/run_mcp.sh scripts/sh/mcp-serve.sh
+uv run python scripts/python/db.py mcp-config
+```
+
+Point Cursor MCP command to: `<repo>/scripts/run_mcp.sh`
 
 ## Gitflow helper
 
 Branch model: `main` (production) · `develop` (integration) · `feature/*` · `release/*` · `hotfix/*`.
 
-See [`skills/gitflow/SKILL.md`](../../skills/gitflow/SKILL.md) for the full workflow.
+See [`skills/engineering/gitflow/SKILL.md`](../../skills/engineering/gitflow/SKILL.md) for the full workflow.
 
 ```bash
 ./scripts/sh/gitflow.sh status     # current branch, type, vs main/develop

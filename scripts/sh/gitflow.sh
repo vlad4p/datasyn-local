@@ -74,7 +74,7 @@ cmd_status() {
   elif git rev-parse --verify develop >/dev/null 2>&1; then
     echo "vs develop:        $(count_ahead_behind develop)"
   else
-    echo -e "${YELLOW}develop branch not found — run gitflow bootstrap (see skills/gitflow/SKILL.md)${NC}"
+    echo -e "${YELLOW}develop branch not found — run gitflow bootstrap (see skills/engineering/gitflow/SKILL.md)${NC}"
   fi
 
   echo ""

@@ -2,6 +2,8 @@
 
 **Prompts live here.** Task workflows live in [`skills/`](skills/) — configure that folder in your AI assistant ([`skills/README.md`](skills/README.md)).
 
+Shared vocabulary: [`CONTEXT.md`](CONTEXT.md).
+
 ## Identity
 
 You are the **datasyn** local analyst: DuckDB, optional Python via `scripts/python/db.py`, and **duckdb_mcp** for IDE integration.
@@ -35,7 +37,7 @@ Example:
 
 ### On new session
 
-1. Read this file and the relevant `skills/<name>/SKILL.md`.
+1. Read this file, [`CONTEXT.md`](CONTEXT.md), and the relevant skill from [`skills/`](skills/).
 2. Run `uv run python scripts/python/db.py info` or MCP `list_tables` to see existing data.
 3. Keep external data in `data/landing/` before ingest.
 
@@ -43,41 +45,20 @@ Example:
 
 Follow the **startup prompt** in [`README.md`](README.md) — configure uv, link skills, run `scripts/sh/bootstrap.sh`.
 
-### On ingest request
+### Routing requests
 
-Data flows through the medallion pattern:
+Use scope buckets in [`skills/README.md`](skills/README.md):
 
-```
-landing/ → bronze → silver → gold
-  raw       raw     clean    ready
-```
+| Request type | Bucket | Start with |
+|--------------|--------|------------|
+| Scrape / download | [`collect/`](skills/collect/README.md) | `web-scraping` or `scrape-sociavault` |
+| Ingest / clean / join | [`ingest/`](skills/ingest/README.md) | `ingest-data` |
+| Reports / graphs | [`analyze/`](skills/analyze/README.md) | `statistical-report`, `graph-ingest`, etc. |
+| Schema design | [`schema/`](skills/schema/create-table/SKILL.md) | `create-table` |
+| Setup / MCP | [`infra/`](skills/infra/README.md) | `setup-uv`, `configure-duckdb-mcp` |
+| Git / privacy | [`engineering/`](skills/engineering/README.md) | `data-privacy`, `gitflow` |
 
-- Skill **`ingest-data`** first — decide which zone (bronze, silver, gold)
-- Skill **`ingest-data-bronze`** — raw files → `bronze.*`
-- Skill **`ingest-data-silver`** — clean, dedupe, join → `silver.*`
-- Skill **`ingest-data-gold`** — aggregate, summarize → `gold.*`
-- Validate every step: `COUNT(*)`, `DESCRIBE`, sample rows
-
-### On report request
-
-- Skill **`statistical-report`** or **`sentiment-analysis`**.
-- Write to `report/<project>/<report-name>` (see **`statistical-report`**).
-
-### On scrape request
-
-- Skill **`web-scraping`** → `data/landing/` → then **`ingest-data`**.
-- Skill **`scrape-sociavault`** → SociaVault API (scrape by **`--last N`**, not date) → `bronze.sv_*` / `silver.sv_*`.
-
-### On graph / network request
-
-- Skill **`graph-ingest`** to build vertex & edge tables from entity-link data.
-- Skill **`graph-analysis`** for centrality, communities, density — write to `report/grafo/` (or domain project).
-- Always validate: `COUNT(*)` on vertices/edges, check isolated nodes.
-
-### On MCP setup
-
-- `./scripts/sh/bootstrap.sh` (MCP config, check, info)
-- Skill **`configure-duckdb-mcp`**
+User flow router: [`datasyn-router`](skills/datasyn-router/SKILL.md). Layout guide: [`docs/skills-layout.md`](docs/skills-layout.md).
 
 ## Layout
 
@@ -85,8 +66,9 @@ landing/ → bronze → silver → gold
 data/landing/          # raw files
 data/duckdb/           # datasyn.duckdb
 report/                # agent outputs: report/<project>/<report-name>
-skills/                # configure in YOUR AI assistant
+skills/                # scoped task workflows (see skills/README.md)
 scripts/python/db.py   # DB paths, connect(), MCP (mcp-serve)
+CONTEXT.md             # shared vocabulary
 AGENTS.md              # this file
 ```
 
@@ -96,69 +78,43 @@ AGENTS.md              # this file
 collect → landing → ingest (skill, SQL) → DuckDB → analyze → report/<project>/ (skill)
 ```
 
-## Skills
+## SQL execution — split by task
 
-| Skill | Purpose |
-|-------|---------|
-| `ingest-data` | Entry point — route to bronze/silver/gold |
-| `ingest-data-bronze` | Raw files → `bronze.*` (CSV, JSON, Parquet, XLSX) |
-| `ingest-data-silver` | Clean, dedupe, normalize, join → `silver.*` |
-| `ingest-data-gold` | Aggregate, summaries, KPIs → `gold.*` |
-| `graph-ingest` | Build graph tables (vertices, edges) from entity data |
-| `graph-analysis` | Network analysis: centrality, communities, reports |
-| `interactive-graph-reports` | Interactive HTML graph viz (vis.js + React) |
-| `statistical-report` | Multi-format reports |
-| `sentiment-analysis` | Text reports |
-| `web-scraping` | Fetch to landing |
-| `scrape-sociavault` | SociaVault pipeline — FB, TW, IG, TT → `sv_*` tables |
-| `scrape-sociavault-facebook` | Facebook page via SociaVault |
-| `scrape-sociavault-twitter` | X/Twitter account via SociaVault |
-| `scrape-sociavault-instagram` | Instagram account via SociaVault |
-| `scrape-sociavault-tiktok` | TikTok account via SociaVault |
-| `create-table` | Schema design |
-| `configure-duckdb-mcp` | MCP setup (Cursor, VS Code, Kilo Code) |
-| `setup-uv` | Python env |
-| `create-python-script` | Optional code in `scripts/python/` |
-| `gitflow` | Branching model: feature, release, hotfix; PRs and tags |
-| `data-privacy` | Prevent data leaks — gitignore, commits, PII in outputs |
+DuckDB allows **one writer** at a time. MCP (`mcp-serve`) holds the file lock while enabled in Cursor.
 
-## SQL execution — prefer MCP over direct Python
+| Task | Tool | When |
+|------|------|------|
+| **Ingest / writes** (bronze, silver, scrape) | Python API — `db.connect_for_ingest()` or `db.py run-sql --ingest` | Stop MCP first: `db.py mcp-stop` |
+| **Query / analysis** (reports, EDA, chat) | **MCP tools** (`query`, `list_tables`, `describe`) | MCP enabled in Cursor |
 
-**Always prefer MCP** for SQL queries. Run SQL via:
+### Ingest (Python — writes)
 
 ```bash
-uv run python scripts/python/db.py run-sql "SELECT * FROM table;"
-uv run python scripts/python/db.py run-sql --file path/to/query.sql
+# Release MCP lock, then ingest
+uv run python scripts/python/db.py mcp-stop
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_sociavault_twitter_silver.sql
+
+# Or auto-stop MCP before connect (scrape scripts use this)
+DATASYN_RELEASE_MCP_FOR_WRITE=1 uv run python scripts/python/scrape_sociavault_twitter.py ...
 ```
-
-Only fall back to direct Python DuckDB connections (`db.connect()` + `con.execute()`) when MCP cannot handle the task (e.g., multi-step procedural logic, pandas integration).
-
-### Database helper (Python) — fallback only
 
 ```python
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path("scripts/python").resolve()))
 import db
-
-con = db.connect()
-# ...
-con.close()
+con = db.connect_for_ingest(release_mcp=True)  # stops mcp-serve, opens read-write
 ```
 
-Never hardcode paths — use `db.get_db_path()`, `db.get_landing_path()`.
+### Query (MCP — reads)
 
-## MCP
+Enable **datasyn-duckdb** in Cursor MCP settings, then use MCP tools in chat.
 
 ```bash
-uv run python scripts/python/db.py mcp-config
-uv run python scripts/python/db.py mcp-check
-uv run python scripts/python/db.py run-sql "SELECT 1"        # preferred SQL execution
-uv run python scripts/python/db.py run-sql --file query.sql   # from file
+uv run python scripts/python/db.py mcp-status   # is MCP running?
+uv run python scripts/python/db.py mcp-check    # verify extension
 ```
 
-`mcp-serve` runs INSTALL/LOAD + `PRAGMA mcp_server_start('stdio')` inside `scripts/python/db.py`.
+Do **not** use `run-sql` for analysis when MCP is available — use MCP `query` instead.
+
+Only fall back to direct Python (`db.connect()`) when MCP cannot handle the task (e.g., multi-step procedural logic, pandas integration).
 
 ## Infrastructure (when needed)
 

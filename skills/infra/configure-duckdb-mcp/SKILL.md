@@ -1,0 +1,189 @@
+---
+name: configure-duckdb-mcp
+description: Configure duckdb_mcp for Cursor, VS Code, Kilo Code, or other MCP IDEs.
+disable-model-invocation: true
+---
+
+# Configure DuckDB MCP
+
+References: [duckdb.org](https://duckdb.org/community_extensions/extensions/duckdb_mcp) · [GitHub README](https://github.com/teaguesterling/duckdb_mcp/blob/main/README.md)
+
+## Quick setup
+
+```bash
+./scripts/sh/bootstrap.sh
+# or:
+uv run python scripts/python/db.py mcp-config
+uv run python scripts/python/db.py mcp-check
+```
+
+Then in **Cursor → Settings → MCP**: enable **`datasyn-duckdb`** (or **`duckdb-local`**) → **Restart**.
+
+Entrypoint script (must exist):
+
+```
+scripts/run_mcp.sh  →  scripts/sh/mcp-serve.sh  →  db.py mcp-serve
+```
+
+---
+
+## Fix: `spawn .../scripts/run_mcp.sh ENOENT`
+
+Cursor log shows:
+
+```
+Connection failed: spawn /Users/.../datasyn-local/scripts/run_mcp.sh ENOENT
+```
+
+**Cause:** MCP config points to `scripts/run_mcp.sh` but the file was missing.
+
+**Fix:**
+
+```bash
+chmod +x scripts/run_mcp.sh scripts/sh/mcp-serve.sh
+uv run python scripts/python/db.py mcp-config
+```
+
+In **Cursor → Settings → MCP → duckdb-local** (user server), set:
+
+| Field | Value |
+|-------|-------|
+| Command | `/Users/you/project/datasyn-local/scripts/run_mcp.sh` |
+| Cwd | `/Users/you/project/datasyn-local` |
+| Env | `DATASYN_DB_PATH=/Users/you/project/datasyn-local/data/duckdb/datasyn.duckdb` |
+
+Restart MCP. Verify:
+
+```bash
+uv run python scripts/python/db.py mcp-status   # should show a PID after Cursor connects
+```
+
+---
+
+## Ingest vs query (important)
+
+DuckDB allows **one writer** at a time. MCP holds the file lock while enabled.
+
+| Task | Tool | Command / action |
+|------|------|------------------|
+| **Query / schema / reports** | MCP in chat | Keep MCP enabled |
+| **Ingest / scrape / MERGE** | Python API (write) | `db.py mcp-stop` first |
+
+```bash
+# Before ingest
+uv run python scripts/python/db.py mcp-stop
+
+# Ingest SQL
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_....sql
+
+# After ingest — restart MCP in Cursor to query again
+```
+
+Optional: `DATASYN_RELEASE_MCP_FOR_WRITE=1` auto-stops MCP in `connect_for_ingest()`.
+
+---
+
+## How to use MCP (in chat)
+
+Once MCP is connected, ask in natural language. The assistant uses these tools:
+
+| MCP tool | Use for | Example prompt |
+|----------|---------|----------------|
+| `list_tables` | See what's in the DB | *"List all tables in silver schema"* |
+| `describe` | Column types for one table | *"Describe silver.sv_tw_tweet"* |
+| `query` | Run SELECT SQL | *"How many tweets in sv_tw_tweet?"* |
+| `database_info` | DB path, version, stats | *"Show database info"* |
+| `export` | Export query results | *"Export top 10 tweets to CSV"* |
+
+### Example prompts (Twitter / SociaVault)
+
+```
+Show the schema for silver.sv_tw_tweet and silver.sv_tw_profile.
+
+How many rows in silver.sv_tw_tweet? Show created_at, like_count, left(text,80) for the last 5.
+
+List all silver tables that start with sv_tw_.
+
+DESCRIBE bronze.sv_tw_tweet_selected — what columns exist?
+```
+
+### Example SQL (via MCP `query`)
+
+```sql
+SELECT table_schema, table_name, column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = 'silver' AND table_name LIKE 'sv_tw_%'
+ORDER BY table_name, ordinal_position;
+```
+
+```sql
+SELECT tweet_id, created_at, like_count, retweet_count, reply_count, LEFT(text, 100) AS preview
+FROM silver.sv_tw_tweet
+ORDER BY created_at_ts DESC
+LIMIT 5;
+```
+
+---
+
+## Cursor configuration
+
+### Project-level (recommended)
+
+`uv run python scripts/python/db.py mcp-config` writes `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "datasyn-duckdb": {
+      "command": "/abs/path/to/datasyn-local/scripts/run_mcp.sh",
+      "cwd": "/abs/path/to/datasyn-local",
+      "env": {
+        "DATASYN_DB_PATH": "/abs/path/to/datasyn-local/data/duckdb/datasyn.duckdb"
+      }
+    }
+  }
+}
+```
+
+Reload MCP in Cursor. Do **not** commit `.cursor/mcp.json`. Template: `.cursor/mcp.json.example`.
+
+### User-level server (`duckdb-local` / `user-duckdb-local`)
+
+If you configured MCP globally in Cursor, use the **same command path** as above (`scripts/run_mcp.sh`). Both names work; only the entrypoint path must be correct.
+
+---
+
+## VS Code / Kilo Code
+
+```bash
+uv run python scripts/python/db.py mcp-config
+cp .cursor/mcp.json .vscode/mcp.json
+```
+
+Edit `.vscode/mcp.json`: rename `"mcpServers"` → `"servers"`.
+
+Reload window: `Cmd+Shift+P` → **Developer: Reload Window**.
+
+---
+
+## CLI helpers
+
+```bash
+uv run python scripts/python/db.py mcp-config    # write .cursor/mcp.json
+uv run python scripts/python/db.py mcp-check     # verify duckdb_mcp extension
+uv run python scripts/python/db.py mcp-status    # is mcp-serve running? which PID?
+uv run python scripts/python/db.py mcp-stop      # stop MCP before ingest (write)
+```
+
+`mcp-serve` is started by Cursor automatically — do not run it manually unless debugging.
+
+---
+
+## Built-in MCP tools
+
+`query`, `describe`, `list_tables`, `database_info`, `export`.
+
+## Prompts vs skills
+
+- Workflow rules: `AGENTS.md`
+- This file: MCP wiring and usage only
