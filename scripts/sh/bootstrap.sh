@@ -10,6 +10,9 @@ DB_PY="scripts/python/db.py"
 echo "=== MCP config ==="
 "$UV" run python "$DB_PY" mcp-config
 
+echo "=== MCP status ==="
+"$UV" run python "$DB_PY" mcp-status
+
 echo "=== MCP check ==="
 "$UV" run python "$DB_PY" mcp-check
 

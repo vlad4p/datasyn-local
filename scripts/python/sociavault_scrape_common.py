@@ -92,15 +92,79 @@ def write_manifest(
     return path
 
 
-def run_ingest_sql(sql_file: str) -> int:
+def _platform_from_sql_file(sql_file: str) -> str | None:
+    for platform in PLATFORM_SQL:
+        if platform in sql_file:
+            return platform
+    return None
+
+
+def _load_current_run(platform: str) -> dict[str, Any]:
+    run_path = sociavault_root(platform) / "_current_run.json"
+    if not run_path.is_file():
+        raise FileNotFoundError(f"Missing scrape pointer: {run_path}")
+    return json.loads(run_path.read_text())
+
+
+def _materialize_bronze_sql(sql: str, platform: str) -> str:
+    paths = _load_current_run(platform)
+    run_dir = str(paths["run_dir"])
+    tokens = {
+        "profile_path": str(paths["profile_path"]),
+        "posts_path": str(paths.get("posts_path", "")),
+        "tweets_path": str(paths.get("tweets_path", "")),
+        "videos_path": str(paths.get("videos_path", "")),
+        "selected_path": str(paths["selected_path"]),
+        "tweet_detail_glob": str(paths.get("tweet_detail_glob", f"{run_dir}/tweet_detail_*.json")),
+        "replies_glob": str(paths.get("replies_glob", f"{run_dir}/replies_*.jsonl")),
+        "comments_glob": f"{run_dir}/comments_*.jsonl",
+    }
+    for key, value in tokens.items():
+        sql = sql.replace(f"{{{{{key}}}}}", value.replace("'", "''"))
+    if "{{" in sql:
+        missing = re.findall(r"\{\{(\w+)\}\}", sql)
+        raise ValueError(f"Unresolved SQL tokens for {platform}: {', '.join(missing)}")
+    return sql
+
+
+def run_ingest_sql(sql_file: str, *, platform: str | None = None) -> int:
     """Execute bronze/silver SQL via db.py."""
     root = repo_root()
     sql_path = root / "scripts" / "sql" / sql_file
     if not sql_path.is_file():
         print(f"SQL file not found: {sql_path}", file=sys.stderr)
         return 1
+
+    sql = sql_path.read_text()
+    resolved_platform = platform or _platform_from_sql_file(sql_file)
+    if resolved_platform and "{{" in sql:
+        try:
+            sql = _materialize_bronze_sql(sql, resolved_platform)
+        except (FileNotFoundError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        con = db.connect_for_ingest(release_mcp=True)
+        try:
+            con.execute(sql)
+            print("✅ OK")
+            return 0
+        except Exception as exc:
+            print(f"❌ Error: {exc}", file=sys.stderr)
+            return 1
+        finally:
+            con.close()
+
     result = subprocess.run(
-        ["uv", "run", "python", "scripts/python/db.py", "run-sql", "--file", str(sql_path)],
+        [
+            "uv",
+            "run",
+            "python",
+            "scripts/python/db.py",
+            "run-sql",
+            "--ingest",
+            "--file",
+            str(sql_path),
+        ],
         cwd=root,
     )
     return result.returncode
@@ -125,7 +189,7 @@ def run_ingest_full(
         "ingest_sociavault_entities.sql",
     ]
     for sql_file in steps:
-        rc = run_ingest_sql(sql_file)
+        rc = run_ingest_sql(sql_file, platform=platform)
         if rc != 0:
             return rc
 

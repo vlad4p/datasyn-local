@@ -4,6 +4,8 @@ Run from repo root:
   uv run python scripts/python/db.py info
   uv run python scripts/python/db.py mcp-check
   uv run python scripts/python/db.py mcp-config
+  uv run python scripts/python/db.py mcp-stop
+  uv run python scripts/python/db.py mcp-status
   uv run python scripts/python/db.py mcp-serve
 """
 
@@ -13,7 +15,7 @@ import argparse
 import json
 import os
 import re
-import shutil
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -124,9 +126,78 @@ def resolve_landing_file(file_path: Path) -> Path:
     return resolved
 
 
+def _mcp_pgrep() -> list[tuple[str, str]]:
+    """Return (pid, command) for running mcp-serve processes."""
+    result = subprocess.run(
+        ["pgrep", "-fl", "db.py mcp-serve"],
+        capture_output=True,
+        text=True,
+    )
+    rows: list[tuple[str, str]] = []
+    for line in result.stdout.splitlines():
+        parts = line.strip().split(maxsplit=1)
+        if len(parts) == 2:
+            rows.append((parts[0], parts[1]))
+    return rows
+
+
+def mcp_status() -> dict[str, Any]:
+    """Report whether duckdb_mcp is running and holding the DB file."""
+    processes = _mcp_pgrep()
+    return {
+        "running": bool(processes),
+        "processes": [{"pid": pid, "command": cmd} for pid, cmd in processes],
+        "db_path": str(get_db_path()),
+    }
+
+
+def mcp_stop() -> int:
+    """Stop db.py mcp-serve processes so Python can open the DB for ingest."""
+    processes = _mcp_pgrep()
+    if not processes:
+        print("MCP server not running.")
+        return 0
+    result = subprocess.run(["pkill", "-f", "db.py mcp-serve"])
+    remaining = _mcp_pgrep()
+    if remaining:
+        print("Failed to stop MCP server:", file=sys.stderr)
+        for pid, cmd in remaining:
+            print(f"  PID {pid}: {cmd}", file=sys.stderr)
+        return 1
+    stopped = ", ".join(pid for pid, _ in processes)
+    print(f"Stopped MCP server (PID {stopped}). Re-enable MCP in Cursor to query again.")
+    return 0 if result.returncode in (0, 1) else result.returncode
+
+
 def connect(read_only: bool = False) -> duckdb.DuckDBPyConnection:
     ensure_dirs()
     return duckdb.connect(str(get_db_path()), read_only=read_only)
+
+
+def connect_for_ingest(*, release_mcp: bool | None = None) -> duckdb.DuckDBPyConnection:
+    """Open a read-write connection for ingest (bronze/silver writes).
+
+    DuckDB allows one writer process at a time. When MCP is running it holds
+    the file lock — pass release_mcp=True (or set DATASYN_RELEASE_MCP_FOR_WRITE=1)
+    to stop mcp-serve before connecting.
+    """
+    if release_mcp is None:
+        release_mcp = os.getenv("DATASYN_RELEASE_MCP_FOR_WRITE", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+    if release_mcp:
+        mcp_stop()
+    try:
+        return connect(read_only=False)
+    except duckdb.IOException as exc:
+        locked = _duckdb_lock_message(exc)
+        if locked and locked[1]:
+            raise duckdb.IOException(
+                f"{locked[0]} Run: uv run python scripts/python/db.py mcp-stop"
+            ) from exc
+        raise
 
 
 def list_tables(con: duckdb.DuckDBPyConnection | None = None) -> list[str]:
@@ -153,8 +224,47 @@ def start_mcp_stdio_server(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("PRAGMA mcp_server_start('stdio')")
 
 
+def _duckdb_lock_message(exc: BaseException) -> tuple[str, bool] | None:
+    """If exc is a DuckDB file lock, return (message, mcp_already_running)."""
+    msg = str(exc)
+    if "Conflicting lock" not in msg:
+        return None
+    pid_match = re.search(r"\(PID (\d+)\)", msg)
+    if not pid_match:
+        return (
+            "Database is locked by another process. Stop MCP or other DuckDB clients and retry.",
+            False,
+        )
+    pid = pid_match.group(1)
+    try:
+        cmd = subprocess.run(
+            ["ps", "-p", pid, "-o", "command="],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except subprocess.CalledProcessError:
+        cmd = ""
+    if "mcp-serve" in cmd or re.search(r"db\.py.*mcp-serve", cmd):
+        return (
+            f"duckdb_mcp OK (server already running). DB: {get_db_path().name} "
+            f"(data/duckdb/). Locked by MCP PID {pid}. "
+            "Disable MCP in Cursor to run a full check, or use MCP tools directly.",
+            True,
+        )
+    detail = cmd or "unknown process"
+    return (f"Database locked by PID {pid}: {detail}. Close it and retry.", False)
+
+
 def mcp_check() -> int:
-    con = connect()
+    try:
+        con = connect()
+    except duckdb.IOException as exc:
+        locked = _duckdb_lock_message(exc)
+        if locked:
+            print(locked[0])
+            return 0 if locked[1] else 1
+        raise
     try:
         load_mcp_extension(con)
         status = con.execute("SELECT mcp_server_status()").fetchone()[0]
@@ -168,30 +278,30 @@ def mcp_check() -> int:
         con.close()
 
 
-def _uv_cli() -> str:
-    return os.getenv("UV_BIN") or shutil.which("uv") or "uv"
+def _mcp_server_entry() -> dict[str, Any]:
+    db_path = get_db_path()
+    mcp_script = (PROJECT_ROOT / "scripts" / "run_mcp.sh").resolve()
+    return {
+        "command": str(mcp_script),
+        "cwd": str(PROJECT_ROOT),
+        "env": {"DATASYN_DB_PATH": str(db_path)},
+    }
 
 
 def mcp_config() -> int:
     """Write .cursor/mcp.json (gitignored). MCP bootstrap lives in this module."""
-    db_path = get_db_path()
-    db_script = (PROJECT_ROOT / "scripts" / "python" / "db.py").resolve()
     _MCP_JSON.parent.mkdir(parents=True, exist_ok=True)
 
-    config = {
-        "mcpServers": {
-            "datasyn-duckdb": {
-                "command": _uv_cli(),
-                "args": ["run", "python", str(db_script), "mcp-serve"],
-                "cwd": str(PROJECT_ROOT),
-                "env": {"DATASYN_DB_PATH": str(db_path)},
-            }
-        }
-    }
+    entry = _mcp_server_entry()
+    config = {"mcpServers": {"datasyn-duckdb": entry}}
 
     _MCP_JSON.write_text(json.dumps(config, indent=2) + "\n")
     print(f"Wrote {_MCP_JSON}")
     print(f"Template: {_MCP_JSON_EXAMPLE}")
+    print()
+    print("Cursor: Settings → MCP → enable 'datasyn-duckdb' → Restart")
+    print("If you use a global server 'duckdb-local', point command to:")
+    print(f"  {entry['command']}")
     return 0
 
 
@@ -206,14 +316,14 @@ def cmd_info() -> int:
     print(f"Database: {get_db_path()}")
     print(f"Landing:  {get_landing_path()}")
     print(f"Reports:  {get_reports_path()}")
-    print(f"MCP:      scripts/python/db.py mcp-serve ({_MCP_EXTENSION})")
+    print(f"MCP:      scripts/sh/mcp-serve.sh ({_MCP_EXTENSION})")
     print("Tables:", ", ".join(list_tables()) or "(none)")
     return 0
 
 
-def cmd_run_sql(sql: str) -> int:
+def cmd_run_sql(sql: str, *, for_ingest: bool = False) -> int:
     """Execute one or more SQL statements (;) and show results."""
-    con = connect()
+    con = connect_for_ingest() if for_ingest else connect()
     try:
         statements = [s.strip() for s in sql.split(";") if s.strip()]
         for stmt in statements:
@@ -239,10 +349,17 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("mcp-check", help="Verify duckdb_mcp extension")
     sub.add_parser("mcp-config", help="Write .cursor/mcp.json")
     sub.add_parser("mcp-serve", help="Start MCP stdio server (blocking)")
+    sub.add_parser("mcp-stop", help="Stop mcp-serve so Python can ingest (write)")
+    sub.add_parser("mcp-status", help="Show whether mcp-serve is running")
     sql_parser = sub.add_parser("run-sql", help="Execute SQL statements")
     sql_parser.add_argument("sql", nargs="?", help="SQL statement(s) to execute")
     sql_parser.add_argument(
         "--file", "-f", type=str, help="Read SQL from file instead of argument"
+    )
+    sql_parser.add_argument(
+        "--ingest",
+        action="store_true",
+        help="Write mode: release MCP lock before running (bronze/silver ingest)",
     )
 
     args = parser.parse_args(argv)
@@ -256,6 +373,19 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "mcp-serve":
         mcp_serve()
         return 0
+    if args.command == "mcp-stop":
+        return mcp_stop()
+    if args.command == "mcp-status":
+        status = mcp_status()
+        if status["running"]:
+            for proc in status["processes"]:
+                print(f"MCP running: PID {proc['pid']} — {proc['command']}")
+            print(f"DB: {status['db_path']}")
+            print("Query via MCP tools. For ingest: db.py mcp-stop first.")
+        else:
+            print(f"MCP not running. DB: {status['db_path']}")
+            print("Enable MCP in Cursor to query, or use db.py run-sql directly.")
+        return 0
     if args.command == "run-sql":
         if args.file:
             sql = Path(args.file).read_text()
@@ -263,7 +393,7 @@ def main(argv: list[str] | None = None) -> int:
             sql = args.sql
         else:
             sql = sys.stdin.read()
-        return cmd_run_sql(sql)
+        return cmd_run_sql(sql, for_ingest=args.ingest)
     return 1
 
 

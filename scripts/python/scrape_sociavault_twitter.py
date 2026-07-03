@@ -54,26 +54,35 @@ def _tweet_url(tweet: dict, handle: str) -> str | None:
     return None
 
 
+def _comments_cursor(page: dict) -> str | None:
+    """Pagination cursor for twitter/comments (data.cursor.bottom)."""
+    bottom = dig(page, "data", "cursor", "bottom")
+    if bottom:
+        return str(bottom)
+    return page_cursor(page)
+
+
 def _fetch_replies(client: SociaVaultClient, run_dir: Path, tweet: dict, handle: str) -> int:
-    tweet_url = _tweet_url(tweet, handle)
     tweet_id = _tweet_id(tweet)
-    if not tweet_url or not tweet_id:
+    if not tweet_id:
         return 0
     replies_path = run_dir / f"replies_{tweet_id}.jsonl"
+    if replies_path.exists():
+        replies_path.unlink()
     pages = 0
     cursor: str | None = None
     while True:
-        params: dict = {"url": tweet_url}
+        params: dict = {"pid": tweet_id, "rankingMode": "Recency"}
         if cursor:
             params["cursor"] = cursor
         try:
-            page = client.scrape("twitter", "tweet/replies", params)
+            page = client.scrape("twitter", "comments", params)
         except SociaVaultError as exc:
-            append_jsonl(replies_path, {"error": str(exc), "tweet_url": tweet_url})
+            append_jsonl(replies_path, {"error": str(exc), "tweet_id": tweet_id})
             break
         append_jsonl(replies_path, page)
         pages += 1
-        cursor = page_cursor(page)
+        cursor = _comments_cursor(page)
         if not cursor:
             break
     return pages

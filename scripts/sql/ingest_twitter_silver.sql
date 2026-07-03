@@ -46,6 +46,7 @@ SELECT
     CAST(r.id_str AS VARCHAR) AS id_str,
     r.url,
     r.user_id::BIGINT AS author_user_id,
+    NULLIF(TRIM(json_extract_string(r.raw_data, '$.user.username')), '') AS author_username,
     TRIM(r.text) AS text,
     CAST(r.inReplyToTweetIdStr AS BIGINT) AS in_reply_to_tweet_id,
     CAST(r.inReplyToTweetIdStr AS VARCHAR) AS in_reply_to_tweet_id_str,
@@ -87,6 +88,7 @@ SELECT
     END AS criteria_label,
     r.text AS reply_text,
     r.author_user_id AS reply_author_user_id,
+    r.author_username AS reply_author_username,
     pu.username AS parent_author_username
 FROM bronze.tw_comments_classification c
 LEFT JOIN silver.tw_tweets_replies r ON c.comment_id = r.tweet_id

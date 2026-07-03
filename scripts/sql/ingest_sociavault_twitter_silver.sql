@@ -104,7 +104,7 @@ CREATE OR REPLACE TEMP TABLE staging_sv_tw_reply AS
 WITH pages AS (
   SELECT to_json(r) AS j FROM bronze.sv_tw_reply AS r
 ),
-replies AS (
+legacy_replies AS (
   SELECT reply.value AS reply_json
   FROM pages,
   LATERAL json_each(
@@ -115,24 +115,64 @@ replies AS (
     )
   ) AS reply
   WHERE reply.value IS NOT NULL
+),
+from_legacy AS (
+  SELECT DISTINCT
+    json_extract_string(reply_json, '$.rest_id') AS reply_id,
+    json_extract_string(reply_json, '$.legacy.in_reply_to_status_id_str') AS in_reply_to_tweet_id_str,
+    TRIM(json_extract_string(reply_json, '$.legacy.full_text')) AS text,
+    COALESCE(
+      json_extract_string(reply_json, '$.core.user_results.result.legacy.screen_name'),
+      json_extract_string(reply_json, '$.core.user_results.result.core.screen_name')
+    ) AS username,
+    COALESCE(
+      json_extract_string(reply_json, '$.core.user_results.result.rest_id'),
+      json_extract_string(reply_json, '$.legacy.user_id_str')
+    ) AS user_id,
+    COALESCE(
+      json_extract_string(reply_json, '$.core.user_results.result.legacy.name'),
+      json_extract_string(reply_json, '$.core.user_results.result.core.name')
+    ) AS user_name,
+    TRY_CAST(json_extract_string(reply_json, '$.legacy.favorite_count') AS BIGINT) AS like_count,
+    json_extract_string(reply_json, '$.legacy.created_at') AS created_at,
+    TRY_CAST(json_extract_string(reply_json, '$.legacy.created_at') AS TIMESTAMP) AS created_at_ts,
+    'twitter' AS platform,
+    current_timestamp AS ingested_at
+  FROM legacy_replies
+  WHERE json_extract_string(reply_json, '$.rest_id') IS NOT NULL
+),
+from_comments AS (
+  SELECT DISTINCT
+    json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.rest_id') AS reply_id,
+    json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.legacy.in_reply_to_status_id_str') AS in_reply_to_tweet_id_str,
+    TRIM(json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.legacy.full_text')) AS text,
+    COALESCE(
+      json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.core.user_results.result.legacy.screen_name'),
+      json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.core.user_results.result.core.screen_name')
+    ) AS username,
+    COALESCE(
+      json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.core.user_results.result.rest_id'),
+      json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.legacy.user_id_str')
+    ) AS user_id,
+    COALESCE(
+      json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.core.user_results.result.legacy.name'),
+      json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.core.user_results.result.core.name')
+    ) AS user_name,
+    TRY_CAST(json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.legacy.favorite_count') AS BIGINT) AS like_count,
+    json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.legacy.created_at') AS created_at,
+    TRY_CAST(json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.legacy.created_at') AS TIMESTAMP) AS created_at_ts,
+    'twitter' AS platform,
+    current_timestamp AS ingested_at
+  FROM bronze.sv_tw_reply AS r,
+  LATERAL unnest(r.data.result.instructions[1].entries) AS t(entry),
+  LATERAL unnest(entry.content.items) AS u(item)
+  WHERE r.success = true
+    AND json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.rest_id') IS NOT NULL
+    AND json_extract_string(to_json(item.item.itemContent.tweet_results.result), '$.legacy.in_reply_to_status_id_str') IS NOT NULL
 )
-SELECT DISTINCT
-  json_extract_string(reply_json, '$.rest_id') AS reply_id,
-  json_extract_string(reply_json, '$.legacy.in_reply_to_status_id_str') AS in_reply_to_tweet_id_str,
-  TRIM(json_extract_string(reply_json, '$.legacy.full_text')) AS text,
-  json_extract_string(reply_json, '$.core.user_results.result.core.screen_name') AS username,
-  COALESCE(
-    json_extract_string(reply_json, '$.core.user_results.result.rest_id'),
-    json_extract_string(reply_json, '$.legacy.user_id_str')
-  ) AS user_id,
-  json_extract_string(reply_json, '$.core.user_results.result.core.name') AS user_name,
-  TRY_CAST(json_extract_string(reply_json, '$.legacy.favorite_count') AS BIGINT) AS like_count,
-  json_extract_string(reply_json, '$.legacy.created_at') AS created_at,
-  TRY_CAST(json_extract_string(reply_json, '$.legacy.created_at') AS TIMESTAMP) AS created_at_ts,
-  'twitter' AS platform,
-  current_timestamp AS ingested_at
-FROM replies
-WHERE json_extract_string(reply_json, '$.rest_id') IS NOT NULL;
+SELECT * FROM from_legacy
+UNION ALL
+SELECT * FROM from_comments;
 
 CREATE TABLE IF NOT EXISTS silver.sv_tw_reply AS
 SELECT * FROM staging_sv_tw_reply WHERE 1 = 0;
