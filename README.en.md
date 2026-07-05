@@ -52,7 +52,7 @@ You collect sources → the assistant saves the originals → DuckDB holds struc
 | 📖 **[CONTEXT.md](CONTEXT.md)** | Shared vocabulary — medallion zones, landing, reports, MCP vs ingest |
 | 🗄️ **DuckDB** (`data/duckdb/`) | Local analytics engine where tables live |
 | 🔌 **MCP** | Bridge that lets the assistant run SQL on the database |
-| 📂 **`data/landing/` → `report/<project>/`** | Raw inputs at the door, publishable outputs at the end |
+| 📂 **`data/landing/` → `reports/<project>/`** | Raw inputs at the door, publishable outputs at the end |
 
 ### Skills by scope
 
@@ -92,7 +92,7 @@ Data moves through quality stages; the assistant picks the right skill at each s
 | 1 | Save downloads, scrapes, exports | [`web-scraping`](skills/collect/web-scraping/SKILL.md) | `data/landing/` |
 | 2 | Ask to "ingest" a file | [`ingest-data`](skills/ingest/ingest-data/SKILL.md) | table in DuckDB |
 | 3 | Ask questions in plain language | SQL + MCP | answers in chat |
-| 4 | Request analysis or a report | [`statistical-report`](skills/analyze/reports/statistical-report/SKILL.md) / [`sentiment-analysis`](skills/analyze/reports/sentiment-analysis/SKILL.md) / [`graph-analysis`](skills/analyze/graph/graph-analysis/SKILL.md) | `report/<project>/` |
+| 4 | Request analysis or a report | [`statistical-report`](skills/analyze/reports/statistical-report/SKILL.md) / [`sentiment-analysis`](skills/analyze/reports/sentiment-analysis/SKILL.md) / [`graph-analysis`](skills/analyze/graph/graph-analysis/SKILL.md) | `reports/<project>/` |
 
 ### One request, start to finish
 
@@ -199,7 +199,7 @@ Run a full pipeline for me, explaining each step in plain language:
 2. Ingest that file into DuckDB as a table called nyt_news
    (ingest-data skill). Then show COUNT(*), DESCRIBE, and 5 sample rows.
 3. Run a sentiment analysis on the headline and summary text
-   (sentiment-analysis skill) and write a markdown report to report/<project>/
+   (sentiment-analysis skill) and write a markdown report to reports/<project>/
    with: overall tone, a positive/neutral/negative breakdown, a few
    representative quotes, and the limits of the method.
 

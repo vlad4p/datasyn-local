@@ -38,6 +38,7 @@ Bucket index: [`collect/README.md`](../collect/README.md)
 | Raw CSV/JSON/Parquet to DuckDB | [`ingest-data-bronze`](../ingest/bronze/ingest-data-bronze/SKILL.md) |
 | Clean, dedupe, normalize, join | [`ingest-data-silver`](../ingest/silver/ingest-data-silver/SKILL.md) |
 | Aggregate, KPIs, summaries | [`ingest-data-gold`](../ingest/gold/ingest-data-gold/SKILL.md) |
+| Gold vistas redes FB/TW | [`redes-gold`](../ingest/gold/redes-gold/SKILL.md) |
 
 Bucket index: [`ingest/README.md`](../ingest/README.md)
 
@@ -47,6 +48,7 @@ Bucket index: [`ingest/README.md`](../ingest/README.md)
 |-----------|-------|
 | EDA, profile, statistical report | [`statistical-report`](../analyze/reports/statistical-report/SKILL.md) |
 | Sentiment, tone, framing | [`sentiment-analysis`](../analyze/reports/sentiment-analysis/SKILL.md) |
+| Redes PTS: trolls, ráfagas, HTML/PDF | [`redes-analysis`](../analyze/reports/redes-analysis/SKILL.md) |
 | Build graph tables | [`graph-ingest`](../analyze/graph/graph-ingest/SKILL.md) |
 | Network analysis, centrality | [`graph-analysis`](../analyze/graph/graph-analysis/SKILL.md) |
 | Interactive HTML graph | [`interactive-graph-reports`](../analyze/graph/interactive-graph-reports/SKILL.md) |
@@ -85,3 +87,4 @@ Bucket index: [`engineering/README.md`](../engineering/README.md)
 | CSV → report | `ingest-data-bronze` → `ingest-data-silver` → `statistical-report` |
 | Twitter scrape → analysis | `scrape-sociavault-twitter` → validate silver → `statistical-report` |
 | Entity network | `graph-ingest` → `graph-analysis` → optional `interactive-graph-reports` |
+| Redes FB/TW legacy → dashboard | `redes-gold` → `redes-analysis` (HTML + grafo + PDF) |

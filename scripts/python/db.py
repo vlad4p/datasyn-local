@@ -69,11 +69,11 @@ def get_landing_path() -> Path:
 
 
 def get_reports_path() -> Path:
-    """Root directory for all report outputs (default: report/)."""
+    """Root directory for all report outputs (default: reports/)."""
     return _path_from_settings(
         "DATASYN_REPORTS_PATH",
         ("paths", "reports"),
-        "report",
+        "reports",
     )
 
 
@@ -81,7 +81,10 @@ _PROJECT_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 def get_report_path(project: str, name: str) -> Path:
-    """Return report/<project>/<name>, creating the project subdirectory."""
+    """Return reports/<project>/<name>, creating the project subdirectory.
+
+    For multi-file reports prefer get_report_bundle() — one folder per report slug.
+    """
     slug = project.strip().lower().replace("_", "-")
     if not _PROJECT_SLUG_RE.fullmatch(slug):
         raise ValueError(
@@ -92,6 +95,26 @@ def get_report_path(project: str, name: str) -> Path:
     out_dir = get_reports_path() / slug
     out_dir.mkdir(parents=True, exist_ok=True)
     return out_dir / name
+
+
+def get_report_bundle(project: str, bundle: str) -> Path:
+    """Return reports/<project>/<bundle>/ — one folder per report with its data files.
+
+    Example: get_report_bundle("redes", "gold-report") → reports/redes/gold-report/
+    """
+    slug = project.strip().lower().replace("_", "-")
+    if not _PROJECT_SLUG_RE.fullmatch(slug):
+        raise ValueError(
+            f"Invalid report project {project!r}. Use kebab-case slug (e.g. redes, grafo, nyt)."
+        )
+    bundle_slug = bundle.strip().lower().replace("_", "-")
+    if not _PROJECT_SLUG_RE.fullmatch(bundle_slug):
+        raise ValueError(
+            f"Invalid report bundle {bundle!r}. Use kebab-case slug (e.g. gold-report, trolls-grafo)."
+        )
+    out_dir = get_reports_path() / slug / bundle_slug
+    out_dir.mkdir(parents=True, exist_ok=True)
+    return out_dir
 
 
 def ensure_dirs() -> None:

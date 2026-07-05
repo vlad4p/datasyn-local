@@ -109,7 +109,7 @@ Reglas: ingest y reportes son skills (SQL), no apps Python extra. Los archivos e
 | 📖 **[CONTEXT.md](CONTEXT.md)** | Vocabulario compartido — medalla, landing, reportes, MCP vs ingest |
 | 🗄️ **DuckDB** (`data/duckdb/`) | Motor analítico local donde viven las tablas |
 | 🔌 **MCP** | Puente que deja al asistente ejecutar SQL sobre la base |
-| 📂 **`data/landing/` → `report/<project>/`** | Originales crudos a la entrada, salidas publicables a la salida |
+| 📂 **`data/landing/` → `reports/<project>/`** | Originales crudos a la entrada, salidas publicables a la salida |
 
 ### Skills por alcance
 
@@ -161,7 +161,7 @@ Ejecuta un pipeline completo y explica cada paso en lenguaje claro:
 2. Ingesta ese archivo en DuckDB como una tabla llamada nyt_news
    (skill ingest-data). Después muestra COUNT(*), DESCRIBE y 5 filas de ejemplo.
 3. Realiza un análisis de sentimiento sobre el texto de titulares y resúmenes
-   (skill sentiment-analysis) y escribe un reporte markdown en report/<project>/
+   (skill sentiment-analysis) y escribe un reporte markdown en reports/<project>/
    con: tono general, desglose positivo/neutral/negativo, algunas citas
    representativas y los límites del método.
 
@@ -198,7 +198,7 @@ Vocabulario compartido: [`CONTEXT.md`](CONTEXT.md). Índice completo: [`skills/R
 ---
 name: export-csv
 description: >-
-  Exporta una tabla de DuckDB a un archivo CSV en report/<project>/.
+  Exporta una tabla de DuckDB a un archivo CSV en reports/<project>/.
   Úsala cuando el usuario pida descargar, exportar o guardar
   una tabla o consulta como CSV.
 ---
@@ -212,7 +212,7 @@ Pasos:
 
    ```sql
    COPY (SELECT * FROM gold.mi_tabla)
-   TO 'report/mi-proyecto/mi_tabla.csv' (HEADER, DELIMITER ',');
+   TO 'reports/mi-proyecto/mi_tabla.csv' (HEADER, DELIMITER ',');
    ```
 
 3. Valida: confirma que el archivo existe y su número de filas.

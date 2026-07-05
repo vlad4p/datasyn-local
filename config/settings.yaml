@@ -7,7 +7,7 @@ database:
 
 paths:
   landing: data/landing
-  reports: report
+  reports: reports
   src: src
 
 ingest:

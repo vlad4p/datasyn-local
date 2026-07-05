@@ -65,7 +65,7 @@ User flow router: [`datasyn-router`](skills/datasyn-router/SKILL.md). Layout gui
 ```
 data/landing/          # raw files
 data/duckdb/           # datasyn.duckdb
-report/                # agent outputs: report/<project>/<report-name>
+reports/                # agent outputs: reports/<project>/<report-slug>/
 skills/                # scoped task workflows (see skills/README.md)
 scripts/python/db.py   # DB paths, connect(), MCP (mcp-serve)
 CONTEXT.md             # shared vocabulary
@@ -75,7 +75,7 @@ AGENTS.md              # this file
 ## Data flow
 
 ```
-collect → landing → ingest (skill, SQL) → DuckDB → analyze → report/<project>/ (skill)
+collect → landing → ingest (skill, SQL) → DuckDB → analyze → reports/<project>/ (skill)
 ```
 
 ## SQL execution — split by task
@@ -130,14 +130,14 @@ Ingest and reports: **skills only**.
 
 Read skill **`data-privacy`** before commits, PRs, scrapes, or reports that touch personal or scraped data.
 
-**Never commit:** `data/landing/**`, `data/duckdb/*.duckdb`, `report/**`, `.data/**`, `.env`, credentials, `.cursor/mcp.json`, `.vscode/mcp.json`.
+**Never commit:** `data/landing/**`, `data/duckdb/*.duckdb`, `reports/**`, `.data/**`, `.env`, credentials, `.cursor/mcp.json`, `.vscode/mcp.json`.
 
 **Agent rules:**
 
 1. Run `git status` and `git diff` before any commit the user requests — refuse to stage sensitive paths.
 2. Commit messages describe code/skills/SQL only — no sample rows, PII, or scraped text.
 3. In chat, prefer aggregates; sample with `LIMIT 3` and redact emails, phones, handles.
-4. Raw files → `data/landing/`; analysis outputs → `report/<project>/`; both stay local (gitignored).
+4. Raw files → `data/landing/`; analysis outputs → `reports/<project>/<report-slug>/`; both stay local (gitignored).
 
 ## Standards
 

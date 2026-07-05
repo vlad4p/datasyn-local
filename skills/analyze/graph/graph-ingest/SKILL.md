@@ -167,6 +167,32 @@ finally:
     con.close()
 ```
 
+---
+
+## Redes PTS — grafo trolls y narrativa (gold views)
+
+For legacy FB/TW troll analysis, graph tables are **views** in `gold.*` — not generic `grafo_vertices`.
+
+**Ingest:** [`scripts/sql/ingest_redes_gold.sql`](../../../../scripts/sql/ingest_redes_gold.sql) via skill [`redes-gold`](../../../ingest/gold/redes-gold/SKILL.md)
+
+| View | Role |
+|------|------|
+| `gold.grafo_vertices_trolls` | Autores, cuentas objetivo, narrativas, cohortes-día |
+| `gold.grafo_edges_trolls` | Raw edges: `ataca`, `co_rafaga`, `usa_narrativa`, `en_cohorte` |
+| `gold.grafo_edges_agg_trolls` | Aggregated weights for visualization |
+| `gold.grafo_*_narrativa` | Narrative co-occurrence + cuenta weights |
+
+**Interactive HTML:** `scripts/python/generate_trolls_grafo_report.py` — subgrafo top ~35 autores.  
+**Analysis skill:** [`redes-analysis`](../reports/redes-analysis/SKILL.md)
+
+```sql
+SELECT edge_type, COUNT(*), SUM(peso_total)
+FROM gold.grafo_edges_agg_trolls
+GROUP BY 1;
+```
+
+---
+
 ## Notes
 
 - Co-occurrence edges form cliques within each aviso (every entity in the aviso connects to every other)

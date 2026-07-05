@@ -41,10 +41,9 @@ data/landing/**
 !data/landing/README.md
 
 # Generated reports and outputs
-report/**
-!report/.gitkeep
-!report/README.md
 reports/**
+!reports/.gitkeep
+!reports/README.md
 output/
 exports/
 downloads/

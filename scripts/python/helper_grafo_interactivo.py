@@ -7,14 +7,14 @@ Usage:
     export_graph_data(
         nodes=organismos,
         edges=relationships,
-        output_dir='report/grafo/',
+        output_dir=str(_DEFAULT_GRAFO_DIR) + '/',
         filename='grafo.json'
     )
     
     generate_html_report(
         grafo_json='grafo.json',
         title='Mi Grafo',
-        output_dir='report/grafo/'
+        output_dir=str(_DEFAULT_GRAFO_DIR) + '/',
     )
 """
 
@@ -22,11 +22,15 @@ import json
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 
+import db
+
+_DEFAULT_GRAFO_DIR = db.get_reports_path() / "grafo"
+
 
 def export_graph_data(
     nodes: List[Dict],
     edges: List[Dict],
-    output_dir: str = 'report/grafo/',
+    output_dir: str | None = None,
     filename: str = 'grafo.json'
 ) -> Path:
     """
@@ -41,7 +45,7 @@ def export_graph_data(
     Returns:
         Path to generated JSON file
     """
-    output_path = Path(output_dir) / filename
+    output_path = Path(output_dir or _DEFAULT_GRAFO_DIR) / filename
     output_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Calculate statistics
@@ -75,7 +79,7 @@ def export_graph_data(
 
 def generate_html_interactive(
     grafo_json: str,
-    output_path: str = 'report/grafo/grafo_interactivo.html',
+    output_path: str | None = None,
     title: str = 'Grafo Interactivo',
     physics_enabled: bool = True,
     node_colors: Optional[Dict[str, str]] = None
@@ -257,7 +261,7 @@ def generate_html_interactive(
 </html>
 """
     
-    output_file = Path(output_path)
+    output_file = Path(output_path or _DEFAULT_GRAFO_DIR / "grafo_interactivo.html")
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(html_template, encoding='utf-8')
     print(f"✅ Generated interactive report: {output_file}")
@@ -267,7 +271,7 @@ def generate_html_interactive(
 
 def generate_analytics_html(
     grafo_json: str,
-    output_path: str = 'report/grafo/analisis_grafo.html',
+    output_path: str | None = None,
     title: str = 'Análisis del Grafo'
 ) -> Path:
     """
@@ -374,7 +378,7 @@ def generate_analytics_html(
 </html>
 """
     
-    output_file = Path(output_path)
+    output_file = Path(output_path or _DEFAULT_GRAFO_DIR / "analisis_grafo.html")
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(html_template, encoding='utf-8')
     print(f"✅ Generated analytics report: {output_file}")
@@ -442,11 +446,12 @@ if __name__ == '__main__':
     ]
     
     # Export graph
-    export_graph_data(nodes, edges, output_dir='report/grafo/', filename='test_grafo.json')
+    export_graph_data(nodes, edges, filename='test_grafo.json')
 
     # Generate reports
-    generate_html_interactive('report/grafo/test_grafo.json', 'report/grafo/test_interactivo.html')
-    generate_analytics_html('report/grafo/test_grafo.json', 'report/grafo/test_analytics.html')
+    grafo_json = _DEFAULT_GRAFO_DIR / 'test_grafo.json'
+    generate_html_interactive(str(grafo_json))
+    generate_analytics_html(str(grafo_json))
     
     # Calculate centrality
     top = get_top_nodes(nodes, edges, top_n=3)

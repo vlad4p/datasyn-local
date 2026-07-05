@@ -90,3 +90,26 @@ Facebook does **not** use `username`; the equivalent is `user_name`.
 | Actors graph | not built | `silver.sv_actor`, `silver.sv_actor_stats` |
 
 Do not mix tables across pipelines without explicit joins on platform + user id.
+
+---
+
+## Perfiles unificados (`silver.network_profile`)
+
+Optional table merging FB/TW identities (tracked accounts, commenters, reply authors):
+
+```bash
+uv run python scripts/python/db.py mcp-stop
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_network_profile.sql
+```
+
+Columns: `platform`, `handle`, `display_name`, `profile_url`, `is_tracked`, activity counts.  
+Used for entity lookup; gold analytics use `gold.v_cuentas_trackeadas` + classification joins.
+
+---
+
+## Gold + reportes
+
+After silver is loaded:
+
+1. [`redes-gold`](../gold/redes-gold/SKILL.md) — `ingest_redes_gold.sql`
+2. [`redes-analysis`](../../analyze/reports/redes-analysis/SKILL.md) — HTML/PDF reports
