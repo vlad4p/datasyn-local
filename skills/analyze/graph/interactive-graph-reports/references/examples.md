@@ -1,4 +1,6 @@
-# Interactive Graph Reports - Examples & Usage Guide
+# Interactive Graph Reports — Examples and usage
+
+Moved from skill root README. Workflow entry point: [`../SKILL.md`](../SKILL.md).
 
 ## Overview
 

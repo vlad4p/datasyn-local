@@ -142,6 +142,22 @@ Tus datos suben de calidad por etapas —el **patrón de medalla**— y en cada 
 
 > El skill [`ingest-data`](skills/ingest/ingest-data/SKILL.md) es el punto de entrada: analiza tu pedido y lo enruta a la etapa (bronze, silver o gold) correcta.
 
+Pipeline legacy FB/TW (CSV en `data/landing/redes/`):
+
+<p align="center"><img src="docs/diagrams/medallion-redes.svg" alt="Medallón redes — landing, bronze, silver, gold, report bundles" width="900"/></p>
+
+### Un pedido de punta a punta
+
+Un solo mensaje ("ingesta este archivo y resúmelo") sigue siempre el mismo camino:
+
+<p align="center"><img src="docs/diagrams/request-lifecycle.svg" alt="Un pedido — lenguaje claro a respuesta auditable vía MCP" width="560"/></p>
+
+### Mapa del repositorio
+
+Izquierda: configuración y comportamiento del agente. Derecha: evidencia y salidas publicables.
+
+<p align="center"><img src="docs/diagrams/repo-layout.svg" alt="Layout del repositorio datasyn — agente y carpetas de datos" width="680"/></p>
+
 ---
 
 ## 🗞️ Ejemplo completo — de titulares a *emociones...*
@@ -276,6 +292,8 @@ Guía completa para el asistente: [`skills/engineering/gitflow/SKILL.md`](skills
 | 🔌 **MCP** (Model Context Protocol) | Estándar abierto que conecta al asistente de IA con DuckDB para ejecutar SQL | [modelcontextprotocol.io](https://modelcontextprotocol.io/) · [duckdb_mcp](https://github.com/duckdb/duckdb-mcp-server) |
 | 🧩 **Skills** | Guías de tarea en Markdown por alcance (ver [`skills/`](skills/) y [`docs/skills-layout.md`](docs/skills-layout.md)) | [Agent Skills (Anthropic)](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/overview) · [Cursor Rules & Skills](https://docs.cursor.com/) |
 | 🐍 **uv** | Gestor de entornos y dependencias de Python | [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
+
+Diagramas: [`docs/diagrams/README.md`](docs/diagrams/README.md) — fuentes SVG en [`docs/diagrams/`](docs/diagrams/), paleta en [`docs/colors/README.md`](docs/colors/README.md).
 
 ---
 
