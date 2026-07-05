@@ -13,6 +13,8 @@ Full pipeline: skill [`redes-analysis`](../reports/redes-analysis/SKILL.md).
 **Output format:** HTML (vis.js + React) + Markdown analytics reports under `reports/<project>/<report-slug>/`  
 **Data requirement:** Nodes (entities), edges (relationships), optional node/edge attributes
 
+**Extended examples:** [`references/examples.md`](references/examples.md) — quick starts, Python snippets, troubleshooting.
+
 ---
 
 ## When to Use This Skill

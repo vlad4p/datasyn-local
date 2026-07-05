@@ -10,6 +10,17 @@ Task workflows live under [`skills/`](../skills/). Each skill is a folder with a
 | [`CONTEXT.md`](../CONTEXT.md) | Shared vocabulary — medallion zones, report paths, tool split |
 | [`skills/README.md`](../skills/README.md) | Full catalog and IDE setup |
 | [`skills/datasyn-router/SKILL.md`](../skills/datasyn-router/SKILL.md) | User-invoked flow router (type `/datasyn-router` in supported IDEs) |
+| [`docs/skills-layout.md`](skills-layout.md) | This guide — bucket tree and conventions |
+| [`docs/diagrams/README.md`](diagrams/README.md) | Architecture diagrams for READMEs |
+
+## Report outputs
+
+Analysis artifacts go to **`reports/<project>/<report-slug>/`** (gitignored). See [`reports/README.md`](../reports/README.md).
+
+| Example | Skill |
+|---------|-------|
+| `reports/redes/gold-report/` | [`redes-analysis`](../skills/analyze/reports/redes-analysis/SKILL.md) |
+| `reports/grafo/co-ocurrencia/report.md` | [`graph-analysis`](../skills/analyze/graph/graph-analysis/SKILL.md) |
 
 ## Scope buckets
 
@@ -23,9 +34,15 @@ skills/
 │   ├── ingest-data/         # router
 │   ├── bronze/
 │   ├── silver/
-│   └── gold/
+│   ├── gold/
+│   │   └── redes-gold/      # FB/TW legacy → gold.v_*, gold.grafo_*
+│   └── references/
+│       └── redes-legacy-csv.md
 ├── analyze/                 # reports and graphs
 │   ├── reports/
+│   │   ├── statistical-report/
+│   │   ├── sentiment-analysis/
+│   │   └── redes-analysis/  # HTML/PDF dashboards, trolls graph
 │   └── graph/
 ├── schema/
 │   └── create-table/
@@ -49,17 +66,23 @@ Detail that does not need its own skill lives in `references/`:
 | Path | Contents |
 |------|----------|
 | [`ingest/bronze/references/formats.md`](../skills/ingest/bronze/references/formats.md) | CSV, JSON, Parquet, XLSX load templates |
-| [`collect/sociavault/references/`](../skills/collect/sociavault/references/count-limits.md) | `--last N`, shared scripts |
+| [`ingest/references/redes-legacy-csv.md`](../skills/ingest/references/redes-legacy-csv.md) | Legacy FB/TW CSV dumps under `data/landing/redes/` |
+| [`ingest/gold/redes-gold/references/gold-views.md`](../skills/ingest/gold/redes-gold/references/gold-views.md) | Gold view catalog for redes |
+| [`collect/sociavault/references/count-limits.md`](../skills/collect/sociavault/references/count-limits.md) | `--last N`, shared scripts |
 | [`collect/references/landing-paths.md`](../skills/collect/references/landing-paths.md) | Landing folder conventions |
 
 Add a new leaf skill only when a workflow is end-to-end distinct (e.g. a new scrape source with its own script pipeline).
+
+## Python scripts
+
+Optional helpers live in [`scripts/python/`](../scripts/python/). Ingest and report **pipelines** are skills (SQL); scripts support scrape, MCP, and report export. Index: [`scripts/python/README.md`](../scripts/python/README.md).
 
 ## Invocation
 
 | Type | Frontmatter | Examples |
 |------|-------------|----------|
 | **User-invoked** | `disable-model-invocation: true` | `datasyn-router`, `gitflow`, `setup-uv`, `configure-duckdb-mcp` |
-| **Model-invoked** | (default) | `ingest-data`, `scrape-sociavault`, `statistical-report`, `data-privacy` |
+| **Model-invoked** | (default) | `ingest-data`, `scrape-sociavault`, `statistical-report`, `redes-analysis`, `data-privacy` |
 
 ## IDE setup
 

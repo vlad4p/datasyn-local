@@ -73,8 +73,6 @@ User flow router: [`datasyn-router`](skills/datasyn-router/SKILL.md).
 
 Data moves through quality stages; the assistant picks the right skill at each step.
 
-<p align="center"><img src="docs/diagrams/flow.svg" alt="From source to story — collect, landing, DuckDB, reports" width="860"/></p>
-
 | Stage | What happens | Skill |
 |-------|--------------|-------|
 | **Landing** | Save downloads, scrapes, exports untouched | [`web-scraping`](skills/collect/web-scraping/SKILL.md) |
@@ -84,6 +82,10 @@ Data moves through quality stages; the assistant picks the right skill at each s
 | **Reports** | Analysis and final documents | [`statistical-report`](skills/analyze/reports/statistical-report/SKILL.md) · [`sentiment-analysis`](skills/analyze/reports/sentiment-analysis/SKILL.md) · [`graph-analysis`](skills/analyze/graph/graph-analysis/SKILL.md) |
 
 > Entry point for ingest: [`ingest-data`](skills/ingest/ingest-data/SKILL.md) routes to the correct zone (bronze, silver, or gold).
+
+Legacy FB/TW pipeline (CSV under `data/landing/redes/`):
+
+<p align="center"><img src="docs/diagrams/medallion-redes.svg" alt="Redes medallion — landing, bronze, silver, gold, report bundles" width="900"/></p>
 
 ### Data flow (summary)
 
@@ -278,3 +280,5 @@ After creating a skill, add it to the bucket `README.md` and [`skills/README.md`
 | 🔌 **MCP** | Connects the AI assistant to DuckDB | [modelcontextprotocol.io](https://modelcontextprotocol.io/) |
 | 🧩 **Skills** | Scoped task guides (see [`skills/`](skills/), [`docs/skills-layout.md`](docs/skills-layout.md)) | [Agent Skills](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/overview) |
 | 🐍 **uv** | Python environment manager | [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
+
+Diagrams: [`docs/diagrams/README.md`](docs/diagrams/README.md) — SVG sources in [`docs/diagrams/`](docs/diagrams/), palette in [`docs/colors/README.md`](docs/colors/README.md).
