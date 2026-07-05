@@ -12,7 +12,7 @@ Data flows through three quality zones. Start each request by analyzing which
 zone fits the source and goal.
 
 ```
-landing/ ──→ bronze ──→ silver ──→ gold ──→ report/<project>/
+landing/ ──→ bronze ──→ silver ──→ gold ──→ reports/<project>/
   raw         raw       clean      ready
   files       SQL        joins     aggregates
 ```
@@ -38,6 +38,7 @@ landing/ ──→ bronze ──→ silver ──→ gold ──→ report/<proj
 | "Limpiá duplicados y normalizá nombres" | Silver | `ingest-data-silver` |
 | "Creá una tabla uniendo empresas con socios" | Silver | `ingest-data-silver` |
 | "Ingestá el dump CSV de Twitter en redes/" | Bronze → Silver | `ingest-data-bronze` + `ingest-data-silver` · see [`references/redes-legacy-csv.md`](../references/redes-legacy-csv.md) |
+| "Gold / reportes redes PTS" | Gold → Analyze | [`redes-gold`](../gold/redes-gold/SKILL.md) → [`redes-analysis`](../../analyze/reports/redes-analysis/SKILL.md) |
 | "Creá un dataset para reportes diarios" | Gold | `ingest-data-gold` |
 | "Agrupá por sector y calculá totales" | Gold | `ingest-data-gold` |
 

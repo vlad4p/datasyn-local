@@ -2,8 +2,15 @@
 
 **Purpose:** Generate interactive, HTML-based graph visualizations with statistics and analytics from structured node/edge data.
 
+**Built-in (redes PTS):** For troll entity graphs from `gold.grafo_*_trolls`, run:
+```bash
+uv run python scripts/python/generate_trolls_grafo_report.py
+# → reports/redes/trolls-grafo/report.html
+```
+Full pipeline: skill [`redes-analysis`](../reports/redes-analysis/SKILL.md).
+
 **Domain:** Data visualization, network analysis, knowledge graph exploration  
-**Output format:** HTML (vis.js + React) + Markdown analytics reports under `report/<project>/`  
+**Output format:** HTML (vis.js + React) + Markdown analytics reports under `reports/<project>/<report-slug>/`  
 **Data requirement:** Nodes (entities), edges (relationships), optional node/edge attributes
 
 ---
@@ -493,6 +500,7 @@ A: Disable physics simulation: `physics: { enabled: false }`
 
 ## Related Skills
 
+- [`redes-analysis`](../reports/redes-analysis/SKILL.md) — Trolls graph + dashboard (project-specific)
 - [`statistical-report`](../../reports/statistical-report/SKILL.md) — For tabular analytics
 - [`graph-analysis`](../graph-analysis/SKILL.md) — For centrality/community detection
 - [`create-table`](../../../schema/create-table/SKILL.md) — For schema design before graph export
@@ -506,7 +514,7 @@ A: Disable physics simulation: `physics: { enabled: false }`
 datasyn graph-report \
   --nodes data/nodes.json \
   --edges data/edges.json \
-  --output report/grafo/ \
+  --output reports/grafo/ \
   --title "Contrataciones Públicas" \
   --physics-enabled \
   --layout force-directed

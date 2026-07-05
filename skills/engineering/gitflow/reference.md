@@ -94,8 +94,8 @@ If pushed: ask user before any history rewrite.
 |------|---------------------|
 | `data/landing/` | feature (raw drops before ingest) |
 | `skills/` | feature or docs |
-| `report/` | feature (gitignored output — commit skill/query only) |
+| `reports/` | feature (gitignored output — commit skill/query only) |
 | `scripts/python/db.py` | feature / fix |
 | `AGENTS.md`, `README.md` | docs or chore |
 
-Never commit: `data/landing/**`, `data/duckdb/*.duckdb`, `report/**`, `.data/**`, `.env`, secrets, `.cursor/mcp.json`, `.vscode/mcp.json`. See **`data-privacy`** skill for the full checklist.
+Never commit: `data/landing/**`, `data/duckdb/*.duckdb`, `reports/**`, `.data/**`, `.env`, secrets, `.cursor/mcp.json`, `.vscode/mcp.json`. See **`data-privacy`** skill for the full checklist.

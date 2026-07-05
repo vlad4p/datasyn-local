@@ -202,7 +202,7 @@ Follow the project PR workflow (`gh` CLI):
 
 - [ ] Correct base branch checked out and pulled
 - [ ] Branch name matches prefix (`feature/`, `release/`, `hotfix/`)
-- [ ] `git diff --cached` has no data under `data/landing/`, `data/duckdb/`, `report/`, `.data/` (see **`data-privacy`** skill)
+- [ ] `git diff --cached` has no data under `data/landing/`, `data/duckdb/`, `reports/`, `.data/` (see **`data-privacy`** skill)
 - [ ] No secrets, `.env`, credentials, `.duckdb`, or MCP config in commits
 - [ ] Commit message has no PII or raw data excerpts
 - [ ] `main` never receives direct feature merges

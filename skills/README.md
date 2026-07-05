@@ -57,6 +57,7 @@ Copy or link this folder into your tool's skills directory:
 | [`ingest-data-bronze`](ingest/bronze/ingest-data-bronze/SKILL.md) | `bronze.*` | Raw files → DuckDB |
 | [`ingest-data-silver`](ingest/silver/ingest-data-silver/SKILL.md) | `silver.*` | Clean, dedupe, join |
 | [`ingest-data-gold`](ingest/gold/ingest-data-gold/SKILL.md) | `gold.*` | Aggregate, KPIs |
+| [`redes-gold`](ingest/gold/redes-gold/SKILL.md) | `gold.*` | FB/TW legacy: sentimiento, trolls, grafos |
 
 Sub-scope: [`ingest/bronze/references/formats.md`](ingest/bronze/references/formats.md)
 
@@ -66,6 +67,7 @@ Sub-scope: [`ingest/bronze/references/formats.md`](ingest/bronze/references/form
 |-------|-------------|
 | [`statistical-report`](analyze/reports/statistical-report/SKILL.md) | EDA and multi-format reports |
 | [`sentiment-analysis`](analyze/reports/sentiment-analysis/SKILL.md) | Text tone / framing |
+| [`redes-analysis`](analyze/reports/redes-analysis/SKILL.md) | FB/TW legacy dashboards, trolls, HTML/PDF |
 | [`graph-ingest`](analyze/graph/graph-ingest/SKILL.md) | Build graph tables |
 | [`graph-analysis`](analyze/graph/graph-analysis/SKILL.md) | Network metrics and reports |
 | [`interactive-graph-reports`](analyze/graph/interactive-graph-reports/SKILL.md) | HTML graph visualizations |

@@ -58,24 +58,24 @@ edges_list = [
 ]
 
 # Export and generate reports
-export_graph_data(nodes, edges_list, output_dir='report/grafo/', filename='grafo.json')
+export_graph_data(nodes, edges_list, output_dir='reports/grafo/', filename='grafo.json')
 
 generate_html_interactive(
-    'report/grafo/grafo.json',
-    'report/grafo/grafo_interactivo.html',
+    'reports/grafo/grafo.json',
+    'reports/grafo/grafo_interactivo.html',
     title='Contrataciones Públicas'
 )
 
 generate_analytics_html(
-    'report/grafo/grafo.json',
-    'report/grafo/analisis.html',
+    'reports/grafo/grafo.json',
+    'reports/grafo/analisis.html',
     title='Análisis de Contrataciones'
 )
 
 print("✅ Reports generated:")
-print("  - report/grafo/grafo_interactivo.html (interactive)")
-print("  - report/grafo/analisis.html (analytics)")
-print("  - report/grafo/grafo.json (data)")
+print("  - reports/grafo/grafo_interactivo.html (interactive)")
+print("  - reports/grafo/analisis.html (analytics)")
+print("  - reports/grafo/grafo.json (data)")
 ```
 
 ### Example 2: From Custom Data
@@ -146,8 +146,8 @@ con.close()
 
 # Export & generate
 export_graph_data(nodes, edges, filename='grafo_contrataciones.json')
-generate_html_interactive('report/grafo/grafo_contrataciones.json', 'report/grafo/grafo_interactivo.html', 'Contrataciones')
-generate_analytics_html('report/grafo/grafo_contrataciones.json', 'report/grafo/analytics.html', 'Análisis')
+generate_html_interactive('reports/grafo/grafo_contrataciones.json', 'reports/grafo/grafo_interactivo.html', 'Contrataciones')
+generate_analytics_html('reports/grafo/grafo_contrataciones.json', 'reports/grafo/analytics.html', 'Análisis')
 
 # Print top nodes
 top = get_top_nodes(nodes, edges, top_n=5)
@@ -161,13 +161,13 @@ PYTHON
 
 ```bash
 # Interactive graph
-open report/grafo/grafo_interactivo.html
+open reports/grafo/grafo_interactivo.html
 
 # Analytics
-open report/grafo/analytics.html
+open reports/grafo/analytics.html
 
 # Raw JSON
-cat report/grafo/grafo_contrataciones.json | jq '.estadisticas'
+cat reports/grafo/grafo_contrataciones.json | jq '.estadisticas'
 ```
 
 ---
@@ -205,7 +205,7 @@ generate_html_interactive(
 generate_html_interactive(
     'grafo.json',
     title='Red de Organismos y Contratistas',
-    output_path='report/grafo/custom_name.html'
+    output_path='reports/grafo/custom_name.html'
 )
 ```
 
@@ -378,7 +378,7 @@ uv run python generate_reports.py
 
 # 2. Analyze graph structure (graph-analysis skill)
 uv run python -m graph_analysis \
-  --grafo report/grafo/grafo.json \
+  --grafo reports/grafo/grafo.json \
   --metrics centrality,clustering,communities
 ```
 
@@ -397,7 +397,7 @@ uv run python -c "
 # 2. Generate statistical report
 datasyn statistical-report \
   --input node_stats.csv \
-  --output report/grafo/stats.html
+  --output reports/grafo/stats.html
 ```
 
 ---

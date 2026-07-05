@@ -11,6 +11,7 @@ description: >-
 
 - **Allowed:** extend `scripts/python/db.py` or new modules in `scripts/python/`
 - **Not for:** ingest or report pipelines — use skills `ingest-data` and `statistical-report`
+- **Exception:** existing report exporters in `scripts/python/generate_redes_*_report.py` — extend via skill [`redes-analysis`](../analyze/reports/redes-analysis/SKILL.md)
 - **SQL queries:** prefer MCP (`db.py run-sql`) over direct `db.connect()` + `con.execute()`
 
 ## Workflow

@@ -156,6 +156,21 @@ ORDER BY avisos DESC;
 
 ## After gold → report
 
-Gold tables feed directly into `report/<project>/`. Use [`statistical-report`](../../../analyze/reports/statistical-report/SKILL.md),
-[`graph-analysis`](../../../analyze/graph/graph-analysis/SKILL.md), or [`sentiment-analysis`](../../../analyze/reports/sentiment-analysis/SKILL.md)
-to produce final outputs.
+Gold tables feed directly into `reports/<project>/`. Use [`statistical-report`](../../../analyze/reports/statistical-report/SKILL.md),
+[`graph-analysis`](../../../analyze/graph/graph-analysis/SKILL.md), [`sentiment-analysis`](../../../analyze/reports/sentiment-analysis/SKILL.md),
+or [`redes-analysis`](../../../analyze/reports/redes-analysis/SKILL.md) for legacy FB/TW pipelines.
+
+---
+
+## Example: Redes PTS (legacy FB + TW)
+
+Full workflow: skill [`redes-gold`](redes-gold/SKILL.md) + [`redes-analysis`](../../../analyze/reports/redes-analysis/SKILL.md).
+
+```bash
+uv run python scripts/python/db.py mcp-stop
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_redes_gold.sql
+uv run python scripts/python/generate_redes_gold_report.py
+uv run python scripts/python/generate_trolls_grafo_report.py
+```
+
+Views created: `gold.v_sentimiento_*`, `gold.v_narrativa_*`, `gold.v_trolls_*`, `gold.grafo_*`. See [`redes-gold/references/gold-views.md`](redes-gold/references/gold-views.md).

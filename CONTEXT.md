@@ -10,7 +10,7 @@ Concise domain language for datasyn-local. Agents read this for terminology; act
 | **bronze** | `bronze.*` | Raw ingest into DuckDB — preserve source shape, no cleaning. |
 | **silver** | `silver.*` | Clean, dedupe, normalize, join — analysis-ready tables. |
 | **gold** | `gold.*` | Aggregates, KPIs, summaries — report-ready datasets. |
-| **report** | `report/<project>/<report-name>` | Agent outputs (markdown, HTML, JSON, CSV). Gitignored. |
+| **report** | `reports/<project>/<report-slug>/` | Agent outputs — one folder per report with its data files. Gitignored. |
 
 Flow: `landing → bronze → silver → gold → report`
 
@@ -30,7 +30,7 @@ One writer at a time on `data/duckdb/datasyn.duckdb`.
 | **web-scraping** | Generic fetch to `data/landing/` (HTML, APIs, files). |
 | **SociaVault scrape** | Social API pipeline — scrape by **count** (`--last N`), not date range. |
 | **sv_*** | SociaVault tables (`bronze.sv_*`, `silver.sv_*`) and related actor/classification tables. |
-| **tw_* / fb_*** | Legacy external CSV dumps (`data/landing/redes/data-fb/`, `data-tw/`) — `silver.tw_tweets_replies.author_username` for reply handles. |
+| **tw_* / fb_*** | Legacy external CSV dumps (`data/landing/redes/data-fb/`, `data-tw/`) — `silver.tw_tweets_replies.author_username` for reply handles. Gold: `gold.v_*`, `gold.grafo_*` via skill `redes-gold`. |
 
 Landing layout for SociaVault: `data/landing/redes/sociavault/<platform>/`.
 
@@ -38,7 +38,7 @@ Landing layout for SociaVault: `data/landing/redes/sociavault/<platform>/`.
 
 | Term | Meaning |
 |------|---------|
-| **report slug** | `report/<project>/<report-name>` — e.g. `report/redes/fb-silver-report_20260629.html` |
+| **report slug** | `reports/<project>/<report-slug>/` — e.g. `reports/redes/gold-report/report.html` |
 | **grafo** | Default project slug for graph/network reports. |
 | **graph tables** | `grafo_vertices`, `grafo_edges`, `grafo_edges_agg` — built by `graph-ingest`. |
 
@@ -59,4 +59,4 @@ Index: [`skills/README.md`](skills/README.md). User flow router: [`datasyn-route
 
 ## Privacy
 
-Never commit: `data/landing/**`, `*.duckdb`, `report/**`, `.env`, credentials, MCP config. See skill `data-privacy`.
+Never commit: `data/landing/**`, `*.duckdb`, `reports/**`, `.env`, credentials, MCP config. See skill `data-privacy`.

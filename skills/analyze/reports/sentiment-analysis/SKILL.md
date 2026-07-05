@@ -43,7 +43,7 @@ This connects directly to `data/duckdb/datasyn.duckdb` — not through MCP.
 1. Identify text column(s) — via MCP `describe` and `query` to profile
 2. Choose approach (A: TextBlob Python · B: SQL keyword heuristics)
 3. Create sentiment results table — via `db.py run-sql` (DDL)
-4. Summarize findings with journalistic language — write to `report/<project>/<report-name>.md` (see **`statistical-report`**)
+4. Summarize findings with journalistic language — write to `reports/<project>/<report-slug>/report.md` (see **`statistical-report`**)
 
 ---
 
@@ -153,4 +153,32 @@ SELECT * FROM articles_sentiment WHERE tone_heuristic = 'negative' LIMIT 5;
 ```sql
 SELECT tone_heuristic, COUNT(*) AS n FROM articles_sentiment GROUP BY 1 ORDER BY 2 DESC;
 SELECT * FROM articles_sentiment LIMIT 10;
+```
+
+---
+
+## Redes sociales — posición LLM (legacy FB/TW)
+
+For tracked PTS accounts, sentiment is **political position** from human/LLM classification — not TextBlob polarity.
+
+**Source tables:** `silver.fb_comment_classification`, `silver.tw_comments_classification`  
+**Gold views:** `gold.v_comentarios_clasificados`, `gold.v_comentario_narrativa` — see skill [`redes-gold`](../../ingest/gold/redes-gold/SKILL.md)
+
+| `posicion` | Meaning |
+|------------|---------|
+| `apoyo_izquierda` | Support for left/PTS figure |
+| `derecha_o_troll` | Hostile / troll framing |
+| `neutral` | No clear stance |
+| `ambiguo` | Mixed signals |
+| `inclasificable` | Cannot classify |
+
+**Narrativa:** secondary theme from `resumen` (SQL heuristics) — insulto, spam, Bolivia, etc.
+
+**Reports:** skill [`redes-analysis`](../redes-analysis/SKILL.md) — HTML dashboard, troll graph, PDF.
+
+```sql
+-- Via MCP after gold ingest
+SELECT cuenta_slug, posicion, COUNT(*) AS n
+FROM gold.v_comentarios_clasificados
+GROUP BY 1, 2 ORDER BY 1, 3 DESC;
 ```

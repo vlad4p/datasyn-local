@@ -17,7 +17,7 @@ commit, push, or paste raw datasets into git history, PRs, or commit messages.
 |----------|------------------|
 | Raw data | `data/landing/**`, `.data/**`, `exports/`, `downloads/`, `tmp/` |
 | Database | `data/duckdb/*.duckdb`, `*.duckdb`, `*.db`, `*.sqlite` |
-| Reports | `report/**` (outputs may contain PII or scraped text) |
+| Reports | `reports/**` (outputs may contain PII or scraped text) |
 | Secrets | `.env`, `*.pem`, `*.key`, `credentials.json`, `secrets.*`, `cookies.txt` |
 | IDE local | `.cursor/mcp.json`, `.vscode/mcp.json`, `kilo.json` |
 
@@ -26,7 +26,7 @@ commit, push, or paste raw datasets into git history, PRs, or commit messages.
 - Skills, SQL scripts, Python helpers (`scripts/python/`, `scripts/sql/`)
 - Schema design and ingest **logic** (not the data files)
 - `AGENTS.md`, `README.md`, docs
-- `.gitkeep` and README files under `data/` and `report/`
+- `.gitkeep` and README files under `data/` and `reports/`
 
 ## What counts as sensitive in this project
 
@@ -49,17 +49,17 @@ commit, push, or paste raw datasets into git history, PRs, or commit messages.
 
 - Prefer aggregates and counts over dumping full rows in chat.
 - When showing samples, use `LIMIT 3` and redact obvious PII (emails, phones, handles).
-- Do not copy landing file contents into markdown reports in the repo root — write to `report/<project>/` only.
+- Do not copy landing file contents into markdown reports in the repo root — write to `reports/<project>/` only.
 
 ### On scrape / ingest / report
 
 - Save raw files to `data/landing/` (gitignored).
 - Load into DuckDB locally; bronze/silver/gold tables live in the `.duckdb` file (gitignored).
-- Write reports to `report/<project>/` (gitignored).
+- Write reports to `reports/<project>/` (gitignored).
 
 ## Pre-commit checklist
 
-- [ ] `git diff --cached` shows no files under `data/landing/`, `data/duckdb/`, `report/`, `.data/`
+- [ ] `git diff --cached` shows no files under `data/landing/`, `data/duckdb/`, `reports/`, `.data/`
 - [ ] No `.env`, credentials, or MCP config files
 - [ ] No `*.csv`, `*.json`, `*.xlsx`, `*.parquet` data files (unless explicitly approved fixtures in `skills/` or `docs/`)
 - [ ] Commit message contains no PII or raw data excerpts

@@ -13,7 +13,24 @@ import db  # noqa: E402
 TOP_TROLLS = 80
 TOP_APOYO = 20
 MIN_SHARED_TWEETS = 2
-OUTPUT = db.get_reports_path() / "redes" / f"myriambregman-tw-trolls-grafo_{date.today():%Y%m%d}.html"
+BUNDLE = "myriambregman-tw"
+
+BUNDLE_README = """\
+# Myriam Bregman TW — análisis legacy
+
+Grafo interactivo de haters/trolls hacia @myriambregman (CSV legacy `tw_*`).
+
+| Archivo | Rol |
+|---------|-----|
+| `report.html` | Grafo vis.js + KPIs |
+| `data.json` | Métricas, nodos y aristas exportados |
+| `sentiment.md` | Resumen tono/posición |
+| `trolls-grafo-notes.md` | Notas metodológicas del grafo |
+| `assets/haters.csv` | Ranking autores (tabular) |
+
+Generado: {generated}
+Regenerar grafo: `uv run python scripts/python/report_myriam_trolls_grafo.py`
+"""
 
 
 def fetch_metrics(con) -> dict:
@@ -319,7 +336,7 @@ def build_html(metrics: dict, graph: dict, top_trolls: list[dict], tweets: list[
       </div>
     </section>
   </main>
-  <footer>datasyn-local · report/redes/ · Datos legacy CSV (tw_*) · No incluir en git</footer>
+  <footer>datasyn-local · reports/redes/myriambregman-tw/ · Datos legacy CSV (tw_*) · No incluir en git</footer>
 
   <script>
   const DATA = {data_json};
@@ -473,9 +490,26 @@ def main() -> None:
         cooc = fetch_cooccurrence(con, troll_names)
         graph = build_graph(top_trolls, top_apoyo, cooc)
 
-        OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-        OUTPUT.write_text(build_html(metrics, graph, top_trolls, tweets), encoding="utf-8")
-        print(f"✅ Reporte: {OUTPUT}")
+        out_dir = db.get_report_bundle("redes", BUNDLE)
+        generated = date.today().isoformat()
+        html_path = out_dir / "report.html"
+        json_path = out_dir / "data.json"
+        readme_path = out_dir / "README.md"
+
+        payload = {
+            "generated": generated,
+            "metrics": metrics,
+            "graph": graph,
+            "top_trolls": top_trolls,
+            "tweets_breakdown": tweets,
+        }
+        json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        html_path.write_text(build_html(metrics, graph, top_trolls, tweets), encoding="utf-8")
+        readme_path.write_text(BUNDLE_README.format(generated=generated), encoding="utf-8")
+
+        print(f"Bundle: {out_dir}/")
+        print(f"  report.html")
+        print(f"  data.json")
         print(f"   Nodos: {graph['estadisticas']['total_nodes']}, Aristas: {graph['estadisticas']['total_edges']}")
         print(f"   Co-ocurrencias troll-troll: {len(cooc)}")
     finally:

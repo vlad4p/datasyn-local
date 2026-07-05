@@ -3,7 +3,7 @@ name: graph-analysis
 description: >-
   Analyze property graphs (vertices & edges) in DuckDB using SQL via MCP only.
   Computes centrality, degree distribution, density, communities,
-  co-occurrence networks. Produces markdown reports under report/<project>/.
+  co-occurrence networks. Produces markdown reports under reports/<project>/.
   Use for network analysis, connection mapping, community detection,
   or influence metrics from entity graphs.
 ---
@@ -11,13 +11,13 @@ description: >-
 # Graph analysis (skill — SQL via MCP only)
 
 Analyze graph tables (`grafo_vertices`, `grafo_edges`, `grafo_edges_agg`) using
-pure SQL through MCP. No graph extensions required. Write findings to `report/grafo/` (or another project slug if the graph is domain-specific).
+pure SQL through MCP. No graph extensions required. Write findings to `reports/<project>/<report-slug>/report.md` (default project `grafo` for network analysis).
 
 ## Prerequisites
 
 - Graph tables exist: `grafo_vertices`, `grafo_edges`, `grafo_edges_agg`
 - If not, use skill `graph-ingest` first
-- Output: `report/<project>/` — default project `grafo` for network analysis
+- Output: `reports/<project>/` — default project `grafo` for network analysis
 
 ## Workflow
 
@@ -25,7 +25,7 @@ pure SQL through MCP. No graph extensions required. Write findings to `report/gr
 2. **Rank by centrality** — find most connected nodes
 3. **Detect communities** — multi-entity links, shared entities across companies
 4. **Draft report** — markdown with findings
-5. **Save** — `report/grafo/reporte_{YYYYMMDD}.md` (see **`statistical-report`** for layout)
+5. **Save** — `reports/<project>/<report-slug>/report.md` (see **`statistical-report`** for layout)
 
 ---
 
@@ -183,3 +183,28 @@ Source tables: grafo_vertices ({n} nodes), grafo_edges ({m} edges)
 - False positives in extraction
 - SQL-only (no native graph algorithms)
 ```
+
+---
+
+## Redes PTS — troll network (gold views)
+
+For legacy FB/TW, use pre-built `gold.grafo_*_trolls` instead of generic `grafo_vertices`:
+
+```sql
+-- Top authors by attack weight
+SELECT v.label, SUM(e.peso_total) AS peso
+FROM gold.grafo_edges_agg_trolls e
+JOIN gold.grafo_vertices_trolls v ON v.vertex_id = e.source_id
+WHERE e.edge_type = 'ataca'
+GROUP BY 1 ORDER BY 2 DESC LIMIT 15;
+
+-- Co-ráfaga pairs (same day, same target)
+SELECT v1.label AS autor_a, v2.label AS autor_b, e.peso_total
+FROM gold.grafo_edges_agg_trolls e
+JOIN gold.grafo_vertices_trolls v1 ON v1.vertex_id = e.source_id
+JOIN gold.grafo_vertices_trolls v2 ON v2.vertex_id = e.target_id
+WHERE e.edge_type = 'co_rafaga'
+ORDER BY e.peso_total DESC LIMIT 10;
+```
+
+Interactive viz: [`redes-analysis`](../reports/redes-analysis/SKILL.md). Graph build: [`redes-gold`](../../../ingest/gold/redes-gold/SKILL.md).
