@@ -47,6 +47,11 @@ META: dict[str, tuple[int, str, str]] = {
         "Full investigation — scrape, ingest, sentiment report",
         "Investigación completa — extracción, ingesta, reporte de sentimiento",
     ),
+    "medallion-redes": (
+        900,
+        "Redes medallion — landing, bronze, silver, gold, report bundles",
+        "Medallón redes — landing, bronze, silver, gold, bundles de reportes",
+    ),
 }
 
 DETECT = [
@@ -54,6 +59,7 @@ DETECT = [
     (("WHAT GOES WHERE", "repository layout"), "repo-layout"),
     (("HOW ONE REQUEST", "plain-language request"), "request-lifecycle"),
     (("FULL INVESTIGATION", "investigation example"), "investigation-example"),
+    (("MEDALLION PIPELINE", "REDES LEGACY"), "medallion-redes"),
 ]
 
 
@@ -106,7 +112,7 @@ uv run python scripts/python/embed_readme_diagrams.py README.md
     new = (
         "Diagram sources: [`docs/diagrams/`](docs/diagrams/) — "
         "`flow.svg`, `repo-layout.svg`, "
-        "`request-lifecycle.svg`, `investigation-example.svg`."
+        "`request-lifecycle.svg`, `investigation-example.svg`, `medallion-redes.svg`."
     )
     return content.replace(old, new)
 

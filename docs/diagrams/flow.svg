@@ -55,5 +55,5 @@
     <text x="70" y="78" text-anchor="middle" font-family="Arial,sans-serif" font-size="9.5" fill="#7e7f7e">your findings</text>
   </g>
 
-  <text x="430" y="296" text-anchor="middle" font-family="Arial,sans-serif" font-size="10.5" fill="#7e7f7e">web-scraping &#8594; ingest-data &#8594; statistical-report / sentiment-analysis</text>
+  <text x="430" y="296" text-anchor="middle" font-family="Arial,sans-serif" font-size="10.5" fill="#7e7f7e">web-scraping &#8594; ingest-data &#8594; statistical-report / sentiment-analysis / redes-analysis</text>
 </svg>

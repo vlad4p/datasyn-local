@@ -41,8 +41,8 @@
     <text x="100" y="88" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="bold" fill="#49443b">sentiment-analysis</text>
     <text x="100" y="108" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#7e7f7e">Tone + quotes + limits</text>
     <rect x="20" y="124" width="160" height="56" rx="4" fill="#fffceb" stroke="#0e2d58" stroke-width="1.5"/>
-    <text x="100" y="146" text-anchor="middle" font-family="Arial,sans-serif" font-size="9.5" fill="#49443b">reports/*.md</text>
-    <text x="100" y="164" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#7e7f7e">auditable markdown</text>
+    <text x="100" y="146" text-anchor="middle" font-family="Arial,sans-serif" font-size="9.5" fill="#49443b">reports/&lt;project&gt;/</text>
+    <text x="100" y="164" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#7e7f7e">report.md</text>
   </g>
 
   <g transform="translate(40,296)">
