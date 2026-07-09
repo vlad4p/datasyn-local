@@ -1,16 +1,16 @@
 ---
 name: redes-analysis
 description: >-
-  Analyze legacy Facebook/Twitter redes data and generate HTML/PDF reports from
-  gold views — sentiment, narrative, trolls, ráfagas, interactive graphs.
-  Use when the user asks for redes reports, troll analysis, PTS account dashboards,
-  or interpretation of gold redes charts and tables.
+  Analyze legacy Facebook/Twitter redes data and generate HTML reports from
+  gold views — sentiment, narrative, trolls, ráfagas, interactive graphs,
+  entidades, copy-pasta. Use when the user asks for redes reports, troll analysis,
+  PTS account dashboards, or interpretation of gold redes charts and tables.
 ---
 
 # Redes analysis — tablas, consultas y reportes
 
-**Project output:** `reports/redes/<report-slug>/` — one folder per report (see layout below)  
-**Path helper:** `db.get_report_bundle("redes", "<slug>")`  
+**Project output:** `reports/redes/dashboard/` — unified HTML dashboard with external CSV datasets  
+**Path helper:** `db.get_report_bundle("redes", "dashboard")`  
 **Gold ingest:** skill [`redes-gold`](../../../ingest/gold/redes-gold/SKILL.md)  
 **Privacy:** [`data-privacy`](../../../engineering/data-privacy/SKILL.md) — never commit `reports/**`
 
@@ -18,34 +18,18 @@ description: >-
 
 ## Report layout (`reports/redes/`)
 
-Each report lives in its **own folder** with main file + data:
+Single unified dashboard:
 
 ```
 reports/redes/
 ├── README.md                # índice del proyecto
-├── gold-report/
-│   ├── report.html
-│   ├── data.json
-│   └── README.md
-├── trolls-grafo/
-│   ├── report.html
-│   ├── grafo.json
-│   └── README.md
-├── analisis-completo/
-│   ├── report.pdf
-│   └── README.md
-├── myriambregman-tw/        # legacy TW @myriambregman
-│   ├── report.html
-│   ├── data.json
-│   ├── sentiment.md
-│   ├── trolls-grafo-notes.md
-│   ├── assets/haters.csv
+├── dashboard/
+│   ├── report.html          # Chart.js + vis.js shell
+│   ├── data/*.csv           # datasets exportados desde DuckDB
 │   └── README.md
 └── _exports/
     └── export_YYYYMMDD.zip
 ```
-
-Cross-links between bundles use relative paths: `../trolls-grafo/report.html`, `../analisis-completo/report.pdf`.
 
 General convention: skill [`statistical-report`](statistical-report/SKILL.md).
 
@@ -55,11 +39,11 @@ General convention: skill [`statistical-report`](statistical-report/SKILL.md).
 
 | User asks | Action |
 |-----------|--------|
-| Reporte HTML redes / dashboard PTS | Run gold + `generate_redes_gold_report.py` |
-| Grafo interactivo trolls | Run gold + `generate_trolls_grafo_report.py` |
-| PDF consolidado | Run gold + HTML reports + `generate_redes_pdf_report.py` |
+| Reporte HTML redes / dashboard PTS | Run gold + entidades + similarity SQL + `generate_redes_dashboard.py` |
+| Grafo interactivo trolls | Same dashboard — sección **Grafo** (vis.js) |
 | Top trolls, ráfagas, pico de hostilidad | MCP queries on `gold.v_trolls_*` |
 | Sentimiento por cuenta | MCP on `gold.v_sentimiento_*` |
+| Entidades / multicuenta | MCP on `gold.v_entidades_*` |
 
 ---
 
@@ -69,9 +53,10 @@ General convention: skill [`statistical-report`](statistical-report/SKILL.md).
 silver.fb_* / tw_* + classification
         ↓  ingest_redes_gold.sql
 gold.v_* / gold.grafo_*
+        ↓  ingest_network_profile.sql, ingest_gold_entidades.sql, ingest_redes_comment_similarity.sql
         ↓  MCP queries (exploración)
-        ↓  Python report scripts (HTML/PDF)
-reports/redes/<report-slug>/
+        ↓  generate_redes_dashboard.py
+reports/redes/dashboard/
 ```
 
 ### 1. Refresh gold (writes — stop MCP)
@@ -79,31 +64,29 @@ reports/redes/<report-slug>/
 ```bash
 uv run python scripts/python/db.py mcp-stop
 uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_redes_gold.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_network_profile.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_gold_entidades.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_redes_comment_similarity.sql
 ```
 
 ### 2. Explore (reads — MCP preferred)
 
 Use MCP `query` for ad-hoc analysis. Example patterns in [`redes-gold`](../../../ingest/gold/redes-gold/SKILL.md).
 
-### 3. Generate reports
+### 3. Generate dashboard
 
 ```bash
-uv run python scripts/python/generate_redes_gold_report.py
-uv run python scripts/python/generate_trolls_grafo_report.py
-uv run --with matplotlib python scripts/python/generate_redes_pdf_report.py
+uv run python scripts/python/generate_redes_dashboard.py
 ```
 
 | Script | Bundle folder | Files |
 |--------|---------------|-------|
-| `generate_redes_gold_report.py` | `gold-report/` | `report.html`, `data.json`, `README.md` |
-| `generate_trolls_grafo_report.py` | `trolls-grafo/` | `report.html`, `grafo.json`, `README.md` |
-| `generate_redes_pdf_report.py` | `analisis-completo/` | `report.pdf`, `README.md` |
+| `generate_redes_dashboard.py` | `dashboard/` | `report.html` (datos embebidos), `data/*.csv`, `README.md` |
 
-Open HTML locally:
+Open locally (self-contained — double-click or `open`):
 
 ```bash
-open reports/redes/gold-report/report.html
-open reports/redes/trolls-grafo/report.html
+open reports/redes/dashboard/report.html
 ```
 
 ### 4. Export zip (compartir offline)
@@ -113,35 +96,28 @@ uv run python scripts/python/export_redes_reports_zip.py
 # → reports/redes/_exports/export_{date}.zip
 ```
 
-El zip empaqueta cada carpeta bajo `reports/redes/<slug>/`. Filtrar: `--bundle gold-report --bundle trolls-grafo`
-
 ---
 
-## Report sections — qué analiza cada gráfico
+## Dashboard sections — qué analiza cada gráfico
 
-Each HTML report embeds collapsible **“Cómo interpretar · origen de datos”** blocks. Summary:
+| Sección | CSV principales | Lectura |
+|---------|-----------------|---------|
+| **Resumen** | `kpis.csv`, `sentimiento_resumen.csv` | KPIs globales y mix por cuenta |
+| **Volúmenes** | `volumenes_cuenta.csv`, `comentarios_posicion_plataforma.csv` | Comentarios por plataforma/cuenta |
+| **Sentimiento** | `sentimiento_por_cuenta.csv` | Barras 100% — mix posición LLM |
+| **Temporal** | `sentimiento_temporal.csv`, `trolls_temporal.csv`, `trolls_rafagas_dia_temporal.csv` | Picos rojos = días hostiles; selector de cuenta |
+| **Narrativa** | `narrativa_distribucion.csv`, `narrativa_temporal.csv`, `grafo_coocurrencia.csv` | Mix temático + serie semanal + co-ocurrencia |
+| **Trolls** | `trolls_top10.csv`, `trolls_grupos.csv`, `trolls_rafagas*.csv` | Ranking, multi-objetivo, ráfagas |
+| **Grafo** | `grafo_nodes.csv`, `grafo_edges.csv` | Red vis.js — autores, cuentas, narrativas, cohortes |
+| **Entidades** | `entidades_*.csv` | Tipo de cuenta, confianza de nombre, multicuenta |
+| **Comentarios similares** | `comentarios_clusters_*.csv` | Copy-pasta / clusters de texto |
+| **Metodología** | — | Bronze → silver → LLM → gold → CSV → HTML |
 
-### Dashboard Chart.js (`gold-report/report.html`)
-
-| # | Sección | Vista gold | Lectura |
-|---|---------|------------|---------|
-| KPI | Totales por cuenta | `v_sentimiento_resumen_cuenta` | Volumen clasificado; % apoyo vs troll |
-| 1 | Sentimiento por cuenta | `v_sentimiento_por_cuenta` | Barras 100% — mix posición LLM |
-| 2 | Evolución temporal | `v_sentimiento_temporal` | Picos rojos = días hostiles |
-| 3 | Narrativas | `v_narrativa_distribucion`, `v_narrativa_temporal` | Mix temático + serie semanal |
-| 4 | Top 10 trolls | `v_trolls_top10` | Ranking TW (FB casi anónimo) |
-| 5 | Trolls en el tiempo | `v_trolls_temporal` | Volumen vs autores distintos |
-| 6 | Multi-objetivo + ráfagas | `v_trolls_grupos_multobjetivo`, `v_trolls_rafagas` | Tabla: N comentarios, Min minutos |
-| 6b | Autores en ráfagas/día | `v_trolls_rafagas_dia` | Cohortes sincronizadas |
-| 7 | Grafo narrativas | `grafo_edges_agg_narrativa` | Co-ocurrencia temática |
-
-**Metodología** (bloque superior): bronze → silver → LLM → gold → HTML.
-
-### Grafo interactivo (`trolls-grafo/report.html`)
+### Grafo interactivo (sección Grafo)
 
 | Nodo | Color | Significado |
 |------|-------|-------------|
-| Autor | Rojo | Top ~35 autores por peso `ataca` |
+| Autor | Rojo | Top autores por peso `ataca` |
 | Cuenta | Verde | Figura PTS objetivo |
 | Narrativa | Violeta | Tema LLM/heurística |
 | Cohorte | Azul | Día+cuenta con ≥2 ráfagas |
@@ -152,12 +128,6 @@ Each HTML report embeds collapsible **“Cómo interpretar · origen de datos”
 | `co_rafaga` | Autor ↔ autor mismo día/cuenta (sincronía, no prueba de coordinación) |
 | `usa_narrativa` | Autor → tema |
 | `en_cohorte` | Autor → nodo cohorte-día |
-
-Panel lateral: metodología, leyenda, filtros por tipo de arista, enlaces al dashboard y PDF.
-
-### PDF (`analisis-completo/report.pdf`)
-
-Estático (~16 págs): KPIs, gráficos matplotlib, tablas top trolls/ráfagas, enlaces a HTML interactivos. Requiere `matplotlib` (`uv run --with matplotlib`).
 
 ---
 
@@ -203,14 +173,14 @@ ORDER BY comments_count DESC LIMIT 20;
 
 ---
 
-## Extending reports
+## Extending the dashboard
 
-To add a new chart to the dashboard:
+To add a new chart:
 
-1. Add or extend a gold view in `ingest_redes_gold.sql`
-2. Export in `load_data()` inside `generate_redes_gold_report.py`
-3. Add Chart.js section + `<details class="guide">` with Análisis / Procesamiento / Lectura / Límite
-4. Regenerate all bundles; cross-links use relative paths between sibling folders
+1. Add or extend a gold view in `ingest_redes_gold.sql` (or related SQL)
+2. Add export entry in `SQL_EXPORTS` inside `generate_redes_dashboard.py`
+3. Add Chart.js / vis.js section in `scripts/python/templates/redes_dashboard.html`
+4. Regenerate: `uv run python scripts/python/generate_redes_dashboard.py`
 
 Follow [`create-python-script`](../../../infra/create-python-script/SKILL.md) for script conventions.
 

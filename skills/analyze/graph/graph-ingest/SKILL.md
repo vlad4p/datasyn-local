@@ -182,7 +182,7 @@ For legacy FB/TW troll analysis, graph tables are **views** in `gold.*` — not 
 | `gold.grafo_edges_agg_trolls` | Aggregated weights for visualization |
 | `gold.grafo_*_narrativa` | Narrative co-occurrence + cuenta weights |
 
-**Interactive HTML:** `scripts/python/generate_trolls_grafo_report.py` — subgrafo top ~35 autores.  
+**Interactive HTML:** `scripts/python/generate_redes_dashboard.py` — sección Grafo (subgrafo top autores).
 **Analysis skill:** [`redes-analysis`](../reports/redes-analysis/SKILL.md)
 
 ```sql

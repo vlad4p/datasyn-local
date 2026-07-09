@@ -12,10 +12,7 @@ import db
 
 # Bundles under reports/redes/<slug>/ (stable folder names)
 REDES_BUNDLES: list[tuple[str, str]] = [
-    ("gold-report", "Dashboard Chart.js — sentimiento, narrativa, trolls, ráfagas"),
-    ("trolls-grafo", "Grafo vis.js — autores troll, cuentas, narrativas, cohortes"),
-    ("analisis-completo", "PDF consolidado con KPIs y gráficos estáticos"),
-    ("myriambregman-tw", "Análisis legacy TW @myriambregman"),
+    ("dashboard", "Dashboard unificado — Chart.js + vis.js, CSV externos"),
 ]
 
 

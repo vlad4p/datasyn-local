@@ -26,15 +26,13 @@ reports/<project>/<report-slug>/
 | Segment | Example | Rule |
 |---------|---------|------|
 | `<project>` | `redes`, `grafo`, `nyt`, `boletin` | Kebab-case domain or dataset slug |
-| `<report-slug>` | `gold-report`, `sentiment-brief` | Kebab-case; **one folder per report** |
+| `<report-slug>` | `dashboard`, `sentiment-brief` | Kebab-case; **one folder per report** |
 
 **Examples:**
 
 ```
-reports/redes/gold-report/report.html
-reports/redes/gold-report/data.json
-reports/redes/trolls-grafo/report.html
-reports/redes/trolls-grafo/grafo.json
+reports/redes/dashboard/report.html
+reports/redes/dashboard/data/*.csv
 reports/grafo/co-ocurrencia/report.md
 reports/nyt/sentiment-brief/report.md
 ```
@@ -180,8 +178,8 @@ Minimal single-file HTML: `<h1>`, one `<table>` for schema, one for top summary 
 Pair HTML with a JSON sibling in the **same bundle folder**:
 
 ```
-reports/redes/gold-report/report.html
-reports/redes/gold-report/data.json
+reports/redes/dashboard/report.html
+reports/redes/dashboard/data/*.csv
 ```
 
 For **full PTS redes dashboards** (sentimiento, trolls, ráfagas, grafos) use skill [`redes-analysis`](redes-analysis/SKILL.md) instead of hand-written HTML.

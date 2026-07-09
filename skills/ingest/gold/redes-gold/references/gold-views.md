@@ -65,6 +65,26 @@ Añade `narrativa`, `sentimiento`, `es_troll` (heurística sobre `resumen`).
 | `grafo_edges_narrativa` | `narrativa_coocurrencia`, `narrativa_cuenta` |
 | `grafo_edges_agg_narrativa` | pesos agregados |
 
+## Entidades (persona detrás de la cuenta)
+
+Source: `scripts/sql/ingest_gold_entidades.sql` (prereq: `silver.network_profile`).
+
+### `gold.v_entidades`
+Una fila por `canonical_key` de `silver.network_profile`.  
+Infiere `nombre_inferido` (prioridad: cuenta trackeada → TW display name → fanpage `.PTS` → page name → handle).  
+Columnas clave: `nombre_normalizado`, `es_organizacion`, `tipo_cuenta`, `confianza_nombre`, `multicuenta_mismo_perfil`.
+
+### `gold.v_entidades_vinculos`
+Pares de perfiles con evidencia de misma persona u organización.  
+Tipos: `multired_en_perfil`, `fanpage_pts_username`, `handle_alphanum`, `mismo_instagram_id`, `cuenta_trackeada_slug`, `nombre_normalizado_igual` (baja confianza).
+
+### `gold.v_entidades_grupos`
+Componentes conectados por vínculos alta/media.  
+`persona_grupo_id`, `canonical_keys[]`, `n_perfiles`, `confianza_grupo`, `tipo_grupo`.
+
+### `gold.v_entidades_resumen`
+`v_entidades` + grupo + evaluación multicuenta (`evaluacion_multicuenta`, `posible_multicuenta`).
+
 ## Edge types (trolls)
 
 | Tipo | Dirección | Significado |

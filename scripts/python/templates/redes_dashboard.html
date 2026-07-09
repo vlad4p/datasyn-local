@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard Redes PTS</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419; --surface: #1a2332; --surface2: #243044; --text: #e7ecf3;
+      --muted: #8b9cb3; --accent: #5b8def; --border: #2d3a4f;
+      --apoyo: #3dd68c; --troll: #f07178; --neutral: #8b9cb3; --ambiguo: #f5a524;
+      --sidebar-w: 220px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .app { display: flex; min-height: 100vh; }
+    nav {
+      width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border);
+      padding: 1rem 0; position: fixed; top: 0; bottom: 0; overflow-y: auto; z-index: 10;
+    }
+    nav h1 { font-size: 0.95rem; padding: 0 1rem 0.75rem; border-bottom: 1px solid var(--border); margin-bottom: 0.5rem; }
+    nav a {
+      display: block; padding: 0.45rem 1rem; color: var(--muted); text-decoration: none;
+      font-size: 0.85rem; border-left: 3px solid transparent;
+    }
+    nav a:hover, nav a.active { color: var(--text); background: rgba(91,141,239,0.08); border-left-color: var(--accent); }
+    main { margin-left: var(--sidebar-w); flex: 1; padding: 1.5rem 1.75rem 3rem; max-width: 1200px; }
+    .banner {
+      background: rgba(240,113,120,0.12); border: 1px solid var(--troll); border-radius: 8px;
+      padding: 0.75rem 1rem; margin-bottom: 1.25rem; font-size: 0.88rem; display: none;
+    }
+    .banner code { color: var(--accent); }
+    section { display: none; margin-bottom: 2rem; scroll-margin-top: 1rem; }
+    section.active { display: block; }
+    section > h2 { font-size: 1.25rem; margin-bottom: 0.25rem; }
+    section > .desc { color: var(--muted); font-size: 0.88rem; margin-bottom: 1rem; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; }
+    .kpi .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi .value { font-size: 1.4rem; font-weight: 700; margin: 0.2rem 0; }
+    .kpi .sub { font-size: 0.78rem; color: var(--muted); }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+    .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+    .chart-box { position: relative; height: 300px; }
+    .chart-box.tall { height: 380px; }
+    .chart-box.graph { height: 520px; }
+    .controls { margin-bottom: 0.75rem; }
+    select { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 0.4rem 0.65rem; font-size: 0.85rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th, td { text-align: left; padding: 0.45rem 0.55rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; font-weight: 500; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
+    .badge.tw { background: #1da1f2; color: #fff; }
+    .badge.fb { background: #1877f2; color: #fff; }
+    .badge.alta { background: rgba(61,214,140,0.2); color: var(--apoyo); }
+    .badge.media { background: rgba(245,165,36,0.2); color: var(--ambiguo); }
+    .badge.baja { background: rgba(240,113,120,0.15); color: var(--troll); }
+    .limits { font-size: 0.86rem; color: var(--muted); line-height: 1.55; }
+    .limits li { margin: 0.35rem 0 0.35rem 1.1rem; }
+    .limits code { color: var(--accent); font-size: 0.82rem; }
+    footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.8rem; }
+    @media (max-width: 768px) {
+      nav { position: relative; width: 100%; }
+      main { margin-left: 0; }
+      .app { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <nav id="nav">
+      <h1>Redes PTS</h1>
+      <a href="#resumen" data-sec="resumen" class="active">Resumen</a>
+      <a href="#volumenes" data-sec="volumenes">Volúmenes</a>
+      <a href="#sentimiento" data-sec="sentimiento">Sentimiento</a>
+      <a href="#temporal" data-sec="temporal">Temporal</a>
+      <a href="#narrativa" data-sec="narrativa">Narrativa</a>
+      <a href="#trolls" data-sec="trolls">Trolls</a>
+      <a href="#grafo" data-sec="grafo">Grafo</a>
+      <a href="#entidades" data-sec="entidades">Cuentas</a>
+      <a href="#similares" data-sec="similares">Similares</a>
+      <a href="#metodo" data-sec="metodo">Metodología</a>
+    </nav>
+    <main>
+      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem">
+        Fuente: <code>gold.*</code> · Generado: __GENERATED__
+      </p>
+
+      <section id="sec-resumen" class="active">
+        <h2>Resumen ejecutivo</h2>
+        <p class="desc">KPIs globales del análisis de comentarios y entidades.</p>
+        <div class="kpi-grid" id="kpi-resumen"></div>
+        <div class="panel limits">
+          <p><strong>Lectura:</strong> FB concentra el volumen clasificado; TW es muestra de replies.
+          Hostilidad ~80–90% en cuentas PTS. Multicuenta confirmada solo en figuras trackeadas.</p>
+        </div>
+      </section>
+
+      <section id="sec-volumenes">
+        <h2>Volúmenes</h2>
+        <p class="desc">Comentarios clasificados por plataforma, cuenta y posición.</p>
+        <div class="chart-row">
+          <div class="panel"><div class="chart-box"><canvas id="chartVolumenPlat"></canvas></div></div>
+          <div class="panel"><div class="chart-box"><canvas id="chartVolumenCuenta"></canvas></div></div>
+        </div>
+      </section>
+
+      <section id="sec-sentimiento">
+        <h2>Sentimiento / posición</h2>
+        <p class="desc">Distribución LLM por cuenta trackeada.</p>
+        <div class="panel"><div class="chart-box"><canvas id="chartSentimiento"></canvas></div></div>
+      </section>
+
+      <section id="sec-temporal">
+        <h2>Evolución temporal</h2>
+        <p class="desc">Tono diario y actividad troll.</p>
+        <div class="controls">
+          <label>Cuenta: <select id="selCuentaTemporal"></select></label>
+        </div>
+        <div class="chart-row">
+          <div class="panel"><div class="chart-box tall"><canvas id="chartTemporal"></canvas></div></div>
+          <div class="panel"><div class="chart-box tall"><canvas id="chartTrollTemporal"></canvas></div></div>
+        </div>
+      </section>
+
+      <section id="sec-narrativa">
+        <h2>Narrativas</h2>
+        <p class="desc">Temas inferidos del resumen LLM.</p>
+        <div class="controls">
+          <label>Cuenta: <select id="selCuentaNarrativa"></select></label>
+        </div>
+        <div class="chart-row">
+          <div class="panel"><div class="chart-box"><canvas id="chartNarrativa"></canvas></div></div>
+          <div class="panel"><div class="chart-box"><canvas id="chartNarrativaTemp"></canvas></div></div>
+        </div>
+        <div class="chart-row">
+          <div class="panel"><div class="chart-box"><canvas id="chartCooc"></canvas></div></div>
+          <div class="panel"><div class="chart-box"><canvas id="chartNarrCuenta"></canvas></div></div>
+        </div>
+      </section>
+
+      <section id="sec-trolls">
+        <h2>Trolls y ráfagas</h2>
+        <p class="desc">Autores recurrentes, multi-objetivo y bursts ≥3 trolls/día.</p>
+        <div class="kpi-grid" id="kpi-rafagas"></div>
+        <div class="chart-row">
+          <div class="panel"><div class="chart-box"><canvas id="chartTrollsTop"></canvas></div></div>
+          <div class="panel"><div class="chart-box"><canvas id="chartRafagasDia"></canvas></div></div>
+        </div>
+        <div class="chart-row">
+          <div class="panel">
+            <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Multi-objetivo</h3>
+            <div style="overflow-x:auto"><table id="tblGrupos"><thead><tr>
+              <th>Autor</th><th>Plat.</th><th>Trolls</th><th>Cuentas</th>
+            </tr></thead><tbody></tbody></table></div>
+          </div>
+          <div class="panel">
+            <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Ráfagas</h3>
+            <div style="overflow-x:auto"><table id="tblRafagas"><thead><tr>
+              <th>Autor</th><th>Día</th><th>N</th><th>Cuenta</th>
+            </tr></thead><tbody></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sec-grafo">
+        <h2>Grafo de trolls</h2>
+        <p class="desc">Red interactiva: autores, cuentas, narrativas, cohortes (vis.js).</p>
+        <div class="controls">
+          <select id="filterEdge"><option value="">Todas las relaciones</option></select>
+          <button type="button" id="btnFit">Ajustar vista</button>
+        </div>
+        <div class="panel"><div id="network" class="chart-box graph"></div></div>
+      </section>
+
+      <section id="sec-entidades">
+        <h2>Cuentas y entidades</h2>
+        <p class="desc">Inferencia de persona y evaluación multicuenta.</p>
+        <div class="chart-row">
+          <div class="panel"><div class="chart-box"><canvas id="chartEntTipo"></canvas></div></div>
+          <div class="panel"><div class="chart-box"><canvas id="chartEntEval"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Cuentas PTS trackeadas</h3>
+          <table id="tblTrackeadas"><thead><tr>
+            <th>Perfil</th><th>Nombre</th><th>Redes</th><th>Evaluación</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+        <div class="panel">
+          <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Grupos multicuenta</h3>
+          <table id="tblEntGrupos"><thead><tr>
+            <th>Grupo</th><th>Nombre</th><th>Perfiles</th><th>Confianza</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </section>
+
+      <section id="sec-similares">
+        <h2>Comentarios similares</h2>
+        <p class="desc">Copy-pasta y narrativas LLM repetidas.</p>
+        <div class="chart-row">
+          <div class="panel"><div class="chart-box tall"><canvas id="chartCopyPasta"></canvas></div></div>
+          <div class="panel"><div class="chart-box tall"><canvas id="chartResumenLLM"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <table id="tblCopyPasta"><thead><tr>
+            <th>Rep.</th><th>Posición</th><th>Muestra</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </section>
+
+      <section id="sec-metodo">
+        <h2>Metodología y límites</h2>
+        <div class="panel limits">
+          <p><strong>Pipeline:</strong> landing CSV → bronze → silver → clasificación LLM → gold → este dashboard (datos embebidos).</p>
+          <ul>
+            <li>FB: ~67k comentarios clasificados; autores casi anónimos.</li>
+            <li>TW: muestra de replies a tweets con alto volumen (~3.5k).</li>
+            <li>Posición LLM: apoyo_izquierda, derecha_o_troll, neutral, ambiguo, inclasificable.</li>
+            <li>Narrativa: heurística SQL sobre resumen — no topic modeling.</li>
+            <li>Ráfaga: ≥3 trolls mismo autor/día/cuenta.</li>
+            <li>Entidades: inferencia por display name; vínculos débiles por homonimia.</li>
+            <li>Copy-pasta: clusters texto ≥5 repeticiones; resumen LLM ≥10.</li>
+          </ul>
+          <pre style="margin-top:1rem;font-size:0.78rem;overflow-x:auto">uv run python scripts/python/db.py mcp-stop
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_redes_gold.sql
+uv run python scripts/python/generate_redes_dashboard.py</pre>
+        </div>
+      </section>
+
+      <footer>Dashboard unificado · Datos embebidos · Sin PII en agregados</footer>
+    </main>
+  </div>
+
+  <script>
+    const DATA = __DATA_JSON__;
+    const charts = {};
+    let network = null;
+    let allEdges = [];
+
+    const COLORS = {
+      apoyo_izquierda: '#3dd68c', derecha_o_troll: '#f07178', neutral: '#8b9cb3',
+      ambiguo: '#f5a524', inclasificable: '#c084fc',
+      critica_antizurda: '#f07178', apoyo_movilizacion: '#3dd68c',
+      insulto_descalificacion: '#fb923c', neutral_ambiguo: '#94a3b8', sin_contenido: '#64748b',
+    };
+
+    Chart.defaults.color = '#8b9cb3';
+    Chart.defaults.borderColor = '#2d3a4f';
+
+    function num(v) { const n = Number(v); return Number.isFinite(n) ? n : 0; }
+    function kpi(name) {
+      const row = (DATA.kpis || []).find(r => r.metric === name);
+      return row ? row.value : '';
+    }
+    function shortLabel(s) { return (s || '').replace('narrativa:', '').replace('cuenta:', ''); }
+
+    function doughnut(id, labels, data, colors) {
+      if (charts[id]) charts[id].destroy();
+      charts[id] = new Chart(document.getElementById(id), {
+        type: 'doughnut',
+        data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } },
+      });
+    }
+
+    function barV(id, labels, data, color, title) {
+      if (charts[id]) charts[id].destroy();
+      charts[id] = new Chart(document.getElementById(id), {
+        type: 'bar',
+        data: { labels, datasets: [{ label: title || '', data, backgroundColor: color }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: !!title }, title: { display: !!title, text: title } },
+          scales: { y: { beginAtZero: true } },
+        },
+      });
+    }
+
+    function barH(id, labels, data, color) {
+      if (charts[id]) charts[id].destroy();
+      charts[id] = new Chart(document.getElementById(id), {
+        type: 'bar',
+        data: { labels, datasets: [{ data, backgroundColor: color }] },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { x: { beginAtZero: true } },
+        },
+      });
+    }
+
+    function renderResumen() {
+      const total = num(kpi('comentarios_clasificados'));
+      const perfiles = num(kpi('perfiles_entidades'));
+      const clusters = num(kpi('clusters_copy_pasta'));
+      const mc = num(kpi('posible_multicuenta'));
+      const cards = [
+        { label: 'Comentarios clasificados', value: total.toLocaleString('es-AR'), sub: 'FB + TW' },
+        { label: 'Perfiles entidades', value: perfiles.toLocaleString('es-AR'), sub: 'network_profile' },
+        { label: 'Clusters copy-pasta', value: clusters, sub: 'texto idéntico' },
+        { label: 'Posible multicuenta', value: mc, sub: 'con evidencia' },
+      ];
+      (DATA.sentimiento_resumen || []).forEach(r => {
+        cards.push({
+          label: r.cuenta_nombre,
+          value: num(r.pct_troll) + '% troll',
+          sub: num(r.comentarios_clasificados).toLocaleString('es-AR') + ' coment.',
+        });
+      });
+      document.getElementById('kpi-resumen').innerHTML = cards.map(c =>
+        `<div class="kpi"><div class="label">${c.label}</div><div class="value">${c.value}</div><div class="sub">${c.sub}</div></div>`
+      ).join('');
+    }
+
+    function renderVolumenes() {
+      const pos = DATA.comentarios_posicion || [];
+      const plats = [...new Set(pos.map(r => r.plataforma))];
+      const posiciones = ['derecha_o_troll', 'apoyo_izquierda', 'neutral', 'ambiguo', 'inclasificable'];
+      const posColors = { derecha_o_troll: COLORS.derecha_o_troll, apoyo_izquierda: COLORS.apoyo_izquierda, neutral: COLORS.neutral };
+      if (charts.chartVolumenPlat) charts.chartVolumenPlat.destroy();
+      charts.chartVolumenPlat = new Chart(document.getElementById('chartVolumenPlat'), {
+        type: 'bar',
+        data: {
+          labels: plats,
+          datasets: posiciones.map(p => ({
+            label: p.replace(/_/g, ' '),
+            data: plats.map(pl => num((pos.find(r => r.plataforma === pl && r.posicion === p) || {}).n)),
+            backgroundColor: posColors[p] || '#64748b',
+          })),
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } }, plugins: { legend: { position: 'bottom' } } },
+      });
+      const resumen = DATA.sentimiento_resumen || [];
+      barV('chartVolumenCuenta', resumen.map(r => r.cuenta_nombre), resumen.map(r => num(r.comentarios_clasificados)), '#5b8def', 'Comentarios por cuenta');
+    }
+
+    function renderSentimiento() {
+      const slugs = (DATA.sentimiento_resumen || []).map(r => r.cuenta_slug);
+      const cuentas = (DATA.sentimiento_resumen || []).map(r => r.cuenta_nombre);
+      const posList = ['apoyo_izquierda', 'derecha_o_troll', 'inclasificable', 'ambiguo', 'neutral'];
+      const byKey = {};
+      (DATA.sentimiento_por_cuenta || []).forEach(r => {
+        byKey[r.cuenta_slug + '|' + r.posicion] = (byKey[r.cuenta_slug + '|' + r.posicion] || 0) + num(r.comentarios);
+      });
+      if (charts.chartSentimiento) charts.chartSentimiento.destroy();
+      charts.chartSentimiento = new Chart(document.getElementById('chartSentimiento'), {
+        type: 'bar',
+        data: {
+          labels: cuentas,
+          datasets: posList.map(pos => ({
+            label: pos.replace(/_/g, ' '),
+            data: slugs.map(s => byKey[s + '|' + pos] || 0),
+            backgroundColor: COLORS[pos] || '#64748b',
+            stack: 's',
+          })),
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } }, plugins: { legend: { position: 'bottom' } } },
+      });
+    }
+
+    function fillSelect(id, values) {
+      document.getElementById(id).innerHTML = values.map(v => `<option value="${v}">${v}</option>`).join('');
+    }
+
+    function renderTemporal(slug) {
+      const rows = (DATA.sentimiento_temporal || []).filter(r => r.cuenta_slug === slug);
+      const dias = [...new Set(rows.map(r => r.dia))].sort();
+      const apoyo = dias.map(d => rows.filter(r => r.dia === d && r.posicion === 'apoyo_izquierda').reduce((a,b) => a + num(b.comentarios), 0));
+      const troll = dias.map(d => rows.filter(r => r.dia === d && r.posicion === 'derecha_o_troll').reduce((a,b) => a + num(b.comentarios), 0));
+      if (charts.chartTemporal) charts.chartTemporal.destroy();
+      charts.chartTemporal = new Chart(document.getElementById('chartTemporal'), {
+        type: 'line',
+        data: {
+          labels: dias.map(d => d.slice(0, 10)),
+          datasets: [
+            { label: 'Apoyo', data: apoyo, borderColor: COLORS.apoyo_izquierda, fill: true, backgroundColor: 'rgba(61,214,140,0.1)', tension: 0.25 },
+            { label: 'Troll', data: troll, borderColor: COLORS.derecha_o_troll, fill: true, backgroundColor: 'rgba(240,113,120,0.1)', tension: 0.25 },
+          ],
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } },
+      });
+      const tr = (DATA.trolls_temporal || []).filter(r => r.cuenta_slug === slug && r.plataforma === 'twitter');
+      const diasT = [...new Set(tr.map(r => r.dia))].sort();
+      if (charts.chartTrollTemporal) charts.chartTrollTemporal.destroy();
+      charts.chartTrollTemporal = new Chart(document.getElementById('chartTrollTemporal'), {
+        type: 'line',
+        data: {
+          labels: diasT.map(d => d.slice(0, 10)),
+          datasets: [
+            { label: 'Comentarios troll', data: diasT.map(d => tr.filter(r => r.dia === d).reduce((a,b) => a + num(b.comentarios_troll), 0)), borderColor: COLORS.derecha_o_troll, yAxisID: 'y', tension: 0.25 },
+            { label: 'Autores', data: diasT.map(d => tr.filter(r => r.dia === d).reduce((a,b) => a + num(b.autores_troll), 0)), borderColor: '#60a5fa', yAxisID: 'y1', tension: 0.25 },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true, position: 'left' }, y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } } },
+        },
+      });
+    }
+
+    function renderNarrativa(slug) {
+      const rows = (DATA.narrativa_distribucion || []).filter(r => r.cuenta_slug === slug).slice(0, 8);
+      doughnut('chartNarrativa', rows.map(r => r.narrativa.replace(/_/g, ' ')), rows.map(r => num(r.comentarios)), rows.map(r => COLORS[r.narrativa] || '#64748b'));
+      const temp = (DATA.narrativa_temporal || []).filter(r => r.cuenta_slug === slug);
+      const semanas = [...new Set(temp.map(r => r.semana))].sort();
+      const narrs = [...new Set(temp.map(r => r.narrativa))].slice(0, 5);
+      if (charts.chartNarrativaTemp) charts.chartNarrativaTemp.destroy();
+      charts.chartNarrativaTemp = new Chart(document.getElementById('chartNarrativaTemp'), {
+        type: 'bar',
+        data: {
+          labels: semanas.map(s => s.slice(0, 10)),
+          datasets: narrs.map(n => ({
+            label: n.replace(/_/g, ' '),
+            data: semanas.map(s => temp.filter(r => r.semana === s && r.narrativa === n).reduce((a,b) => a + num(b.comentarios), 0)),
+            backgroundColor: COLORS[n] || '#64748b',
+            stack: 'n',
+          })),
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } }, plugins: { legend: { position: 'bottom' } } },
+      });
+      const cooc = (DATA.grafo_coocurrencia || []).slice(0, 10);
+      barH('chartCooc', cooc.map(r => shortLabel(r.source_id) + ' + ' + shortLabel(r.target_id)), cooc.map(r => num(r.peso_total)), '#a78bfa');
+      const nc = DATA.grafo_narrativa_cuenta || [];
+      const cuentas = [...new Set(nc.map(r => r.cuenta_slug))];
+      const narrs2 = [...new Set(nc.map(r => shortLabel(r.source_id)))];
+      if (charts.chartNarrCuenta) charts.chartNarrCuenta.destroy();
+      charts.chartNarrCuenta = new Chart(document.getElementById('chartNarrCuenta'), {
+        type: 'bar',
+        data: {
+          labels: narrs2,
+          datasets: cuentas.map((c, i) => ({
+            label: c,
+            data: narrs2.map(n => num((nc.find(r => r.cuenta_slug === c && shortLabel(r.source_id) === n) || {}).peso_total)),
+            backgroundColor: ['#f07178', '#3dd68c', '#60a5fa'][i % 3],
+          })),
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } }, scales: { y: { beginAtZero: true } } },
+      });
+    }
+
+    function renderTrolls() {
+      const r = (DATA.trolls_rafagas_resumen || [])[0] || {};
+      document.getElementById('kpi-rafagas').innerHTML = [
+        { label: 'Autores con ráfaga', value: num(r.autores_distintos_con_rafaga), sub: num(r.comentarios_en_rafagas_total) + ' comentarios' },
+        { label: 'Eventos ráfaga', value: num(r.eventos_rafaga_total), sub: '≥3 trolls/día/autor' },
+        { label: 'Cuentas afectadas', value: num(r.cuentas_objetivo_afectadas), sub: '' },
+      ].map(c => `<div class="kpi"><div class="label">${c.label}</div><div class="value">${c.value}</div><div class="sub">${c.sub}</div></div>`).join('');
+      const tw = (DATA.trolls_top10 || []).filter(r => r.plataforma === 'twitter');
+      barH('chartTrollsTop', tw.map(r => r.autor_nombre || r.autor_id), tw.map(r => num(r.comentarios_troll)), COLORS.derecha_o_troll);
+      const top = (DATA.trolls_rafagas_dia || []).slice(0, 10);
+      barH('chartRafagasDia', top.map(r => (r.dia || '').slice(0,10) + ' · ' + r.cuenta_slug), top.map(r => num(r.autores_con_rafaga)), '#60a5fa');
+      document.querySelector('#tblGrupos tbody').innerHTML = (DATA.trolls_grupos || []).map(r => `
+        <tr><td>${r.autor_nombre || '—'}</td>
+        <td><span class="badge ${r.plataforma === 'twitter' ? 'tw' : 'fb'}">${r.plataforma}</span></td>
+        <td>${r.comentarios_troll}</td><td>${r.cuentas_distintas}</td></tr>`).join('');
+      document.querySelector('#tblRafagas tbody').innerHTML = (DATA.trolls_rafagas || []).map(r => `
+        <tr><td>${r.autor_nombre || '—'}</td><td>${(r.dia||'').slice(0,10)}</td>
+        <td>${r.comentarios_en_dia}</td><td>${r.cuenta_slug}</td></tr>`).join('');
+    }
+
+    function renderGrafo() {
+      const nodes = (DATA.grafo_nodes || []).map(r => ({
+        id: r.id, label: r.label, color: r.color, shape: r.shape,
+        size: num(r.size), title: r.title,
+      }));
+      allEdges = (DATA.grafo_edges || []).map(r => ({
+        id: r.id, from: r.from, to: r.to, label: r.label, color: r.color,
+        width: num(r.width), dashes: r.dashes === 'true', title: r.title, edge_type: r.edge_type,
+      }));
+      const types = [...new Set(allEdges.map(e => e.edge_type))];
+      const sel = document.getElementById('filterEdge');
+      sel.innerHTML = '<option value="">Todas las relaciones</option>' +
+        types.map(t => `<option value="${t}">${t}</option>`).join('');
+      const container = document.getElementById('network');
+      network = new vis.Network(container, { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(allEdges) }, {
+        physics: { stabilization: { iterations: 120 } },
+        interaction: { hover: true, tooltipDelay: 100 },
+        edges: { font: { size: 9, color: '#8b9cb3' }, smooth: { type: 'continuous' } },
+        nodes: { font: { size: 11, color: '#e7ecf3' } },
+      });
+      sel.onchange = () => {
+        const v = sel.value;
+        const filtered = v ? allEdges.filter(e => e.edge_type === v) : allEdges;
+        network.setData({ nodes: new vis.DataSet(nodes), edges: new vis.DataSet(filtered) });
+      };
+      document.getElementById('btnFit').onclick = () => network.fit();
+    }
+
+    function renderEntidades() {
+      const tipo = DATA.entidades_tipo || [];
+      doughnut('chartEntTipo', tipo.map(r => r.tipo_cuenta), tipo.map(r => num(r.n)), tipo.map((_, i) => ['#1da1f2','#1877f2','#f5a524','#3dd68c'][i % 4]));
+      const ev = DATA.entidades_evaluacion || [];
+      doughnut('chartEntEval', ev.map(r => r.evaluacion_multicuenta.replace(/_/g, ' ')), ev.map(r => num(r.n)), ev.map(r => r.evaluacion_multicuenta.includes('confirmado') ? '#3dd68c' : r.evaluacion_multicuenta.includes('debil') ? '#f07178' : '#64748b'));
+      document.querySelector('#tblTrackeadas tbody').innerHTML = (DATA.entidades_trackeadas || []).map(r => `
+        <tr><td><code>${(r.canonical_key||'').replace('fb_page:','fb:').replace('tw:','@')}</code></td>
+        <td>${r.nombre_inferido}</td><td>${r.redes}</td><td>${r.evaluacion_multicuenta}</td></tr>`).join('');
+      document.querySelector('#tblEntGrupos tbody').innerHTML = (DATA.entidades_grupos || []).map(r => `
+        <tr><td><code>${(r.persona_grupo_id||'').slice(0,24)}</code></td>
+        <td>${r.nombre_persona_inferido}</td><td>${r.n_perfiles}</td>
+        <td><span class="badge ${r.confianza_grupo}">${r.confianza_grupo}</span></td></tr>`).join('');
+    }
+
+    function renderSimilares() {
+      const ct = DATA.clusters_texto || [];
+      barH('chartCopyPasta', ct.map((_, i) => '#' + (i+1)), ct.map(r => num(r.ocurrencias)), COLORS.derecha_o_troll);
+      const cr = DATA.clusters_resumen || [];
+      barH('chartResumenLLM', cr.map(r => (r.resumen||'').slice(0,22)), cr.map(r => num(r.ocurrencias)), '#1877f2');
+      document.querySelector('#tblCopyPasta tbody').innerHTML = ct.map(r => `
+        <tr><td>${r.ocurrencias}</td><td>${r.posicion_modal}</td><td>${r.muestra}</td></tr>`).join('');
+    }
+
+    function setupNav() {
+      document.querySelectorAll('#nav a').forEach(a => {
+        a.addEventListener('click', e => {
+          e.preventDefault();
+          document.querySelectorAll('#nav a').forEach(x => x.classList.remove('active'));
+          document.querySelectorAll('main section').forEach(s => s.classList.remove('active'));
+          a.classList.add('active');
+          document.getElementById('sec-' + a.dataset.sec).classList.add('active');
+          if (a.dataset.sec === 'grafo' && network) setTimeout(() => network.fit(), 100);
+        });
+      });
+    }
+
+    function init() {
+      renderResumen();
+      renderVolumenes();
+      renderSentimiento();
+      const cuentas = (DATA.sentimiento_resumen || []).map(r => r.cuenta_slug);
+      fillSelect('selCuentaTemporal', cuentas);
+      fillSelect('selCuentaNarrativa', cuentas);
+      renderTemporal(cuentas[0]);
+      renderNarrativa(cuentas[0]);
+      renderTrolls();
+      renderGrafo();
+      renderEntidades();
+      renderSimilares();
+      setupNav();
+      document.getElementById('selCuentaTemporal').onchange = e => renderTemporal(e.target.value);
+      document.getElementById('selCuentaNarrativa').onchange = e => renderNarrativa(e.target.value);
+    }
+
+    init();
+  </script>
+</body>
+</html>

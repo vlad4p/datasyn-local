@@ -38,7 +38,7 @@ Landing layout for SociaVault: `data/landing/redes/sociavault/<platform>/`.
 
 | Term | Meaning |
 |------|---------|
-| **report slug** | `reports/<project>/<report-slug>/` — e.g. `reports/redes/gold-report/report.html` |
+| **report slug** | `reports/<project>/<report-slug>/` — e.g. `reports/redes/dashboard/report.html` |
 | **grafo** | Default project slug for graph/network reports. |
 | **graph tables** | `grafo_vertices`, `grafo_edges`, `grafo_edges_agg` — built by `graph-ingest`. |
 

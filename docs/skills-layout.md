@@ -19,7 +19,7 @@ Analysis artifacts go to **`reports/<project>/<report-slug>/`** (gitignored). Se
 
 | Example | Skill |
 |---------|-------|
-| `reports/redes/gold-report/` | [`redes-analysis`](../skills/analyze/reports/redes-analysis/SKILL.md) |
+| `reports/redes/dashboard/` | [`redes-analysis`](../skills/analyze/reports/redes-analysis/SKILL.md) |
 | `reports/grafo/co-ocurrencia/report.md` | [`graph-analysis`](../skills/analyze/graph/graph-analysis/SKILL.md) |
 
 ## Scope buckets

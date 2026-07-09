@@ -159,6 +159,120 @@ normalized AS (
 )
 SELECT * FROM normalized;
 
+-- Latest Twitter/X profile snapshot per user (from tweet + reply raw_data JSON)
+CREATE OR REPLACE TEMP TABLE staging_tw_profile_snapshot AS
+WITH raw_users AS (
+    SELECT
+        t.user_id,
+        LOWER(TRIM(json_extract_string(t.raw_data, '$.user.username'))) AS username,
+        t.published_at AS snapshot_at,
+        t.raw_data
+    FROM silver.tw_tweets AS t
+    WHERE t.raw_data IS NOT NULL
+
+    UNION ALL
+
+    SELECT
+        r.author_user_id,
+        LOWER(TRIM(r.author_username)),
+        r.published_at,
+        r.raw_data
+    FROM silver.tw_tweets_replies AS r
+    WHERE r.raw_data IS NOT NULL
+),
+ranked AS (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (
+            PARTITION BY COALESCE(CAST(user_id AS VARCHAR), username)
+            ORDER BY snapshot_at DESC
+        ) AS rn
+    FROM raw_users
+    WHERE user_id IS NOT NULL OR username IS NOT NULL
+)
+SELECT
+    CAST(user_id AS VARCHAR) AS twitter_user_id,
+    username AS twitter_username,
+    NULLIF(TRIM(json_extract_string(raw_data, '$.user.displayname')), '') AS twitter_display_name,
+    NULLIF(TRIM(json_extract_string(raw_data, '$.user.rawDescription')), '') AS twitter_bio,
+    COALESCE(
+        NULLIF(TRIM(json_extract_string(raw_data, '$.user.location.location')), ''),
+        NULLIF(TRIM(CAST(json_extract(raw_data, '$.user.location') AS VARCHAR)), '')
+    ) AS twitter_location,
+    TRY_CAST(json_extract_string(raw_data, '$.user.followersCount') AS BIGINT) AS twitter_followers_count,
+    TRY_CAST(json_extract_string(raw_data, '$.user.friendsCount') AS BIGINT) AS twitter_following_count,
+    TRY_CAST(json_extract_string(raw_data, '$.user.statusesCount') AS BIGINT) AS twitter_statuses_count,
+    TRY_CAST(json_extract_string(raw_data, '$.user.listedCount') AS BIGINT) AS twitter_listed_count,
+    TRY_CAST(json_extract_string(raw_data, '$.user.mediaCount') AS BIGINT) AS twitter_media_count,
+    TRY_CAST(json_extract_string(raw_data, '$.user.favouritesCount') AS BIGINT) AS twitter_favourites_count,
+    COALESCE(
+        TRY_CAST(json_extract_string(raw_data, '$.user.blue') AS BOOLEAN),
+        FALSE
+    ) AS twitter_is_blue_verified,
+    TRY_CAST(json_extract_string(raw_data, '$.user.created') AS TIMESTAMPTZ) AS twitter_account_created_at,
+    NULLIF(TRIM(json_extract_string(raw_data, '$.user.profileImageUrl')), '') AS twitter_profile_image_url,
+    snapshot_at AS twitter_profile_snapshot_at
+FROM ranked
+WHERE rn = 1;
+
+-- Facebook page engagement proxy (no page follower count in legacy CSV)
+CREATE OR REPLACE TEMP TABLE staging_fb_page_engagement AS
+SELECT
+    CAST(p.fanpage_id AS VARCHAR) AS facebook_page_id,
+    COUNT(*) AS facebook_posts_in_period,
+    SUM(p.reacciones) AS facebook_page_total_reactions,
+    SUM(p.comentarios) AS facebook_page_total_comments_on_posts,
+    SUM(p.compartidos) AS facebook_page_total_shares,
+    SUM(p.likes) AS facebook_page_total_likes,
+    ROUND(AVG(p.reacciones), 1) AS facebook_page_avg_reactions_per_post,
+    MAX(p.fecha_post) AS facebook_page_last_post_at,
+    MIN(p.fecha_post) AS facebook_page_first_post_at
+FROM silver.fb_post AS p
+GROUP BY p.fanpage_id;
+
+-- Classified-comment activity per author (FB + TW legacy sample)
+CREATE OR REPLACE TEMP TABLE staging_author_classification_stats AS
+WITH unified AS (
+    SELECT
+        CASE
+            WHEN c.user_id IS NOT NULL THEN 'fb_user:' || CAST(c.user_id AS VARCHAR)
+            WHEN NULLIF(TRIM(c.user_name), '') IS NOT NULL
+                THEN 'fb_name:' || LOWER(TRIM(c.user_name))
+        END AS autor_key,
+        cl.criterio_label AS posicion,
+        cl.resumen,
+        c.fecha_comentario AS fecha
+    FROM silver.fb_comment AS c
+    INNER JOIN silver.fb_comment_classification AS cl
+        ON CAST(c.comentario_id AS VARCHAR) = cl.comment_id
+
+    UNION ALL
+
+    SELECT
+        CASE
+            WHEN tc.reply_author_user_id IS NOT NULL
+                THEN 'tw_id:' || CAST(tc.reply_author_user_id AS VARCHAR)
+            WHEN tc.reply_author_username IS NOT NULL
+                THEN 'tw:' || LOWER(TRIM(tc.reply_author_username))
+        END,
+        tc.criteria_label,
+        tc.summary,
+        tc.classified_at
+    FROM silver.tw_comments_classification AS tc
+)
+SELECT
+    autor_key,
+    COUNT(*) AS comentarios_clasificados,
+    COUNT(*) FILTER (WHERE posicion = 'derecha_o_troll') AS comentarios_troll,
+    COUNT(*) FILTER (WHERE posicion = 'apoyo_izquierda') AS comentarios_apoyo,
+    COUNT(*) FILTER (WHERE posicion = 'neutral') AS comentarios_neutral,
+    MIN(fecha) AS primer_comentario_clasificado,
+    MAX(fecha) AS ultimo_comentario_clasificado,
+    MODE(resumen) AS resumen_modal
+FROM unified
+WHERE autor_key IS NOT NULL
+GROUP BY autor_key;
+
 CREATE OR REPLACE TABLE silver.network_profile AS
 WITH aggregated AS (
     SELECT
@@ -207,7 +321,7 @@ platform_ids AS (
 SELECT
     md5(a.canonical_key) AS profile_id,
     a.canonical_key,
-    a.display_name,
+    COALESCE(tw.twitter_display_name, a.display_name) AS display_name,
     a.primary_profile_url,
     p.facebook_page_id,
     p.facebook_page_name,
@@ -215,10 +329,12 @@ SELECT
     p.facebook_user_id,
     p.facebook_user_name,
     p.facebook_user_url,
-    p.twitter_user_id,
-    p.twitter_username,
-    p.twitter_profile_url,
+    COALESCE(p.twitter_user_id, tw.twitter_user_id) AS twitter_user_id,
+    COALESCE(p.twitter_username, tw.twitter_username) AS twitter_username,
+    COALESCE(p.twitter_profile_url, CASE WHEN tw.twitter_username IS NOT NULL
+        THEN 'https://x.com/' || tw.twitter_username END) AS twitter_profile_url,
     a.instagram_id,
+    NULL::VARCHAR AS instagram_profile_url,
     CASE WHEN a.instagram_id IS NOT NULL THEN 'instagram' END AS instagram_linked,
     a.networks_found,
     a.entity_types,
@@ -233,11 +349,74 @@ SELECT
     a.replies_count,
     a.first_seen,
     a.last_seen,
+    -- Twitter/X profile snapshot (from raw_data, latest tweet or reply)
+    tw.twitter_display_name,
+    tw.twitter_bio,
+    tw.twitter_location,
+    tw.twitter_followers_count,
+    tw.twitter_following_count,
+    tw.twitter_statuses_count,
+    tw.twitter_listed_count,
+    tw.twitter_media_count,
+    tw.twitter_favourites_count,
+    tw.twitter_is_blue_verified,
+    tw.twitter_account_created_at,
+    tw.twitter_profile_image_url,
+    tw.twitter_profile_snapshot_at,
+    -- Facebook page engagement (legacy dump — not page followers)
+    fb.facebook_posts_in_period,
+    fb.facebook_page_total_reactions,
+    fb.facebook_page_total_comments_on_posts,
+    fb.facebook_page_total_shares,
+    fb.facebook_page_total_likes,
+    fb.facebook_page_avg_reactions_per_post,
+    fb.facebook_page_first_post_at,
+    fb.facebook_page_last_post_at,
+    -- Classified-comment activity (when author can be linked)
+    COALESCE(cs.comentarios_clasificados, 0) AS comentarios_clasificados,
+    COALESCE(cs.comentarios_troll, 0) AS comentarios_troll,
+    COALESCE(cs.comentarios_apoyo, 0) AS comentarios_apoyo,
+    COALESCE(cs.comentarios_neutral, 0) AS comentarios_neutral,
+    cs.primer_comentario_clasificado,
+    cs.ultimo_comentario_clasificado,
+    cs.resumen_modal,
     current_timestamp AS built_at
 FROM aggregated AS a
 INNER JOIN platform_ids AS p USING (canonical_key)
 INNER JOIN source_tables_agg AS st USING (canonical_key)
+LEFT JOIN staging_tw_profile_snapshot AS tw
+    ON a.canonical_key = 'tw:' || tw.twitter_username
+    OR a.canonical_key = 'tw_id:' || tw.twitter_user_id
+    OR (p.twitter_user_id IS NOT NULL AND p.twitter_user_id = tw.twitter_user_id)
+    OR (p.twitter_username IS NOT NULL AND p.twitter_username = tw.twitter_username)
+LEFT JOIN staging_fb_page_engagement AS fb
+    ON p.facebook_page_id = fb.facebook_page_id
+LEFT JOIN staging_author_classification_stats AS cs
+    ON a.canonical_key = cs.autor_key
 ORDER BY
     len(a.networks_found) DESC,
-    COALESCE(a.comments_count, 0) + COALESCE(a.replies_count, 0) + COALESCE(a.tweets_count, 0) + COALESCE(a.posts_count, 0) DESC,
+    COALESCE(a.comments_count, 0) + COALESCE(a.replies_count, 0)
+        + COALESCE(a.tweets_count, 0) + COALESCE(a.posts_count, 0) DESC,
     a.display_name;
+
+-- Backward-compatible view (subset of enriched columns)
+DROP TABLE IF EXISTS silver.network_profile_comment_stats;
+DROP VIEW IF EXISTS silver.network_profile_comment_stats;
+CREATE OR REPLACE VIEW silver.network_profile_comment_stats AS
+SELECT
+    profile_id,
+    canonical_key,
+    display_name,
+    networks_found,
+    twitter_username,
+    facebook_user_name,
+    is_tracked,
+    is_pts,
+    comentarios_clasificados,
+    comentarios_troll,
+    comentarios_apoyo,
+    primer_comentario_clasificado AS primer_comentario,
+    ultimo_comentario_clasificado AS ultimo_comentario,
+    resumen_modal,
+    built_at
+FROM silver.network_profile;
