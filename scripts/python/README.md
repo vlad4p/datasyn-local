@@ -37,6 +37,20 @@ uv run python scripts/python/scrape_sociavault_twitter.py \
 
 Skill: [`scrape-sociavault`](../../skills/collect/sociavault/scrape-sociavault/SKILL.md)
 
+## Twikit scrape (X session)
+
+| Script | Usage |
+|--------|--------|
+| `scrape_twikit_twitter.py` | X/Twitter via twikit → `data/landing/redes/twikit/twitter/` |
+
+```bash
+# Auth: TWITTER_USERNAME / TWITTER_PASSWORD in .env (cookies saved to .data/)
+uv run python scripts/python/scrape_twikit_twitter.py \
+  --handle myriambregman --last 10 --fetch-replies
+```
+
+Skill: [`scrape-twikit-twitter`](../../skills/collect/twikit/scrape-twikit-twitter/SKILL.md)
+
 ## Redes reports (legacy FB/TW CSV)
 
 Skill: [`redes-analysis`](../../skills/analyze/reports/redes-analysis/SKILL.md). Gold SQL: `scripts/sql/ingest_redes_gold.sql`.

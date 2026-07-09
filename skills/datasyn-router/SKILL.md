@@ -27,6 +27,7 @@ User request
 |-----------|-------|
 | Scrape a website, fetch URL | [`web-scraping`](../collect/web-scraping/SKILL.md) |
 | Scrape redes / SociaVault / Twitter / FB / IG / TikTok | [`scrape-sociavault`](../collect/sociavault/scrape-sociavault/SKILL.md) → platform skill |
+| Scrape Twitter/X with twikit (cookies/login) | [`scrape-twikit-twitter`](../collect/twikit/scrape-twikit-twitter/SKILL.md) |
 
 Bucket index: [`collect/README.md`](../collect/README.md)
 
