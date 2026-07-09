@@ -43,11 +43,8 @@ Skill: [`redes-analysis`](../../skills/analyze/reports/redes-analysis/SKILL.md).
 
 | Script | Output bundle under `reports/redes/` |
 |--------|--------------------------------------|
-| `generate_redes_gold_report.py` | `gold-report/` — Chart.js dashboard |
-| `generate_trolls_grafo_report.py` | `trolls-grafo/` — vis.js entity graph |
-| `generate_redes_pdf_report.py` | `analisis-completo/` — PDF summary |
+| `generate_redes_dashboard.py` | `dashboard/` — unified Chart.js + vis.js dashboard (CSV externals) |
 | `export_redes_reports_zip.py` | `_exports/export_{date}.zip` |
-| `report_myriam_trolls_grafo.py` | `myriambregman-tw/` — legacy TW-only graph |
 
 ## Graph helpers
 

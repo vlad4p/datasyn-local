@@ -100,7 +100,7 @@ def get_report_path(project: str, name: str) -> Path:
 def get_report_bundle(project: str, bundle: str) -> Path:
     """Return reports/<project>/<bundle>/ — one folder per report with its data files.
 
-    Example: get_report_bundle("redes", "gold-report") → reports/redes/gold-report/
+    Example: get_report_bundle("redes", "dashboard") → reports/redes/dashboard/
     """
     slug = project.strip().lower().replace("_", "-")
     if not _PROJECT_SLUG_RE.fullmatch(slug):
@@ -110,7 +110,7 @@ def get_report_bundle(project: str, bundle: str) -> Path:
     bundle_slug = bundle.strip().lower().replace("_", "-")
     if not _PROJECT_SLUG_RE.fullmatch(bundle_slug):
         raise ValueError(
-            f"Invalid report bundle {bundle!r}. Use kebab-case slug (e.g. gold-report, trolls-grafo)."
+            f"Invalid report bundle {bundle!r}. Use kebab-case slug (e.g. dashboard, sentiment-brief)."
         )
     out_dir = get_reports_path() / slug / bundle_slug
     out_dir.mkdir(parents=True, exist_ok=True)

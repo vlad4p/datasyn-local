@@ -22,6 +22,7 @@ description: >-
    - `silver.fb_comment_classification`
    - `silver.tw_comments_classification`
 3. Optional: `silver.network_profile` — [`scripts/sql/ingest_network_profile.sql`](../../../../scripts/sql/ingest_network_profile.sql)
+4. Optional: entidades gold — [`scripts/sql/ingest_gold_entidades.sql`](../../../../scripts/sql/ingest_gold_entidades.sql) (después de `network_profile`)
 
 ---
 
@@ -40,6 +41,7 @@ description: >-
    ```bash
    uv run python scripts/python/db.py mcp-stop
    uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_redes_gold.sql
+   uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_gold_entidades.sql
    ```
 
 3. **Validate gold**

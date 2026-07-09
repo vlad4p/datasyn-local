@@ -4,8 +4,8 @@
 
 **Built-in (redes PTS):** For troll entity graphs from `gold.grafo_*_trolls`, run:
 ```bash
-uv run python scripts/python/generate_trolls_grafo_report.py
-# → reports/redes/trolls-grafo/report.html
+uv run python scripts/python/generate_redes_dashboard.py
+# → reports/redes/dashboard/report.html (sección Grafo)
 ```
 Full pipeline: skill [`redes-analysis`](../reports/redes-analysis/SKILL.md).
 

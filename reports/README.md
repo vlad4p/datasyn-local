@@ -13,21 +13,18 @@ reports/<project>/<report-slug>/
 | Segment | Example | Rule |
 |---------|---------|------|
 | `<project>` | `redes`, `grafo`, `nyt` | Kebab-case domain or dataset slug |
-| `<report-slug>` | `gold-report`, `trolls-grafo` | Kebab-case; one folder per report |
+| `<report-slug>` | `dashboard`, `sentiment-brief` | Kebab-case; one folder per report |
 
 **Examples:**
 
 ```
-reports/redes/gold-report/report.html
-reports/redes/gold-report/data.json
-reports/redes/trolls-grafo/report.html
-reports/redes/trolls-grafo/grafo.json
-reports/redes/analisis-completo/report.pdf
+reports/redes/dashboard/report.html
+reports/redes/dashboard/data/*.csv
 reports/grafo/co-ocurrencia/report.md
 reports/nyt/sentiment-brief/report.md
 ```
 
-Cross-links between bundles in the same project use relative paths, e.g. `../trolls-grafo/report.html`.
+Cross-links between bundles in the same project use relative paths when multiple bundles exist.
 
 ## Path helpers (`scripts/python/db.py`)
 

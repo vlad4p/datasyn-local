@@ -169,8 +169,7 @@ Full workflow: skill [`redes-gold`](redes-gold/SKILL.md) + [`redes-analysis`](..
 ```bash
 uv run python scripts/python/db.py mcp-stop
 uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_redes_gold.sql
-uv run python scripts/python/generate_redes_gold_report.py
-uv run python scripts/python/generate_trolls_grafo_report.py
+uv run python scripts/python/generate_redes_dashboard.py
 ```
 
 Views created: `gold.v_sentimiento_*`, `gold.v_narrativa_*`, `gold.v_trolls_*`, `gold.grafo_*`. See [`redes-gold/references/gold-views.md`](redes-gold/references/gold-views.md).
