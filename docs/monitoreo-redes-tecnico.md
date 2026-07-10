@@ -76,28 +76,43 @@ Ingest resolves empty Twitter/Facebook IDs against `silver.tk_tw_profile` and `s
 | `v_monitor_audiencia` | Classified commenters/repliers + bot heuristic flags |
 | `v_monitor_audiencia_resumen` | Aggregates by class |
 | `v_monitor_haters_top10` | Union of FB `v_trolls_top10` + TW `tk_troll_blacklist` |
-| `v_monitor_narrativa` | FB narrativa + TW hater clusters |
-| `v_monitor_temporal` | Comparable hostility / position time series |
+| `v_monitor_apoyo_top10` | Top TW supporters (`is_supporter` / `apoyo_replies_count`) |
+| `v_monitor_narrativa` | FB narrativa + TW hater clusters + TW apoyo clusters |
+| `v_monitor_temporal` | Comparable hostility / support / position time series |
 | `v_monitor_temporal_engagement` | Comparable engagement series |
 | `v_monitor_grafo_comportamiento_*` | FB troll attack / burst graph |
 | `v_monitor_grafo_narrativa_*` | Narrative co-occurrence graph |
 | `v_monitor_grafo_coordinacion_*` | TW co-followers / bridges + FB `co_rafaga` (legacy views) |
 | `v_monitor_kpis` | Global KPI row |
 
-Dashboard **Relaciones TW** mode exports directly from `gold.tk_hater_profile_risk`, `tk_hater_grafo_co_*`, `tk_hater_grafo_bridge_followers`, and a filtered viz (haters + bridges ≥3) — same analysis as `reports/twikit-myriam/hater-profiles-graph`.
+Dashboard **Relaciones TW** mode has a **Haters/Apoyo toggle**:
+- Haters → `gold.tk_hater_profile_risk`, `tk_hater_grafo_*`
+- Apoyo → `gold.tk_apoyo_profile_risk`, `tk_apoyo_grafo_*` (mirror pipeline; landing under `profiles/apoyo/`)
 
 SQL: [`scripts/sql/ingest_social_monitor_gold.sql`](../scripts/sql/ingest_social_monitor_gold.sql)
 
-### Bot heuristic (Twitter)
+### Apoyo pipeline (mirror of haters)
 
-From `gold.tk_hater_profile_risk` flags:
+```bash
+uv run python scripts/python/db.py mcp-stop
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twikit_twitter_silver.sql
+uv run python scripts/python/enrich_twikit_profiles.py --role apoyo --top-supporters 30 --ingest
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_apoyo_profile_graph.sql
+uv run python scripts/python/classify_tk_tw_replies.py --cluster-only --cluster-apoyo
+```
+
+Separate silver tables (`*_apoyo`) avoid mixing supporters into hater gold (hater ingest does `CREATE OR REPLACE` over all `profiles/*/` globs).
+
+### Bot / profile-signal heuristic (Twitter)
+
+From `gold.tk_hater_profile_risk` **and** `gold.tk_apoyo_profile_risk` flags:
 
 - `flag_new_account`
 - `flag_follow_ratio_high`
 - `flag_high_output_low_audience`
 - `flag_empty_bio`
 
-These are **signals**, not labels of automation.
+These are **signals**, not labels of automation. On apoyo accounts they are profile-quality signals, not hostility risk.
 
 ---
 

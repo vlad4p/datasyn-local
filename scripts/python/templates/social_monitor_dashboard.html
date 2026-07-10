@@ -103,6 +103,7 @@
       <a href="#engagement" data-sec="engagement">Engagement</a>
       <a href="#audiencia" data-sec="audiencia">Audiencia</a>
       <a href="#haters" data-sec="haters">Haters / Top 10</a>
+      <a href="#apoyo" data-sec="apoyo">Apoyo / Top 10</a>
       <a href="#narrativa" data-sec="narrativa">Narrativas</a>
       <a href="#grafos" data-sec="grafos">Grafos</a>
       <a href="#comparativa" data-sec="comparativa">Comparativa</a>
@@ -177,17 +178,42 @@
         </div>
       </section>
 
+      <section id="sec-apoyo">
+        <h2>Top 10 apoyo / defensores</h2>
+        <p class="desc">Cuentas que reaccionan positivo o en defensa (TW: criterio apoyo_izquierda). Perfiles enriquecidos con follow-graph.</p>
+        <div class="panel">
+          <table id="tblApoyo"><thead><tr>
+            <th>#</th><th>Plat.</th><th>Actor</th><th>Eventos</th><th>Señal</th><th>Narrativas</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </section>
+
       <section id="sec-narrativa">
         <h2>Narrativas</h2>
-        <p class="desc">Temas / clusters identificados en comentarios y replies hostiles.</p>
+        <p class="desc">Temas / clusters en comentarios y replies. Usá el toggle Haters/Apoyo para filtrar.</p>
+        <div class="controls">
+          <label>Polaridad:
+            <select id="selPolaridadNarr">
+              <option value="hater">Haters (hostil)</option>
+              <option value="apoyo">Apoyo / defensa</option>
+              <option value="">Todas</option>
+            </select>
+          </label>
+        </div>
         <div class="panel"><div class="chart-box tall"><canvas id="chartNarrativa"></canvas></div></div>
       </section>
 
       <section id="sec-grafos">
         <h2>Grafos</h2>
-        <p class="desc">Comportamiento (FB), Relaciones TW (mismo análisis que hater-profiles-graph: risk, puentes, co-seguidores) y clusters de narrativa.</p>
+        <p class="desc">Comportamiento (FB), Relaciones TW (risk/señales, puentes, co-seguidores) y clusters. Toggle Haters/Apoyo cambia la fuente del grafo de relaciones.</p>
         <div class="kpi-grid" id="kpi-grafo-local"></div>
         <div class="controls">
+          <label>Polaridad:
+            <select id="selPolaridad">
+              <option value="hater">Haters</option>
+              <option value="apoyo">Apoyo</option>
+            </select>
+          </label>
           <label>Tipo:
             <select id="selGrafo">
               <option value="relaciones">Relaciones TW</option>
@@ -207,7 +233,7 @@
         <div class="grafo-panels" id="grafo-relaciones-panels">
           <div class="chart-row">
             <div class="panel">
-              <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Riesgo (haters enriquecidos)</h3>
+              <h3 style="font-size:0.9rem;margin-bottom:0.5rem" id="tituloRisk">Riesgo (haters enriquecidos)</h3>
               <div style="overflow-x:auto;max-height:320px">
                 <table id="tblRisk"><thead><tr>
                   <th>User</th><th>Band</th><th>Score</th><th>Fo/Fl</th><th>Señales</th>
@@ -215,10 +241,10 @@
               </div>
             </div>
             <div class="panel">
-              <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Puentes (siguen ≥2 haters)</h3>
+              <h3 style="font-size:0.9rem;margin-bottom:0.5rem" id="tituloBridges">Puentes (siguen ≥2 haters)</h3>
               <div style="overflow-x:auto;max-height:320px">
                 <table id="tblBridges"><thead><tr>
-                  <th>Follower</th><th>Haters</th><th>Fo</th><th>Lista</th>
+                  <th>Follower</th><th>N</th><th>Fo</th><th>Lista</th>
                 </tr></thead><tbody></tbody></table>
               </div>
             </div>
@@ -228,7 +254,7 @@
               <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Co-seguidores (top)</h3>
               <div style="overflow-x:auto;max-height:280px">
                 <table id="tblCoFo"><thead><tr>
-                  <th>Hater A</th><th>Hater B</th><th>Shared</th>
+                  <th>A</th><th>B</th><th>Shared</th>
                 </tr></thead><tbody></tbody></table>
               </div>
             </div>
@@ -236,7 +262,7 @@
               <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Co-following (top)</h3>
               <div style="overflow-x:auto;max-height:280px">
                 <table id="tblCoFl"><thead><tr>
-                  <th>Hater A</th><th>Hater B</th><th>Shared</th>
+                  <th>A</th><th>B</th><th>Shared</th>
                 </tr></thead><tbody></tbody></table>
               </div>
             </div>
@@ -340,6 +366,15 @@
       return p ? p.nombre : selectedPersona();
     }
 
+    function selectedPolaridad() {
+      const el = document.getElementById('selPolaridad');
+      return el ? el.value : 'hater';
+    }
+
+    function grafoPrefix() {
+      return selectedPolaridad() === 'apoyo' ? 'grafo_apoyo_' : 'grafo_';
+    }
+
     function renderKpis() {
       const pid = selectedPersona();
       const plat = selectedPlat();
@@ -348,9 +383,11 @@
       const perf = filterByPersona(DATA.perfiles, pid, plat);
       const eng = filterByPersona(DATA.engagement, pid, plat);
       const hats = filterByPersona(DATA.haters, pid, plat);
+      const apoyo = filterByPersona(DATA.apoyo_top10 || [], pid, plat);
 
       const eventos = aud.reduce((a, r) => a + (r.eventos || 0), 0);
       const eventosHater = aud.filter(r => r.audiencia_clase === 'hater').reduce((a, r) => a + (r.eventos || 0), 0);
+      const eventosApoyo = aud.filter(r => r.audiencia_clase === 'apoyo').reduce((a, r) => a + (r.eventos || 0), 0);
       const bots = aud.reduce((a, r) => a + (r.actores_bot_heuristico || 0), 0);
       const posts = reac.reduce((a, r) => a + (r.posts || 0), 0);
       const followers = perf.filter(r => r.plataforma === 'twitter').reduce((a, r) => a + (r.followers_count || 0), 0);
@@ -364,31 +401,34 @@
       const engAvg = engN ? engSum / engN : null;
 
       const g = (DATA.grafo_stats && DATA.grafo_stats[0]) || {};
+      const ga = (DATA.grafo_apoyo_stats && DATA.grafo_apoyo_stats[0]) || {};
       const risk = DATA.grafo_risk || [];
       const showTwGraph = !plat || plat === 'twitter';
 
       document.getElementById('kpi-primary').innerHTML = [
         kpi('Eventos audiencia', fmt(eventos), 'comentarios / replies clasificados', 'primary accent-eng'),
         kpi('% hater', pct(eventosHater, eventos), `${fmt(eventosHater)} eventos hostiles`, 'primary accent-hater'),
-        kpi('Engagement / post', engAvg != null ? fmt(engAvg) : '—', 'promedio ponderado', 'primary accent-apoyo'),
+        kpi('% apoyo', pct(eventosApoyo, eventos), `${fmt(eventosApoyo)} eventos de apoyo`, 'primary accent-apoyo'),
       ].join('');
 
       document.getElementById('kpi-secondary').innerHTML = [
         kpi('Cuentas vinculadas', fmt(perf.length), personaLabel()),
         kpi('Posts c/ métricas', fmt(posts)),
         kpi('Followers (TW)', followers ? fmt(followers) : '—', 'suma cuentas TW del filtro'),
-        kpi('Actores bot (heur.)', fmt(bots), 'señales de riesgo', 'accent-bot'),
+        kpi('Actores bot (heur.)', fmt(bots), 'señales de perfil', 'accent-bot'),
         kpi('Haters top list', fmt(hats.length), 'en ranking filtrado', 'accent-hater'),
+        kpi('Apoyo top list', fmt(apoyo.length), 'defensores ranking', 'accent-apoyo'),
+        kpi('Engagement / post', engAvg != null ? fmt(engAvg) : '—', 'promedio ponderado'),
       ].join('');
 
       const graphEl = document.getElementById('kpi-graph');
-      if (showTwGraph && (g.haters || risk.length)) {
+      if (showTwGraph && (g.haters || risk.length || ga.supporters)) {
         graphEl.style.display = '';
         graphEl.innerHTML = [
           kpi('Haters enriquecidos', fmt(g.haters || risk.length), 'perfiles TW scrapeados', 'accent-graph'),
-          kpi('High-risk', fmt(g.risk_high || risk.filter(r => r.risk_band === 'high').length), 'heurística, no prueba', 'accent-hater'),
+          kpi('Apoyo enriquecidos', fmt(ga.supporters || (DATA.grafo_apoyo_risk || []).length), 'defensores scrapeados', 'accent-apoyo'),
+          kpi('High-risk haters', fmt(g.risk_high || risk.filter(r => r.risk_band === 'high').length), 'heurística, no prueba', 'accent-hater'),
           kpi('Bridge followers', fmt(g.bridge_followers), 'siguen ≥2 haters', 'accent-graph'),
-          kpi('Pares co-seguidores', fmt(g.pares_co_seguidores), 'audiencia compartida', 'accent-graph'),
         ].join('');
       } else {
         graphEl.style.display = 'none';
@@ -401,52 +441,78 @@
     }
 
     function renderGrafoLocalKpis() {
-      const g = (DATA.grafo_stats && DATA.grafo_stats[0]) || {};
-      const nodes = (DATA.grafo_relaciones_nodes || []).length;
-      const edges = (DATA.grafo_relaciones_edges || []).length;
-      const risk = DATA.grafo_risk || [];
+      const isApoyo = selectedPolaridad() === 'apoyo';
+      const prefix = grafoPrefix();
+      const g = (DATA[prefix + 'stats'] && DATA[prefix + 'stats'][0]) || {};
+      const nodes = (DATA[prefix + 'relaciones_nodes'] || []).length;
+      const edges = (DATA[prefix + 'relaciones_edges'] || []).length;
+      const risk = DATA[prefix + 'risk'] || [];
+      const seedLabel = isApoyo ? 'apoyos + puentes ≥3' : 'haters + puentes ≥3';
+      const edgeLabel = isApoyo ? 'follows_apoyo' : 'follows_hater';
+      const seedCount = isApoyo ? (g.supporters || 0) : (g.haters || 0);
       document.getElementById('kpi-grafo-local').innerHTML = [
-        kpi('Viz nodos', fmt(nodes), 'haters + puentes ≥3'),
-        kpi('Viz edges', fmt(edges), 'follows_hater'),
-        kpi('Grafo completo', fmt(g.vertices), `${fmt(g.edges)} edges raw`),
+        kpi('Viz nodos', fmt(nodes), seedLabel),
+        kpi('Viz edges', fmt(edges), edgeLabel),
+        kpi('Grafo completo', fmt(g.vertices), `${fmt(g.edges)} edges · ${fmt(seedCount)} seeds`),
         kpi('High / med / low', `${g.risk_high || 0} / ${g.risk_medium || 0} / ${g.risk_low || 0}`, `${risk.length} con score`),
       ].join('');
     }
 
     function renderRelacionesTables() {
-      const risk = DATA.grafo_risk || [];
+      const isApoyo = selectedPolaridad() === 'apoyo';
+      const prefix = grafoPrefix();
+      document.getElementById('tituloRisk').textContent = isApoyo
+        ? 'Señales de perfil (apoyo enriquecidos)'
+        : 'Riesgo (haters enriquecidos)';
+      document.getElementById('tituloBridges').textContent = isApoyo
+        ? 'Puentes (siguen ≥2 apoyos)'
+        : 'Puentes (siguen ≥2 haters)';
+
+      const risk = DATA[prefix + 'risk'] || [];
       document.querySelector('#tblRisk tbody').innerHTML = risk.map(r => `<tr>
         <td>@${r.username || '—'}</td>
         <td><span class="badge ${r.risk_band || ''}">${r.risk_band || '—'}</span></td>
         <td>${fmt(r.risk_score)}</td>
         <td>${fmt(r.followers_count)} / ${fmt(r.following_count)}</td>
         <td style="max-width:260px;font-size:0.78rem;color:var(--muted)">${r.senales || '—'}</td>
-      </tr>`).join('') || '<tr><td colspan="5" style="color:var(--muted)">Sin datos de riesgo.</td></tr>';
+      </tr>`).join('') || '<tr><td colspan="5" style="color:var(--muted)">Sin datos.</td></tr>';
 
-      const bridges = DATA.grafo_bridges || [];
+      const bridges = DATA[prefix + 'bridges'] || [];
       document.querySelector('#tblBridges tbody').innerHTML = bridges.map(r => `<tr>
         <td>@${r.follower_username || '—'}</td>
-        <td>${fmt(r.haters_followed)}</td>
+        <td>${fmt(isApoyo ? r.apoyos_followed : r.haters_followed)}</td>
         <td>${fmt(r.follower_followers_count)}</td>
-        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem">${r.hater_usernames || '—'}</td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem">${isApoyo ? (r.apoyo_usernames || '—') : (r.hater_usernames || '—')}</td>
       </tr>`).join('') || '<tr><td colspan="4" style="color:var(--muted)">Sin puentes.</td></tr>';
 
-      const cofo = DATA.grafo_co_followers || [];
+      const cofo = DATA[prefix + 'co_followers'] || [];
       document.querySelector('#tblCoFo tbody').innerHTML = cofo.map(r => `<tr>
-        <td>@${r.hater_a}</td><td>@${r.hater_b}</td><td>${fmt(r.shared_followers)}</td>
+        <td>@${isApoyo ? r.apoyo_a : r.hater_a}</td>
+        <td>@${isApoyo ? r.apoyo_b : r.hater_b}</td>
+        <td>${fmt(r.shared_followers)}</td>
       </tr>`).join('') || '<tr><td colspan="3" style="color:var(--muted)">—</td></tr>';
 
-      const cofl = DATA.grafo_co_following || [];
+      const cofl = DATA[prefix + 'co_following'] || [];
       document.querySelector('#tblCoFl tbody').innerHTML = cofl.map(r => `<tr>
-        <td>@${r.hater_a}</td><td>@${r.hater_b}</td><td>${fmt(r.shared_following)}</td>
+        <td>@${isApoyo ? r.apoyo_a : r.hater_a}</td>
+        <td>@${isApoyo ? r.apoyo_b : r.hater_b}</td>
+        <td>${fmt(r.shared_following)}</td>
       </tr>`).join('') || '<tr><td colspan="3" style="color:var(--muted)">—</td></tr>';
     }
 
     function renderGrafo() {
       const tipo = document.getElementById('selGrafo').value;
       const edgeFilter = document.getElementById('filterEdge').value;
-      const nodesKey = `grafo_${tipo}_nodes`;
-      const edgesKey = `grafo_${tipo}_edges`;
+      const isApoyo = selectedPolaridad() === 'apoyo';
+      let nodesKey, edgesKey;
+      if (tipo === 'relaciones') {
+        const prefix = grafoPrefix();
+        nodesKey = prefix + 'relaciones_nodes';
+        edgesKey = prefix + 'relaciones_edges';
+      } else {
+        nodesKey = `grafo_${tipo}_nodes`;
+        edgesKey = `grafo_${tipo}_edges`;
+      }
       const rawNodes = DATA[nodesKey] || [];
       let rawEdges = DATA[edgesKey] || [];
 
@@ -463,13 +529,23 @@
       const panels = document.getElementById('grafo-relaciones-panels');
       if (tipo === 'relaciones') {
         panels.classList.add('visible');
-        legend.innerHTML = [
-          '<span><i class="legend-dot" style="background:#e85d5d"></i>hater high</span>',
-          '<span><i class="legend-dot" style="background:#e6a23c"></i>hater medium</span>',
-          '<span><i class="legend-dot" style="background:#3ecf8e"></i>hater low</span>',
-          '<span><i class="legend-dot" style="background:#3d8bfd"></i>puente (≥3)</span>',
-        ].join('');
+        if (isApoyo) {
+          legend.innerHTML = [
+            '<span><i class="legend-dot" style="background:#1a9f6a"></i>apoyo high-signal</span>',
+            '<span><i class="legend-dot" style="background:#3dd68c"></i>apoyo medium</span>',
+            '<span><i class="legend-dot" style="background:#8ee4b8"></i>apoyo low</span>',
+            '<span><i class="legend-dot" style="background:#5b9fd4"></i>puente (≥3)</span>',
+          ].join('');
+        } else {
+          legend.innerHTML = [
+            '<span><i class="legend-dot" style="background:#e85d5d"></i>hater high</span>',
+            '<span><i class="legend-dot" style="background:#e6a23c"></i>hater medium</span>',
+            '<span><i class="legend-dot" style="background:#3ecf8e"></i>hater low</span>',
+            '<span><i class="legend-dot" style="background:#3d8bfd"></i>puente (≥3)</span>',
+          ].join('');
+        }
         renderRelacionesTables();
+        renderGrafoLocalKpis();
       } else {
         panels.classList.remove('visible');
         legend.innerHTML = '';
@@ -479,7 +555,7 @@
         id: String(n.id),
         label: n.label,
         color: { background: n.color || '#5b8def', border: '#0f1419' },
-        shape: n.shape || (n.tipo === 'hater' ? 'box' : 'dot'),
+        shape: n.shape || (n.tipo === 'hater' || n.tipo === 'supporter' ? 'box' : 'dot'),
         size: Number(n.size) || 14,
         title: n.title || n.label
       }));
@@ -678,9 +754,28 @@
       </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted)">Sin haters para este filtro.</td></tr>';
     }
 
+    function renderApoyo() {
+      const rows = filterByPersona(DATA.apoyo_top10 || [], selectedPersona(), selectedPlat());
+      const tbody = document.querySelector('#tblApoyo tbody');
+      tbody.innerHTML = rows.map(r => `<tr>
+        <td>${r.ranking}</td>
+        <td><span class="badge ${r.plataforma === 'twitter' ? 'tw' : 'fb'}">${r.plataforma}</span></td>
+        <td>${r.actor_nombre || r.actor_id || '—'}</td>
+        <td>${fmt(r.score_eventos)}</td>
+        <td>${r.tier || '—'} ${r.risk_score != null ? `(señal ${r.risk_score})` : ''}</td>
+        <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.narrativas || '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted)">Sin defensores para este filtro (correr enrich --role apoyo).</td></tr>';
+    }
+
     function renderNarrativa() {
-      const rows = filterByPersona(DATA.narrativa, selectedPersona(), selectedPlat())
-        .sort((a, b) => (b.comentarios || 0) - (a.comentarios || 0)).slice(0, 15);
+      const pol = document.getElementById('selPolaridadNarr')?.value || '';
+      let rows = filterByPersona(DATA.narrativa, selectedPersona(), selectedPlat());
+      if (pol === 'hater') {
+        rows = rows.filter(r => r.posicion === 'derecha_o_troll' || !r.posicion);
+      } else if (pol === 'apoyo') {
+        rows = rows.filter(r => r.posicion === 'apoyo_izquierda');
+      }
+      rows = rows.sort((a, b) => (b.comentarios || 0) - (a.comentarios || 0)).slice(0, 15);
       destroyChart('narrativa');
       charts.narrativa = new Chart(document.getElementById('chartNarrativa'), {
         type: 'bar',
@@ -689,12 +784,16 @@
           datasets: [{
             label: 'Comentarios / replies',
             data: rows.map(r => r.comentarios),
-            backgroundColor: rows.map(r => r.plataforma === 'twitter' ? COLORS.twitter : COLORS.facebook)
+            backgroundColor: rows.map(r =>
+              r.posicion === 'apoyo_izquierda' ? COLORS.apoyo
+                : r.posicion === 'derecha_o_troll' ? COLORS.hater
+                : (r.plataforma === 'twitter' ? COLORS.twitter : COLORS.facebook)
+            )
           }]
         },
         options: {
           indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-          plugins: { title: { display: true, text: 'Top narrativas' } }
+          plugins: { title: { display: true, text: pol === 'apoyo' ? 'Top narrativas de apoyo' : pol === 'hater' ? 'Top narrativas hostiles' : 'Top narrativas' } }
         }
       });
     }
@@ -758,6 +857,7 @@
       renderEngagement();
       renderAudiencia();
       renderHaters();
+      renderApoyo();
       renderNarrativa();
       renderGrafoLocalKpis();
       if (document.getElementById('sec-grafos').classList.contains('active')) renderGrafo();
@@ -789,6 +889,11 @@
       sel.addEventListener('change', refreshAll);
       document.getElementById('selPlataforma').addEventListener('change', refreshAll);
       document.getElementById('selGrafo').addEventListener('change', renderGrafo);
+      document.getElementById('selPolaridad').addEventListener('change', () => {
+        renderGrafoLocalKpis();
+        renderGrafo();
+      });
+      document.getElementById('selPolaridadNarr').addEventListener('change', renderNarrativa);
       document.getElementById('filterEdge').addEventListener('change', renderGrafo);
       document.getElementById('btnFitGrafo').addEventListener('click', () => network && network.fit());
       document.getElementById('selCompMetric').addEventListener('change', renderComparativa);

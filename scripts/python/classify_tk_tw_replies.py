@@ -1,11 +1,13 @@
-"""Batch-classify twikit replies + cluster hater narratives via LLM.
+"""Batch-classify twikit replies + cluster hater/apoyo narratives via LLM.
 
 Uses CHAT_MODEL if set, else LLM_MODEL (OpenAI-compatible).
 
 Usage:
     uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_tw_classification.sql
     uv run python scripts/python/classify_tk_tw_replies.py --batch-size 50 --cluster-haters
+    uv run python scripts/python/classify_tk_tw_replies.py --cluster-apoyo
     uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_hater_narrativa.sql
+    uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_apoyo_narrativa.sql
 
 Requires: LLM_API_KEY (or DEEPSEEK_API_KEY) in .env; uv sync --extra llm
 """
@@ -32,6 +34,7 @@ import db  # noqa: E402
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SQL_CLASS = REPO_ROOT / "scripts" / "sql" / "ingest_tk_tw_classification.sql"
 SQL_GOLD = REPO_ROOT / "scripts" / "sql" / "ingest_tk_hater_narrativa.sql"
+SQL_GOLD_APOYO = REPO_ROOT / "scripts" / "sql" / "ingest_tk_apoyo_narrativa.sql"
 
 CRITERIA_LABELS = {
     "1": "apoyo_izquierda",
@@ -70,6 +73,22 @@ Respondé SOLO JSON:
 Reglas:
 - Cada narrativa_raw de entrada debe aparecer en exactamente un sources[].
 - label en snake_case, estable y periodístico.
+- Preferí fusionar rarezas en clusters cercanos; no inventes sources inexistentes."""
+
+CONSOLIDATE_APOYO_SYSTEM = """Sos un analista de narrativas de apoyo/defensa en X (Argentina).
+Dada una lista de etiquetas narrativa_raw de comentarios POSITIVOS o en defensa
+(apoyo a la izquierda / a la figura monitoreada) con conteos y ejemplos, consolidá
+en 10–20 clusters canónicos de apoyo.
+
+Respondé SOLO JSON:
+{"clusters":[
+  {"label":"snake_case","descripcion":"1 frase","sources":["narrativa_raw_a","narrativa_raw_b"]}
+]}
+
+Reglas:
+- Cada narrativa_raw de entrada debe aparecer en exactamente un sources[].
+- label en snake_case, estable y periodístico (ej: apoyo_movilizacion, defensa_figura,
+  solidaridad_partido, critica_adversario, felicitacion).
 - Preferí fusionar rarezas en clusters cercanos; no inventes sources inexistentes."""
 
 LLM_PROVIDERS: dict[str, dict[str, str]] = {
@@ -353,7 +372,7 @@ def classify_batches(
 
 
 def _fetch_hater_rows(con) -> list[dict[str, Any]]:
-    return con.sql(
+    rows = con.sql(
         """
         SELECT
           CAST(cl.reply_id AS VARCHAR) AS reply_id,
@@ -367,8 +386,31 @@ def _fetch_hater_rows(con) -> list[dict[str, Any]]:
         WHERE cl.criterio_label = 'derecha_o_troll'
           AND cl.narrativa_raw IS NOT NULL
           AND LENGTH(TRIM(cl.narrativa_raw)) > 0
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY cl.reply_id ORDER BY r.created_at_ts NULLS LAST) = 1
         """
     ).fetchdf().to_dict("records")
+    return rows
+
+
+def _fetch_apoyo_rows(con) -> list[dict[str, Any]]:
+    rows = con.sql(
+        """
+        SELECT
+          CAST(cl.reply_id AS VARCHAR) AS reply_id,
+          CAST(cl.parent_tweet_id AS VARCHAR) AS parent_tweet_id,
+          CAST(cl.narrativa_raw AS VARCHAR) AS narrativa_raw,
+          CAST(cl.resumen AS VARCHAR) AS resumen,
+          CAST(r.username AS VARCHAR) AS username,
+          CAST(r.text AS VARCHAR) AS text
+        FROM silver.tk_tw_reply_classification AS cl
+        LEFT JOIN silver.tk_tw_reply AS r ON cl.reply_id = CAST(r.reply_id AS VARCHAR)
+        WHERE cl.criterio_label = 'apoyo_izquierda'
+          AND cl.narrativa_raw IS NOT NULL
+          AND LENGTH(TRIM(cl.narrativa_raw)) > 0
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY cl.reply_id ORDER BY r.created_at_ts NULLS LAST) = 1
+        """
+    ).fetchdf().to_dict("records")
+    return rows
 
 
 def _build_label_stats(haters: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -415,6 +457,7 @@ def _llm_consolidate_chunk(
     stats: list[dict[str, Any]],
     *,
     target_clusters: int,
+    system_prompt: str = CONSOLIDATE_SYSTEM,
 ) -> dict[str, dict[str, str]]:
     """Consolidate one chunk of narrativa_raw stats via LLM."""
     payload = [
@@ -433,7 +476,7 @@ def _llm_consolidate_chunk(
     response = client.chat.completions.create(
         model=model,
         messages=[
-            {"role": "system", "content": CONSOLIDATE_SYSTEM},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg},
         ],
         temperature=0.1,
@@ -459,6 +502,8 @@ def _consolidate_labels(
     client: Any,
     model: str,
     stats: list[dict[str, Any]],
+    *,
+    system_prompt: str = CONSOLIDATE_SYSTEM,
 ) -> dict[str, dict[str, str]]:
     """Return map narrativa_raw -> {label, descripcion}.
 
@@ -484,7 +529,11 @@ def _consolidate_labels(
         print(f"    consolidate chunk {i}/{len(chunks)} (n={len(chunk)})", flush=True)
         try:
             part = _llm_consolidate_chunk(
-                client, model, chunk, target_clusters=min(12, max(6, len(chunk) // 8))
+                client,
+                model,
+                chunk,
+                target_clusters=min(12, max(6, len(chunk) // 8)),
+                system_prompt=system_prompt,
             )
         except Exception as exc:
             print(f"    chunk error: {exc}; identity fallback", flush=True)
@@ -530,7 +579,11 @@ def _consolidate_labels(
         print(f"  final merge of {len(mid_stats)} intermediate labels…", flush=True)
         try:
             mid_to_final = _llm_consolidate_chunk(
-                client, model, mid_stats, target_clusters=16
+                client,
+                model,
+                mid_stats,
+                target_clusters=16,
+                system_prompt=system_prompt,
             )
         except Exception as exc:
             print(f"  final merge error: {exc}; keep intermediate", flush=True)
@@ -683,9 +736,135 @@ def cluster_haters(*, dry_run: bool, rate_limit: float) -> int:
         con.close()
 
 
+def cluster_apoyo(*, dry_run: bool, rate_limit: float) -> int:
+    load_dotenv(REPO_ROOT / ".env")
+    llm = resolve_llm_config()
+    if not llm.api_key and not dry_run:
+        print("LLM_API_KEY (or DEEPSEEK_API_KEY) not set in .env", file=sys.stderr)
+        return 1
+
+    con = db.connect_for_ingest(release_mcp=True)
+    try:
+        _ensure_schemas(con)
+        # Ensure apoyo gold DDL exists before writes
+        con.execute(SQL_GOLD_APOYO.read_text())
+        rows = _fetch_apoyo_rows(con)
+        if not rows:
+            print("No apoyo_izquierda rows to cluster. Run classification first.")
+            return 0
+
+        stats = _build_label_stats(rows)
+        print(f"Apoyo replies: {len(rows)}; narrativa_raw labels: {len(stats)}")
+        if dry_run:
+            for s in stats[:15]:
+                print(f"  {s['n']:4d}  {s['narrativa_raw']}")
+            return 0
+
+        try:
+            from openai import OpenAI
+        except ImportError:
+            print("Install LLM extra: uv sync --extra llm", file=sys.stderr)
+            return 1
+
+        client = OpenAI(api_key=llm.api_key, base_url=llm.base_url, timeout=180.0)
+        mapping = _consolidate_labels(
+            client, llm.model, stats, system_prompt=CONSOLIDATE_APOYO_SYSTEM
+        )
+        if rate_limit > 0:
+            time.sleep(rate_limit)
+
+        run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        by_label: dict[str, dict[str, Any]] = {}
+        for raw, meta in mapping.items():
+            lab = meta["label"]
+            entry = by_label.setdefault(
+                lab,
+                {
+                    "label": lab,
+                    "descripcion": meta["descripcion"],
+                    "sources": [],
+                    "n": 0,
+                    "examples": [],
+                },
+            )
+            entry["sources"].append(raw)
+            if not entry["descripcion"] and meta["descripcion"]:
+                entry["descripcion"] = meta["descripcion"]
+
+        for row in rows:
+            raw = _slug(str(row.get("narrativa_raw") or "otros"))
+            lab = mapping.get(raw, {"label": raw})["label"]
+            by_label[lab]["n"] += 1
+            if len(by_label[lab]["examples"]) < 3:
+                ex = str(row.get("text") or "")[:120]
+                if ex:
+                    by_label[lab]["examples"].append(ex)
+
+        con.execute("DELETE FROM gold.tk_apoyo_narrativa_assignment")
+        con.execute("DELETE FROM gold.tk_apoyo_narrativa_cluster")
+
+        label_to_id: dict[str, str] = {}
+        for lab, entry in sorted(by_label.items(), key=lambda x: -x[1]["n"]):
+            cid = hashlib.md5(f"{run_id}:{lab}".encode()).hexdigest()[:16]
+            label_to_id[lab] = cid
+            con.execute(
+                """
+                INSERT INTO gold.tk_apoyo_narrativa_cluster (
+                  cluster_id, label, descripcion, n_replies, ejemplo_textos, run_id, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, current_timestamp)
+                """,
+                [
+                    cid,
+                    lab,
+                    entry["descripcion"],
+                    entry["n"],
+                    " | ".join(entry["examples"])[:1000],
+                    run_id,
+                ],
+            )
+
+        for row in rows:
+            raw = _slug(str(row.get("narrativa_raw") or "otros"))
+            lab = mapping.get(raw, {"label": raw})["label"]
+            cid = label_to_id[lab]
+            con.execute(
+                """
+                INSERT INTO gold.tk_apoyo_narrativa_assignment (
+                  reply_id, cluster_id, narrativa_raw, parent_tweet_id, username, run_id, assigned_at
+                ) VALUES (?, ?, ?, ?, ?, ?, current_timestamp)
+                """,
+                [
+                    row["reply_id"],
+                    cid,
+                    raw,
+                    row.get("parent_tweet_id"),
+                    row.get("username"),
+                    run_id,
+                ],
+            )
+
+        con.execute(SQL_GOLD_APOYO.read_text())
+        print(
+            f"Apoyo clusters: {len(label_to_id)} | assignments: {len(rows)} | run_id={run_id}"
+        )
+        top = con.sql(
+            """
+            SELECT label, n_replies, pct_apoyo
+            FROM gold.v_tk_apoyo_narrativa_resumen
+            ORDER BY n_replies DESC
+            LIMIT 10
+            """
+        ).fetchall()
+        for label, n, pct in top:
+            print(f"  {n:4d} ({pct:5.1f}%)  {label}")
+        return 0
+    finally:
+        con.close()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Batch-classify twikit replies and cluster hater narratives"
+        description="Batch-classify twikit replies and cluster hater/apoyo narratives"
     )
     parser.add_argument("--batch-size", type=int, default=50, help="Comments per LLM request")
     parser.add_argument("--text-chars", type=int, default=280, help="Max chars per comment")
@@ -696,12 +875,17 @@ def main() -> int:
     parser.add_argument(
         "--cluster-haters",
         action="store_true",
-        help="After classify (or alone if already classified), build gold narrative clusters",
+        help="After classify (or alone if already classified), build gold hater narrative clusters",
+    )
+    parser.add_argument(
+        "--cluster-apoyo",
+        action="store_true",
+        help="Build gold apoyo (support) narrative clusters from apoyo_izquierda replies",
     )
     parser.add_argument(
         "--cluster-only",
         action="store_true",
-        help="Skip classification; only run hater clustering",
+        help="Skip classification; only run clustering (--cluster-haters and/or --cluster-apoyo)",
     )
     args = parser.parse_args()
 
@@ -722,8 +906,13 @@ def main() -> int:
         if rc != 0:
             return rc
 
-    if args.cluster_haters or args.cluster_only:
+    if args.cluster_haters or (args.cluster_only and not args.cluster_apoyo):
         rc = cluster_haters(dry_run=args.dry_run, rate_limit=args.rate_limit)
+        if rc != 0:
+            return rc
+
+    if args.cluster_apoyo:
+        rc = cluster_apoyo(dry_run=args.dry_run, rate_limit=args.rate_limit)
     return rc
 
 

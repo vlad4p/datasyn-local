@@ -106,6 +106,16 @@ SQL_EXPORTS: list[tuple[str, str]] = [
         """,
     ),
     (
+        "apoyo_top10.csv",
+        """
+        SELECT persona_id, nombre_canonico, plataforma, ranking,
+               actor_id, actor_nombre, score_eventos, dias_activos,
+               cuentas_objetivo, narrativas, tier, risk_score
+        FROM gold.v_monitor_apoyo_top10
+        ORDER BY persona_id, plataforma, ranking
+        """,
+    ),
+    (
         "narrativa.csv",
         """
         SELECT persona_id, nombre_canonico, plataforma, narrativa, posicion,
@@ -145,6 +155,7 @@ CSV_KEY_MAP: dict[str, str] = {
     "engagement.csv": "engagement",
     "audiencia_resumen.csv": "audiencia",
     "haters_top10.csv": "haters",
+    "apoyo_top10.csv": "apoyo_top10",
     "narrativa.csv": "narrativa",
     "temporal.csv": "temporal",
     "temporal_engagement.csv": "temporal_engagement",
@@ -159,6 +170,13 @@ CSV_KEY_MAP: dict[str, str] = {
     "grafo_co_following.csv": "grafo_co_following",
     "grafo_bridges.csv": "grafo_bridges",
     "grafo_stats.csv": "grafo_stats",
+    "grafo_apoyo_relaciones_nodes.csv": "grafo_apoyo_relaciones_nodes",
+    "grafo_apoyo_relaciones_edges.csv": "grafo_apoyo_relaciones_edges",
+    "grafo_apoyo_risk.csv": "grafo_apoyo_risk",
+    "grafo_apoyo_co_followers.csv": "grafo_apoyo_co_followers",
+    "grafo_apoyo_co_following.csv": "grafo_apoyo_co_following",
+    "grafo_apoyo_bridges.csv": "grafo_apoyo_bridges",
+    "grafo_apoyo_stats.csv": "grafo_apoyo_stats",
 }
 
 RISK_COLORS = {
@@ -166,6 +184,13 @@ RISK_COLORS = {
     "medium": "#e6a23c",
     "low": "#3ecf8e",
     "neighbor": "#3d8bfd",
+}
+
+SUPPORT_COLORS = {
+    "high": "#1a9f6a",
+    "medium": "#3dd68c",
+    "low": "#8ee4b8",
+    "neighbor": "#5b9fd4",
 }
 
 
@@ -639,6 +664,264 @@ def export_grafo_relaciones(con, data_dir: Path) -> tuple[int, int]:
     return len(node_rows), len(edge_rows)
 
 
+def export_grafo_apoyo_relaciones_tables(con, data_dir: Path) -> None:
+    """Sidecar tables from apoyo profile graph gold (signals, co-*, bridges, stats)."""
+    risk_df = con.sql(
+        """
+        SELECT *
+        FROM gold.tk_apoyo_profile_risk
+        ORDER BY risk_score DESC, username
+        """
+    ).df()
+    n_risk = 0
+    if len(risk_df):
+        risk_df["senales"] = [_risk_signals(r) for r in risk_df.itertuples(index=False)]
+        risk_df["following_followers_ratio"] = risk_df["following_followers_ratio"].round(2)
+        risk_df["statuses_per_follower"] = risk_df["statuses_per_follower"].round(2)
+        keep = [
+            "username",
+            "risk_band",
+            "risk_score",
+            "followers_count",
+            "following_count",
+            "statuses_count",
+            "following_followers_ratio",
+            "statuses_per_follower",
+            "bridge_followers_on_me",
+            "senales",
+        ]
+        risk_df[keep].to_csv(data_dir / "grafo_apoyo_risk.csv", index=False)
+        n_risk = len(risk_df)
+    else:
+        (data_dir / "grafo_apoyo_risk.csv").write_text(
+            "username,risk_band,risk_score,followers_count,following_count,"
+            "statuses_count,following_followers_ratio,statuses_per_follower,"
+            "bridge_followers_on_me,senales\n",
+            encoding="utf-8",
+        )
+
+    n_co_fo = _export_df_csv(
+        con,
+        """
+        SELECT
+            COALESCE(va.label, c.apoyo_a_id) AS apoyo_a,
+            COALESCE(vb.label, c.apoyo_b_id) AS apoyo_b,
+            c.shared_followers
+        FROM gold.tk_apoyo_grafo_co_followers AS c
+        LEFT JOIN gold.tk_apoyo_grafo_vertices AS va ON va.vertex_id = c.apoyo_a_id
+        LEFT JOIN gold.tk_apoyo_grafo_vertices AS vb ON vb.vertex_id = c.apoyo_b_id
+        ORDER BY c.shared_followers DESC
+        LIMIT 25
+        """,
+        data_dir / "grafo_apoyo_co_followers.csv",
+    )
+    n_co_fl = _export_df_csv(
+        con,
+        """
+        SELECT
+            COALESCE(va.label, c.apoyo_a_id) AS apoyo_a,
+            COALESCE(vb.label, c.apoyo_b_id) AS apoyo_b,
+            c.shared_following
+        FROM gold.tk_apoyo_grafo_co_following AS c
+        LEFT JOIN gold.tk_apoyo_grafo_vertices AS va ON va.vertex_id = c.apoyo_a_id
+        LEFT JOIN gold.tk_apoyo_grafo_vertices AS vb ON vb.vertex_id = c.apoyo_b_id
+        ORDER BY c.shared_following DESC
+        LIMIT 25
+        """,
+        data_dir / "grafo_apoyo_co_following.csv",
+    )
+    n_br = _export_df_csv(
+        con,
+        """
+        SELECT
+            follower_username,
+            follower_display_name,
+            apoyos_followed,
+            follower_followers_count,
+            follower_following_count,
+            array_to_string(apoyo_usernames, ', ') AS apoyo_usernames
+        FROM gold.tk_apoyo_grafo_bridge_followers
+        ORDER BY apoyos_followed DESC, follower_followers_count DESC
+        LIMIT 40
+        """,
+        data_dir / "grafo_apoyo_bridges.csv",
+    )
+    _export_df_csv(
+        con,
+        """
+        SELECT
+            (SELECT COUNT(*) FROM gold.tk_apoyo_grafo_vertices) AS vertices,
+            (SELECT COUNT(*) FROM gold.tk_apoyo_grafo_vertices WHERE entity_type = 'supporter') AS supporters,
+            (SELECT COUNT(*) FROM gold.tk_apoyo_grafo_vertices WHERE entity_type = 'neighbor') AS neighbors,
+            (SELECT COUNT(*) FROM gold.tk_apoyo_grafo_edges) AS edges,
+            (SELECT COUNT(*) FROM gold.tk_apoyo_grafo_bridge_followers) AS bridge_followers,
+            (SELECT COUNT(*) FROM gold.tk_apoyo_grafo_co_followers) AS pares_co_seguidores,
+            (SELECT COUNT(*) FROM gold.tk_apoyo_grafo_co_following) AS pares_co_following,
+            (SELECT COUNT(*) FROM gold.tk_apoyo_profile_risk WHERE risk_band = 'high') AS risk_high,
+            (SELECT COUNT(*) FROM gold.tk_apoyo_profile_risk WHERE risk_band = 'medium') AS risk_medium,
+            (SELECT COUNT(*) FROM gold.tk_apoyo_profile_risk WHERE risk_band = 'low') AS risk_low
+        """,
+        data_dir / "grafo_apoyo_stats.csv",
+    )
+    print(
+        f"  grafo_apoyo_risk: {n_risk} · co_followers: {n_co_fo} · "
+        f"co_following: {n_co_fl} · bridges: {n_br}"
+    )
+
+
+def export_grafo_apoyo_relaciones(con, data_dir: Path) -> tuple[int, int]:
+    """TW follow graph viz: supporters + bridge followers (≥3), colored by signal band."""
+    supporters = con.sql(
+        """
+        SELECT
+            v.vertex_id,
+            v.label,
+            v.entity_type AS tipo,
+            v.followers_count,
+            v.following_count,
+            v.statuses_count,
+            r.risk_band,
+            r.risk_score
+        FROM gold.tk_apoyo_grafo_vertices AS v
+        LEFT JOIN gold.tk_apoyo_profile_risk AS r
+            ON r.user_id = v.vertex_id OR LOWER(r.username) = LOWER(v.label)
+        WHERE v.entity_type = 'supporter'
+        """
+    ).df()
+    bridges = con.sql(
+        """
+        SELECT
+            follower_id AS vertex_id,
+            follower_username AS label,
+            'neighbor' AS tipo,
+            follower_followers_count AS followers_count,
+            follower_following_count AS following_count,
+            CAST(NULL AS BIGINT) AS statuses_count,
+            CAST(NULL AS VARCHAR) AS risk_band,
+            CAST(0 AS INTEGER) AS risk_score,
+            apoyos_followed
+        FROM gold.tk_apoyo_grafo_bridge_followers
+        WHERE apoyos_followed >= 3
+        ORDER BY apoyos_followed DESC, follower_followers_count DESC
+        """
+    ).df()
+
+    supporter_ids = set(supporters["vertex_id"].astype(str)) if len(supporters) else set()
+    bridge_ids = set(bridges["vertex_id"].astype(str)) if len(bridges) else set()
+    kept = supporter_ids | bridge_ids
+
+    edges = con.sql(
+        """
+        SELECT source_id, target_id, edge_type, weight
+        FROM gold.tk_apoyo_grafo_edges
+        WHERE edge_type = 'follows_apoyo'
+        """
+    ).df()
+    if len(edges) and kept:
+        edges = edges[
+            edges["source_id"].astype(str).isin(kept)
+            & edges["target_id"].astype(str).isin(kept)
+        ]
+    elif not kept:
+        edges = edges.iloc[0:0]
+
+    connected = (
+        set(edges["source_id"].astype(str)) | set(edges["target_id"].astype(str))
+        if len(edges)
+        else set()
+    )
+    if len(bridges):
+        bridges = bridges[bridges["vertex_id"].astype(str).isin(connected | supporter_ids)]
+
+    node_rows: list[dict] = []
+    for row in supporters.itertuples(index=False):
+        band = (row.risk_band or "low").lower()
+        color = SUPPORT_COLORS.get(band, SUPPORT_COLORS["low"])
+        node_rows.append(
+            {
+                "id": str(row.vertex_id),
+                "label": str(row.label or "?")[:18],
+                "tipo": "supporter",
+                "color": color,
+                "shape": "box",
+                "size": 26,
+                "title": f"@{row.label} [{band}] score={row.risk_score or 0}",
+                "plataforma": "twitter",
+                "risk_band": band,
+                "risk_score": int(row.risk_score or 0),
+                "followers_count": int(row.followers_count or 0),
+                "apoyos_followed": 0,
+            }
+        )
+    for row in bridges.itertuples(index=False):
+        if str(row.vertex_id) in supporter_ids:
+            continue
+        af = int(row.apoyos_followed or 0)
+        node_rows.append(
+            {
+                "id": str(row.vertex_id),
+                "label": str(row.label or "?")[:18],
+                "tipo": "neighbor",
+                "color": SUPPORT_COLORS["neighbor"],
+                "shape": "dot",
+                "size": min(28, 10 + af * 2),
+                "title": f"@{row.label} · puente ({af} apoyos)",
+                "plataforma": "twitter",
+                "risk_band": "",
+                "risk_score": 0,
+                "followers_count": int(row.followers_count or 0),
+                "apoyos_followed": af,
+            }
+        )
+
+    edge_rows: list[dict] = []
+    for i, row in enumerate(edges.itertuples(index=False)):
+        edge_rows.append(
+            {
+                "id": f"apoyo_rel{i}",
+                "from": str(row.source_id),
+                "to": str(row.target_id),
+                "label": "",
+                "color": "#3dd68c55",
+                "width": 1,
+                "dashes": "false",
+                "edge_type": row.edge_type,
+                "title": f"{row.edge_type}",
+            }
+        )
+
+    nodes_path = data_dir / "grafo_apoyo_relaciones_nodes.csv"
+    edges_path = data_dir / "grafo_apoyo_relaciones_edges.csv"
+    with nodes_path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(
+            f,
+            fieldnames=[
+                "id",
+                "label",
+                "tipo",
+                "color",
+                "shape",
+                "size",
+                "title",
+                "plataforma",
+                "risk_band",
+                "risk_score",
+                "followers_count",
+                "apoyos_followed",
+            ],
+        )
+        w.writeheader()
+        w.writerows(node_rows)
+    with edges_path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(
+            f,
+            fieldnames=["id", "from", "to", "label", "color", "width", "dashes", "edge_type", "title"],
+        )
+        w.writeheader()
+        w.writerows(edge_rows)
+    return len(node_rows), len(edge_rows)
+
+
 README = """# Monitor de redes — dashboard unificado
 
 Reporte autocontenido para estudiar **personas** (identidad curada) a través de
@@ -659,7 +942,8 @@ open report.html
 | Engagement | Serie temporal de engagement por post |
 | Audiencia | Haters / apoyo / neutral / bots (heurística) |
 | Haters | Top 10 por persona + narrativas |
-| Grafos | Comportamiento (FB), Relaciones TW (risk/puentes/co-seguidores), narrativa |
+| Apoyo | Top 10 defensores + narrativas de apoyo |
+| Grafos | Toggle Haters/Apoyo: Relaciones TW, comportamiento, narrativa |
 | Comparativa | Varias personas en la misma vista temporal |
 | Metodología | Límites y pipeline |
 
@@ -694,6 +978,24 @@ def main() -> int:
     export_grafo_relaciones_tables(con, data_dir)
     n3, e3 = export_grafo_relaciones(con, data_dir)
     print(f"  grafo_relaciones: {n3} nodes / {e3} edges")
+    try:
+        export_grafo_apoyo_relaciones_tables(con, data_dir)
+        n4, e4 = export_grafo_apoyo_relaciones(con, data_dir)
+        print(f"  grafo_apoyo_relaciones: {n4} nodes / {e4} edges")
+    except Exception as exc:
+        print(f"  (apoyo graph skipped — run ingest_tk_apoyo_profile_graph.sql first: {exc})")
+        for name in (
+            "grafo_apoyo_relaciones_nodes.csv",
+            "grafo_apoyo_relaciones_edges.csv",
+            "grafo_apoyo_risk.csv",
+            "grafo_apoyo_co_followers.csv",
+            "grafo_apoyo_co_following.csv",
+            "grafo_apoyo_bridges.csv",
+            "grafo_apoyo_stats.csv",
+        ):
+            path = data_dir / name
+            if not path.exists():
+                path.write_text("", encoding="utf-8")
 
     embedded = build_embedded_data(data_dir)
     template = TEMPLATE_PATH.read_text(encoding="utf-8")
