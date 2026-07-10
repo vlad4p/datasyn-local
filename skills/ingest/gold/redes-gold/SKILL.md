@@ -139,5 +139,6 @@ SELECT * FROM gold.v_trolls_grupos_multobjetivo ORDER BY cuentas_atacadas DESC L
 |-------|------|
 | [`ingest-data-gold`](../ingest-data-gold/SKILL.md) | Patrón gold genérico |
 | [`redes-analysis`](../../../analyze/reports/redes-analysis/SKILL.md) | HTML/PDF + interpretación |
+| [`social-monitor`](../../../analyze/reports/social-monitor/SKILL.md) | Dashboard unificado persona → cuentas (FB+TW) |
 | [`sentiment-analysis`](../../../analyze/reports/sentiment-analysis/SKILL.md) | Marco posición/narrativa |
 | [`graph-ingest`](../../../analyze/graph/graph-ingest/SKILL.md) | Grafos genéricos + redes trolls |

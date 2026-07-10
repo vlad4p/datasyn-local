@@ -49,6 +49,7 @@ Bucket index: [`ingest/README.md`](../ingest/README.md)
 |-----------|-------|
 | EDA, profile, statistical report | [`statistical-report`](../analyze/reports/statistical-report/SKILL.md) |
 | Sentiment, tone, framing | [`sentiment-analysis`](../analyze/reports/sentiment-analysis/SKILL.md) |
+| Monitor unificado / comparar personas / multiplataforma | [`social-monitor`](../analyze/reports/social-monitor/SKILL.md) |
 | Redes PTS FB: trolls, ráfagas, HTML | [`redes-analysis`](../analyze/reports/redes-analysis/SKILL.md) |
 | Troll blacklist / block list (twikit) | [`troll-blacklist`](../analyze/reports/troll-blacklist/SKILL.md) |
 | Build graph tables | [`graph-ingest`](../analyze/graph/graph-ingest/SKILL.md) |
@@ -90,3 +91,4 @@ Bucket index: [`engineering/README.md`](../engineering/README.md)
 | Twitter scrape → analysis | `scrape-twikit-twitter` → classify → `troll-blacklist` / hater report |
 | Entity network | `graph-ingest` → `graph-analysis` → optional `interactive-graph-reports` |
 | Redes FB legacy → dashboard | `redes-gold` → `redes-analysis` (HTML + grafo) |
+| Monitor unificado FB+TW | identity seed → `ingest_social_monitor_gold.sql` → `social-monitor` |

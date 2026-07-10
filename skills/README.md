@@ -68,6 +68,7 @@ Sub-scope: [`ingest/bronze/references/formats.md`](ingest/bronze/references/form
 |-------|-------------|
 | [`statistical-report`](analyze/reports/statistical-report/SKILL.md) | EDA and multi-format reports |
 | [`sentiment-analysis`](analyze/reports/sentiment-analysis/SKILL.md) | Text tone / framing |
+| [`social-monitor`](analyze/reports/social-monitor/SKILL.md) | Unified multi-platform monitoring (persona → accounts) |
 | [`redes-analysis`](analyze/reports/redes-analysis/SKILL.md) | FB legacy dashboards, trolls, HTML |
 | [`troll-blacklist`](analyze/reports/troll-blacklist/SKILL.md) | Twikit block/watch list (manual) |
 | [`graph-ingest`](analyze/graph/graph-ingest/SKILL.md) | Build graph tables |

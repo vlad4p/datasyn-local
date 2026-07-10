@@ -19,6 +19,7 @@ Analysis artifacts go to **`reports/<project>/<report-slug>/`** (gitignored). Se
 
 | Example | Skill |
 |---------|-------|
+| `reports/monitor/dashboard/` | [`social-monitor`](../skills/analyze/reports/social-monitor/SKILL.md) |
 | `reports/redes/dashboard/` | [`redes-analysis`](../skills/analyze/reports/redes-analysis/SKILL.md) |
 | `reports/grafo/co-ocurrencia/report.md` | [`graph-analysis`](../skills/analyze/graph/graph-analysis/SKILL.md) |
 
@@ -42,7 +43,9 @@ skills/
 │   ├── reports/
 │   │   ├── statistical-report/
 │   │   ├── sentiment-analysis/
-│   │   └── redes-analysis/  # HTML/PDF dashboards, trolls graph
+│   │   ├── social-monitor/  # unified FB+TW persona dashboard
+│   │   ├── redes-analysis/  # HTML/PDF dashboards, trolls graph
+│   │   └── troll-blacklist/
 │   └── graph/
 ├── schema/
 │   └── create-table/
