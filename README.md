@@ -284,6 +284,16 @@ Guía completa para el asistente: [`skills/engineering/gitflow/SKILL.md`](skills
 
 ---
 
+## 📖 Guías
+
+| Guía | Contenido |
+|------|-----------|
+| [`docs/guia-datos.md`](docs/guia-datos.md) | Prompts listos: credenciales X/Twitter (twikit), scrape, LLM opcional + clusters, reportes; compartir o apuntar a una DuckDB externa |
+
+Diagramas: [`docs/diagrams/README.md`](docs/diagrams/README.md) — fuentes SVG en [`docs/diagrams/`](docs/diagrams/), paleta en [`docs/colors/README.md`](docs/colors/README.md).
+
+---
+
 ## 🛠️ Herramientas que usa
 
 | Herramienta | Para qué sirve | Documentación |
@@ -292,8 +302,6 @@ Guía completa para el asistente: [`skills/engineering/gitflow/SKILL.md`](skills
 | 🔌 **MCP** (Model Context Protocol) | Estándar abierto que conecta al asistente de IA con DuckDB para ejecutar SQL | [modelcontextprotocol.io](https://modelcontextprotocol.io/) · [duckdb_mcp](https://github.com/duckdb/duckdb-mcp-server) |
 | 🧩 **Skills** | Guías de tarea en Markdown por alcance (ver [`skills/`](skills/) y [`docs/skills-layout.md`](docs/skills-layout.md)) | [Agent Skills (Anthropic)](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/overview) · [Cursor Rules & Skills](https://docs.cursor.com/) |
 | 🐍 **uv** | Gestor de entornos y dependencias de Python | [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
-
-Diagramas: [`docs/diagrams/README.md`](docs/diagrams/README.md) — fuentes SVG en [`docs/diagrams/`](docs/diagrams/), paleta en [`docs/colors/README.md`](docs/colors/README.md).
 
 ---
 
