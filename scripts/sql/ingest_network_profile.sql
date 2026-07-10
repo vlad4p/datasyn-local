@@ -80,6 +80,7 @@ tw_tracked AS (
         0::BIGINT AS replies_count,
         ['silver.tw_users', 'silver.tw_tweets']::VARCHAR[] AS source_tables
     FROM silver.tw_users AS u
+    WHERE u.track = TRUE
 ),
 tw_reply_authors AS (
     SELECT

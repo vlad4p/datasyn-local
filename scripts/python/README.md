@@ -8,6 +8,7 @@ Optional helpers under `scripts/python/`. **Ingest and reports are skills (SQL)*
 |--------|--------|
 | `db.py` | DuckDB paths, connection, MCP (`mcp-config`, `mcp-serve`, `run-sql`) |
 | `classify_sv_comments.py` | LLM classification for SociaVault comments (`LLM_API_KEY` in `.env`) |
+| `classify_tk_tw_replies.py` | Batch LLM classify twikit replies + hater narrative clusters (`CHAT_MODEL`/`LLM_MODEL`) |
 | `embed_readme_diagrams.py` | Sync diagram `<img>` tags in README files from `docs/diagrams/*.svg` |
 
 ```bash
@@ -51,6 +52,16 @@ uv run python scripts/python/scrape_twikit_twitter.py \
 
 Skill: [`scrape-twikit-twitter`](../../skills/collect/twikit/scrape-twikit-twitter/SKILL.md)
 
+```bash
+# Classify replies + cluster hater narratives (batch LLM)
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_tw_classification.sql
+uv run python scripts/python/classify_tk_tw_replies.py --batch-size 50 --cluster-haters
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_hater_narrativa.sql
+# Refresh Twitter account catalog (is_hater + profile fields)
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twitter_silver.sql
+uv run python scripts/python/generate_tk_hater_clusters_report.py
+```
+
 ## Redes reports (legacy FB/TW CSV)
 
 Skill: [`redes-analysis`](../../skills/analyze/reports/redes-analysis/SKILL.md). Gold SQL: `scripts/sql/ingest_redes_gold.sql`.
@@ -59,6 +70,7 @@ Skill: [`redes-analysis`](../../skills/analyze/reports/redes-analysis/SKILL.md).
 |--------|--------------------------------------|
 | `generate_redes_dashboard.py` | `dashboard/` — unified Chart.js + vis.js dashboard (CSV externals) |
 | `export_redes_reports_zip.py` | `_exports/export_{date}.zip` |
+| `generate_tk_hater_clusters_report.py` | `reports/twikit-myriam/hater-clusters/` — twikit hater narratives |
 
 ## Graph helpers
 
