@@ -1,0 +1,6 @@
+persona_id,nombre_canonico,alias,tipo,rol,partido,es_objetivo,sitio_web,wikidata_id,genero,provincia,fuentes_osint,notas
+myriambregman,Myriam Bregman,"Myriam Bregman|Bregman",persona,diputada,PTS,true,https://www.pts.org.ar/,Q6015214,femenino,CABA,"wikipedia|wikidata|cuentas_oficiales",Figura PTS — objetivo de monitoreo multiplataforma
+nicolasdelcano,Nicolas del Caño,"Nicolás del Caño|Nicolas del Cano|del Caño",persona,diputado,PTS,true,https://www.pts.org.ar/,Q19842414,masculino,Mendoza,"wikipedia|wikidata|cuentas_oficiales",Figura PTS — objetivo de monitoreo multiplataforma
+cristiancastillo,Christian Castillo,"Cristian Castillo|Christian Castillo PTS",persona,dirigente,PTS,true,https://www.pts.org.ar/,,masculino,,"cuentas_oficiales",Figura PTS — Facebook legacy
+ptsarg,PTS Argentina,"Partido de los Trabajadores Socialistas|PTS",organizacion,partido,PTS,true,https://www.pts.org.ar/,Q3366295,,,"wikipedia|wikidata|cuentas_oficiales",Cuenta institucional PTS
+laizquierdadiario,La Izquierda Diario,"LaIzquierdaDiario|LID",medio,medio,PTS,true,https://www.laizquierdadiario.com/,,,,"sitio_oficial|cuentas_oficiales",Medio PTS — Facebook legacy

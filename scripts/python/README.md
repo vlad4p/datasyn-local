@@ -67,10 +67,12 @@ uv run python scripts/python/generate_tk_troll_blacklist_report.py
 
 ## Redes reports (legacy Facebook CSV)
 
-Skill: [`redes-analysis`](../../skills/analyze/reports/redes-analysis/SKILL.md). Gold SQL: `scripts/sql/ingest_redes_gold.sql` (FB-only).
+Skill: [`redes-analysis`](../../skills/analyze/reports/redes-analysis/SKILL.md). Gold SQL: `scripts/sql/ingest_redes_gold.sql` (FB-only).  
+Unified monitor: [`social-monitor`](../../skills/analyze/reports/social-monitor/SKILL.md) — `ingest_identidades.sql` + `ingest_social_monitor_gold.sql`.
 
 | Script | Output bundle under `reports/` |
 |--------|--------------------------------|
+| `generate_social_monitor_dashboard.py` | `monitor/dashboard/` — unified persona monitor (Chart.js + vis.js) |
 | `generate_redes_dashboard.py` | `redes/dashboard/` — Chart.js + vis.js dashboard |
 | `export_redes_reports_zip.py` | `redes/_exports/export_{date}.zip` |
 | `generate_tk_hater_clusters_report.py` | `twikit-myriam/hater-clusters/` |

@@ -1,0 +1,12 @@
+persona_id,plataforma,platform_user_id,handle,url,es_oficial,fuente
+myriambregman,facebook,185922194792026,MyriamBregman.PTS,https://www.facebook.com/MyriamBregman.PTS,true,seed
+myriambregman,twitter,332993154,myriambregman,https://x.com/myriambregman,true,seed
+myriambregman,instagram,4507378534,,https://www.instagram.com/,true,seed_fb_instagram_id
+nicolasdelcano,facebook,452525851510103,NicolasDelCano.PTS,https://www.facebook.com/NicolasDelCano.PTS,true,seed
+nicolasdelcano,twitter,374115730,NicolasdelCano,https://x.com/NicolasdelCano,true,seed
+nicolasdelcano,instagram,4237704725,,https://www.instagram.com/,true,seed_fb_instagram_id
+cristiancastillo,facebook,78792658315,ChristianCastillo.PTS,https://www.facebook.com/ChristianCastillo.PTS,true,seed
+cristiancastillo,instagram,2965696194,,https://www.instagram.com/,true,seed_fb_instagram_id
+ptsarg,twitter,,PTSarg,https://x.com/PTSarg,true,seed
+laizquierdadiario,facebook,1431888320420117,LaIzquierdaDiario,https://www.facebook.com/LaIzquierdaDiario,true,seed
+laizquierdadiario,instagram,4062572416,,https://www.instagram.com/,true,seed_fb_instagram_id

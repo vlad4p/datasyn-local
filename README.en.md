@@ -277,6 +277,8 @@ After creating a skill, add it to the bucket `README.md` and [`skills/README.md`
 | Guide | Contents |
 |-------|----------|
 | [`docs/guia-datos.md`](docs/guia-datos.md) | Ready-to-paste prompts: X/Twitter (twikit), scrape, optional LLM + clusters, reports; share or point to an external DuckDB *(Spanish)* |
+| [`docs/guia-monitoreo-redes.md`](docs/guia-monitoreo-redes.md) | Unified social monitor: personas across platforms, reactions, haters, graphs *(Spanish)* |
+| [`docs/monitoreo-redes-tecnico.md`](docs/monitoreo-redes-tecnico.md) | Technical maintenance guide for the monitoring system |
 
 Diagrams: [`docs/diagrams/README.md`](docs/diagrams/README.md) — SVG sources in [`docs/diagrams/`](docs/diagrams/), palette in [`docs/colors/README.md`](docs/colors/README.md).
 
