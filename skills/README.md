@@ -45,7 +45,8 @@ Copy or link this folder into your tool's skills directory:
 | [`web-scraping`](collect/web-scraping/SKILL.md) | Fetch data to `data/landing/` |
 | [`scrape-sociavault`](collect/sociavault/scrape-sociavault/SKILL.md) | SociaVault pipeline entry |
 | [`scrape-sociavault-facebook`](collect/sociavault/scrape-sociavault-facebook/SKILL.md) | Facebook via SociaVault |
-| [`scrape-sociavault-twitter`](collect/sociavault/scrape-sociavault-twitter/SKILL.md) | X/Twitter via SociaVault |
+| [`scrape-sociavault-twitter`](collect/sociavault/scrape-sociavault-twitter/SKILL.md) | X/Twitter via SociaVault (**deprecated** — use twikit) |
+| [`scrape-twikit-twitter`](collect/twikit/scrape-twikit-twitter/SKILL.md) | X/Twitter via twikit (canonical) |
 | [`scrape-sociavault-instagram`](collect/sociavault/scrape-sociavault-instagram/SKILL.md) | Instagram via SociaVault |
 | [`scrape-sociavault-tiktok`](collect/sociavault/scrape-sociavault-tiktok/SKILL.md) | TikTok via SociaVault |
 
@@ -57,7 +58,7 @@ Copy or link this folder into your tool's skills directory:
 | [`ingest-data-bronze`](ingest/bronze/ingest-data-bronze/SKILL.md) | `bronze.*` | Raw files → DuckDB |
 | [`ingest-data-silver`](ingest/silver/ingest-data-silver/SKILL.md) | `silver.*` | Clean, dedupe, join |
 | [`ingest-data-gold`](ingest/gold/ingest-data-gold/SKILL.md) | `gold.*` | Aggregate, KPIs |
-| [`redes-gold`](ingest/gold/redes-gold/SKILL.md) | `gold.*` | FB/TW legacy: sentimiento, trolls, grafos |
+| [`redes-gold`](ingest/gold/redes-gold/SKILL.md) | `gold.*` | FB legacy: sentimiento, trolls, grafos |
 
 Sub-scope: [`ingest/bronze/references/formats.md`](ingest/bronze/references/formats.md)
 
@@ -67,7 +68,8 @@ Sub-scope: [`ingest/bronze/references/formats.md`](ingest/bronze/references/form
 |-------|-------------|
 | [`statistical-report`](analyze/reports/statistical-report/SKILL.md) | EDA and multi-format reports |
 | [`sentiment-analysis`](analyze/reports/sentiment-analysis/SKILL.md) | Text tone / framing |
-| [`redes-analysis`](analyze/reports/redes-analysis/SKILL.md) | FB/TW legacy dashboards, trolls, HTML/PDF |
+| [`redes-analysis`](analyze/reports/redes-analysis/SKILL.md) | FB legacy dashboards, trolls, HTML |
+| [`troll-blacklist`](analyze/reports/troll-blacklist/SKILL.md) | Twikit block/watch list (manual) |
 | [`graph-ingest`](analyze/graph/graph-ingest/SKILL.md) | Build graph tables |
 | [`graph-analysis`](analyze/graph/graph-analysis/SKILL.md) | Network metrics and reports |
 | [`interactive-graph-reports`](analyze/graph/interactive-graph-reports/SKILL.md) | HTML graph visualizations |

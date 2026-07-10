@@ -71,11 +71,11 @@ def export_payload(con) -> dict[str, Any]:
         "classified_total": con.execute(
             "SELECT COUNT(*) FROM silver.tk_tw_reply_classification"
         ).fetchone()[0],
-        "tw_users_total": con.execute("SELECT COUNT(*) FROM silver.tw_users").fetchone()[
-            0
-        ],
+        "tw_users_total": con.execute(
+            "SELECT COUNT(*) FROM silver.tk_tw_user"
+        ).fetchone()[0],
         "tw_users_haters": con.execute(
-            "SELECT COUNT(*) FROM silver.tw_users WHERE is_hater"
+            "SELECT COUNT(*) FROM silver.tk_tw_user WHERE is_hater"
         ).fetchone()[0],
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "account": "myriambregman",
@@ -127,7 +127,7 @@ def export_payload(con) -> dict[str, Any]:
           MODE(d.narrativa_cluster) AS top_cluster,
           SUM(COALESCE(d.like_count, 0)) AS likes_sum
         FROM gold.v_tk_hater_narrativa_detalle d
-        LEFT JOIN silver.tw_users u
+        LEFT JOIN silver.tk_tw_user u
           ON LOWER(TRIM(d.reply_username)) = LOWER(TRIM(u.username))
         WHERE d.reply_username IS NOT NULL
         GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9
@@ -196,8 +196,8 @@ def export_payload(con) -> dict[str, Any]:
         """
         SELECT source, COUNT(*) AS n_users,
                COUNT(*) FILTER (WHERE is_hater) AS n_haters,
-               COUNT(*) FILTER (WHERE track) AS n_tracked
-        FROM silver.tw_users
+               0 AS n_tracked
+        FROM silver.tk_tw_user
         GROUP BY 1
         ORDER BY n_users DESC
         """,
@@ -349,7 +349,7 @@ def render_html(payload: dict[str, Any]) -> str:
   </nav>
   <main>
     <p class="muted" style="font-size:0.85rem;margin-bottom:1rem">
-      Fuente: <code>gold.v_tk_hater_narrativa_*</code> + <code>silver.tw_users</code> · Generado: <span id="gen-at"></span>
+      Fuente: <code>gold.v_tk_hater_narrativa_*</code> + <code>silver.tk_tw_user</code> · Generado: <span id="gen-at"></span>
     </p>
 
     <section id="sec-resumen" class="active">
@@ -419,8 +419,8 @@ def render_html(payload: dict[str, Any]) -> str:
     </section>
 
     <section id="sec-cuentas">
-      <h2>Catálogo silver.tw_users</h2>
-      <p class="desc">Cuentas Twitter unificadas (legacy replies + twikit + tracked) con flag <code>is_hater</code>.</p>
+      <h2>Catálogo silver.tk_tw_user</h2>
+      <p class="desc">Cuentas Twitter twikit-only (perfiles + autores de replies) con flag <code>is_hater</code>.</p>
       <div class="panel"><div class="chart-box"><canvas id="chart-users-source"></canvas></div></div>
       <div class="panel scroll">
         <table id="tbl-users-source"><thead>
@@ -447,7 +447,7 @@ def render_html(payload: dict[str, Any]) -> str:
           <li><strong>Fuente:</strong> scrape twikit de @myriambregman → <code>silver.tk_tw_*</code>.</li>
           <li><strong>Clasificación:</strong> LLM sobre replies → <code>silver.tk_tw_reply_classification</code>; haters = <code>derecha_o_troll</code>.</li>
           <li><strong>Clusters:</strong> consolidación LLM de <code>narrativa_raw</code> → <code>gold.tk_hater_narrativa_*</code>.</li>
-          <li><strong>Cuentas:</strong> <code>silver.tw_users</code> une tracked + autores legacy/twikit; <code>is_hater</code> desde clasificaciones.</li>
+          <li><strong>Cuentas:</strong> <code>silver.tk_tw_user</code> (twikit-only); <code>is_hater</code> desde clasificaciones.</li>
           <li><strong>Cobertura:</strong> solo replies capturados en el scrape (no el 100% de la UI de X).</li>
           <li><strong>No es prueba de coordinación:</strong> sincronía temporal ≠ red organizada.</li>
           <li><strong>Privacidad:</strong> handles y textos sensibles; no commitear <code>reports/**</code>.</li>
@@ -509,7 +509,7 @@ function renderKpis() {
     ["Clusters", k.clusters, "narrativas canónicas"],
     ["Autores hater", k.haters, "handles distintos"],
     ["Tweets tocados", k.tweets_touched, "posts con ≥1 hater"],
-    ["tw_users", k.tw_users_total, `${k.tw_users_haters} is_hater`],
+    ["tk_tw_user", k.tw_users_total, `${k.tw_users_haters} is_hater`],
     ["Rango", `${k.dia_min} →`, k.dia_max],
   ];
   $("kpis").innerHTML = items.map(([label, value, sub]) =>
@@ -822,7 +822,7 @@ uv run python scripts/python/generate_tk_hater_clusters_report.py
 | Clusters | {k['clusters']} |
 | Autores | {k['haters']} |
 | Tweets tocados | {k['tweets_touched']} |
-| silver.tw_users | {k['tw_users_total']} ({k['tw_users_haters']} is_hater) |
+| silver.tk_tw_user | {k['tw_users_total']} ({k['tw_users_haters']} is_hater) |
 | Rango | {k['dia_min']} → {k['dia_max']} |
 | Generado | {k['generated_at']} |
 
@@ -835,7 +835,7 @@ uv run python scripts/python/generate_tk_hater_clusters_report.py
 ## Fuente
 
 - `gold.v_tk_hater_narrativa_*`
-- `silver.tw_users` (catálogo de cuentas + `is_hater`)
+- `silver.tk_tw_user` (catálogo twikit-only + `is_hater`)
 - Clasificación: `silver.tk_tw_reply_classification` (`derecha_o_troll`)
 - Scrape: twikit → `silver.tk_tw_reply`
 

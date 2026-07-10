@@ -82,6 +82,8 @@ Variables: `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`, alias `CHAT_MODEL` (prefe
 | `gold.tk_hater_narrativa_cluster` | Catálogo de narrativas |
 | `gold.tk_hater_narrativa_assignment` | reply → cluster |
 | `gold.v_tk_hater_narrativa_*` | Resumen / por tweet / temporal / detalle |
+| `silver.tk_tw_user` | Catálogo twikit-only (`is_hater`) |
+| `gold.tk_troll_blacklist` | Lista block/watch auditable |
 
 **Límites del método** (para reportes): cobertura clasificación; cluster canónico > `narrativa_raw`; no es ground truth.
 
@@ -133,6 +135,18 @@ y límites del método. Qué muestran los datos y cómo lo sabemos.
 Generá el HTML de clusters haters twikit con
 generate_tk_hater_clusters_report.py y confirmá la salida en
 reports/twikit-myriam/hater-clusters/.
+```
+
+</details>
+
+<details>
+<summary><strong>Prompt — troll blacklist (bloqueo manual)</strong></summary>
+
+```text
+Con skill troll-blacklist, construí gold.tk_troll_blacklist
+(solo datos twikit) y exportá CSV + reporte en
+reports/twikit-myriam/troll-blacklist/. Mostrá counts por tier
+block/watch. No bloquees automáticamente en X.
 ```
 
 </details>

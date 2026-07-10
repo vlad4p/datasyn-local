@@ -5,7 +5,9 @@
 | Generic scrape | `data/landing/<domain>/` |
 | SociaVault | `data/landing/redes/sociavault/<platform>/` |
 | Twikit (X session) | `data/landing/redes/twikit/twitter/` |
-| Legacy redes CSV (FB/TW) | `data/landing/redes/data-fb/`, `data/landing/redes/data-tw/` |
+| Legacy redes CSV (FB) | `data/landing/redes/data-fb/` |
+| Twikit Twitter/X | `data/landing/redes/twikit/twitter/` |
+| Legacy Twitter CSV | **retired** (`data-tw/` historical only) |
 | Manual export | `data/landing/<project>/` |
 
 Rules:

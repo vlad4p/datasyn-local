@@ -90,21 +90,21 @@ Once MCP is connected, ask in natural language. The assistant uses these tools:
 | MCP tool | Use for | Example prompt |
 |----------|---------|----------------|
 | `list_tables` | See what's in the DB | *"List all tables in silver schema"* |
-| `describe` | Column types for one table | *"Describe silver.sv_tw_tweet"* |
-| `query` | Run SELECT SQL | *"How many tweets in sv_tw_tweet?"* |
+| `describe` | Column types for one table | *"Describe silver.tk_tw_tweet"* |
+| `query` | Run SELECT SQL | *"How many tweets in tk_tw_tweet?"* |
 | `database_info` | DB path, version, stats | *"Show database info"* |
 | `export` | Export query results | *"Export top 10 tweets to CSV"* |
 
-### Example prompts (Twitter / SociaVault)
+### Example prompts (Twitter / twikit)
 
 ```
-Show the schema for silver.sv_tw_tweet and silver.sv_tw_profile.
+Show the schema for silver.tk_tw_tweet and silver.tk_tw_profile.
 
-How many rows in silver.sv_tw_tweet? Show created_at, like_count, left(text,80) for the last 5.
+How many rows in silver.tk_tw_tweet? Show created_at, like_count, left(text,80) for the last 5.
 
-List all silver tables that start with sv_tw_.
+List all silver tables that start with tk_tw_.
 
-DESCRIBE bronze.sv_tw_tweet_selected — what columns exist?
+DESCRIBE silver.tk_tw_user — what columns exist?
 ```
 
 ### Example SQL (via MCP `query`)
@@ -112,13 +112,13 @@ DESCRIBE bronze.sv_tw_tweet_selected — what columns exist?
 ```sql
 SELECT table_schema, table_name, column_name, data_type
 FROM information_schema.columns
-WHERE table_schema = 'silver' AND table_name LIKE 'sv_tw_%'
+WHERE table_schema = 'silver' AND table_name LIKE 'tk_tw_%'
 ORDER BY table_name, ordinal_position;
 ```
 
 ```sql
 SELECT tweet_id, created_at, like_count, retweet_count, reply_count, LEFT(text, 100) AS preview
-FROM silver.sv_tw_tweet
+FROM silver.tk_tw_tweet
 ORDER BY created_at_ts DESC
 LIMIT 5;
 ```

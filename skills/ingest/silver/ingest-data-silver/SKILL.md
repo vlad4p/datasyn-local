@@ -146,17 +146,20 @@ to aggregate, summarize, or create analysis-ready datasets.
 
 ---
 
-## Example: Twitter legacy dump — reply author username
+## Example: Twitter/X via twikit — reply author username
 
-Legacy CSV exports live in `data/landing/redes/data-tw/`. Bronze replies have no
-`username` column; silver extracts it from `raw_data`:
+Twikit silver replies expose the author handle directly:
 
 ```sql
--- scripts/sql/ingest_twitter_silver.sql (excerpt)
-NULLIF(TRIM(json_extract_string(r.raw_data, '$.user.username')), '') AS author_username
+-- silver.tk_tw_reply
+SELECT username AS author_username, author_id, parent_tweet_id, text
+FROM silver.tk_tw_reply
+LIMIT 5;
 ```
 
-Result columns on `silver.tw_tweets_replies`: `author_username` (reply author),
-`parent_author_username` (tracked account that posted the parent tweet).
+Account catalog (twikit-only): `silver.tk_tw_user` with `is_hater` from
+`silver.tk_tw_reply_classification`.
 
-Full schema and query patterns: [`references/redes-legacy-csv.md`](../references/redes-legacy-csv.md).
+Legacy CSV `tw_*` tables are **retired** — see
+[`references/twitter-legacy-to-twikit.md`](../references/twitter-legacy-to-twikit.md).
+Facebook legacy CSV: [`references/redes-legacy-csv.md`](../references/redes-legacy-csv.md).

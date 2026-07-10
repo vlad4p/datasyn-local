@@ -1,5 +1,6 @@
 -- Redes: unified comments, entity stats, and similarity clusters (text + LLM resumen).
--- Prereq: silver fb_*/tw_* + gold.v_comentarios_clasificados (run ingest_redes_gold.sql first).
+-- Prereq: silver.fb_* + gold.v_comentarios_clasificados (run ingest_redes_gold.sql first).
+-- Facebook only — Twitter vive en pipeline twikit (tk_tw_*).
 -- Uso: uv run python scripts/python/db.py mcp-stop
 --      uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_network_profile.sql
 --      uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_redes_comment_similarity.sql
@@ -7,7 +8,7 @@
 CREATE SCHEMA IF NOT EXISTS silver;
 CREATE SCHEMA IF NOT EXISTS gold;
 
--- Unified classified comments with normalized text (FB + TW)
+-- Unified classified comments with normalized text (Facebook only)
 CREATE OR REPLACE TABLE silver.redes_comentarios_unificados AS
 SELECT
     'facebook'::VARCHAR AS plataforma,
@@ -31,30 +32,7 @@ INNER JOIN silver.fb_comment_classification AS cl
     ON CAST(c.comentario_id AS VARCHAR) = cl.comment_id
 INNER JOIN silver.fb_post AS p ON c.post_id = p.post_id
 WHERE c.comentario IS NOT NULL
-  AND LENGTH(TRIM(c.comentario)) > 0
-
-UNION ALL
-
-SELECT
-    'twitter'::VARCHAR,
-    CAST(c.reply_tweet_id AS VARCHAR),
-    CAST(c.parent_tweet_id AS VARCHAR),
-    c.parent_author_username,
-    c.classified_at,
-    c.criteria_label,
-    c.summary,
-    CAST(c.reply_author_user_id AS VARCHAR),
-    c.reply_author_username,
-    CASE
-        WHEN c.reply_author_user_id IS NOT NULL THEN 'tw_id:' || CAST(c.reply_author_user_id AS VARCHAR)
-        WHEN c.reply_author_username IS NOT NULL THEN 'tw:' || LOWER(TRIM(c.reply_author_username))
-    END,
-    TRIM(c.reply_text),
-    REGEXP_REPLACE(LOWER(TRIM(c.reply_text)), '\s+', ' ', 'g'),
-    LENGTH(REGEXP_REPLACE(LOWER(TRIM(c.reply_text)), '\s+', ' ', 'g'))
-FROM silver.tw_comments_classification AS c
-WHERE c.reply_text IS NOT NULL
-  AND LENGTH(TRIM(c.reply_text)) > 0;
+  AND LENGTH(TRIM(c.comentario)) > 0;
 
 -- Exact duplicate text clusters (normalized), min 5 occurrences, min 10 chars
 CREATE OR REPLACE VIEW gold.v_comentarios_clusters_texto AS

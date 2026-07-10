@@ -92,10 +92,10 @@ DuckDB allows **one writer** at a time. MCP (`mcp-serve`) holds the file lock wh
 ```bash
 # Release MCP lock, then ingest
 uv run python scripts/python/db.py mcp-stop
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_sociavault_twitter_silver.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twikit_twitter_silver.sql
 
 # Or auto-stop MCP before connect (scrape scripts use this)
-DATASYN_RELEASE_MCP_FOR_WRITE=1 uv run python scripts/python/scrape_sociavault_twitter.py ...
+DATASYN_RELEASE_MCP_FOR_WRITE=1 uv run python scripts/python/scrape_twikit_twitter.py ...
 ```
 
 ```python

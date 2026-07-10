@@ -1,17 +1,19 @@
 ---
 name: redes-analysis
 description: >-
-  Analyze legacy Facebook/Twitter redes data and generate HTML reports from
+  Analyze legacy Facebook redes data and generate HTML reports from
   gold views — sentiment, narrative, trolls, ráfagas, interactive graphs,
   entidades, copy-pasta. Use when the user asks for redes reports, troll analysis,
   PTS account dashboards, or interpretation of gold redes charts and tables.
+  (Twitter/X → twikit skills: scrape-twikit-twitter, troll-blacklist.)
 ---
 
 # Redes analysis — tablas, consultas y reportes
 
 **Project output:** `reports/redes/dashboard/` — unified HTML dashboard with external CSV datasets  
 **Path helper:** `db.get_report_bundle("redes", "dashboard")`  
-**Gold ingest:** skill [`redes-gold`](../../../ingest/gold/redes-gold/SKILL.md)  
+**Gold ingest:** skill [`redes-gold`](../../../ingest/gold/redes-gold/SKILL.md) (Facebook only)  
+**Twitter trolls:** skill [`troll-blacklist`](../troll-blacklist/SKILL.md)  
 **Privacy:** [`data-privacy`](../../../engineering/data-privacy/SKILL.md) — never commit `reports/**`
 
 ---
@@ -50,7 +52,7 @@ General convention: skill [`statistical-report`](statistical-report/SKILL.md).
 ## End-to-end pipeline
 
 ```
-silver.fb_* / tw_* + classification
+silver.fb_* + classification
         ↓  ingest_redes_gold.sql
 gold.v_* / gold.grafo_*
         ↓  ingest_network_profile.sql, ingest_gold_entidades.sql, ingest_redes_comment_similarity.sql

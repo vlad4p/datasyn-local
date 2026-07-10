@@ -29,8 +29,9 @@ One writer at a time on `data/duckdb/datasyn.duckdb`.
 |------|---------|
 | **web-scraping** | Generic fetch to `data/landing/` (HTML, APIs, files). |
 | **SociaVault scrape** | Social API pipeline — scrape by **count** (`--last N`), not date range. |
-| **sv_*** | SociaVault tables (`bronze.sv_*`, `silver.sv_*`) and related actor/classification tables. |
-| **tw_* / fb_*** | Legacy external CSV dumps (`data/landing/redes/data-fb/`, `data-tw/`) — `silver.tw_tweets_replies.author_username` for reply handles. Gold: `gold.v_*`, `gold.grafo_*` via skill `redes-gold`. |
+| **sv_*** | SociaVault tables (`bronze.sv_*`, `silver.sv_*`) — Facebook/Instagram/TikTok preferred; Twitter/X SociaVault **deprecated** (use twikit). |
+| **fb_*** | Legacy Facebook CSV dumps (`data/landing/redes/data-fb/`). Gold redes (`gold.v_*`, `gold.grafo_*`) via skill `redes-gold` is **FB-only**. |
+| **tk_tw_*** | Twikit Twitter/X — sole Twitter pipeline (`silver.tk_tw_*`, `silver.tk_tw_user`, `gold.tk_hater_*`, `gold.tk_troll_blacklist`). Legacy `tw_*` retired. |
 
 Landing layout for SociaVault: `data/landing/redes/sociavault/<platform>/`.
 

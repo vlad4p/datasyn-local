@@ -8,8 +8,8 @@ Source: `scripts/sql/ingest_redes_gold.sql`
 Cuentas objetivo PTS con slug, nombre, plataforma, handles FB/TW.
 
 ### `gold.v_comentarios_clasificados`
-Unión FB (`fb_comment` + classification) y TW (`tw_comments_classification` + replies).  
-Columnas clave: `plataforma`, `cuenta_slug`, `posicion`, `resumen`, `fecha`, `autor_handle`, `contenido_padre_id`.
+Comentarios FB clasificados (`fb_comment` + classification). **Facebook only** — Twitter vive en twikit (`tk_tw_*`).  
+Columnas clave: `plataforma`, `cuenta_slug`, `posicion`, `resumen`, `fecha`, `autor_key`, `contenido_padre_id`.
 
 ### `gold.v_comentario_narrativa`
 Añade `narrativa`, `sentimiento`, `es_troll` (heurística sobre `resumen`).

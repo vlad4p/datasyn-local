@@ -1,77 +1,30 @@
-# Legacy redes CSV dumps (Facebook + Twitter)
+# Legacy redes CSV dumps (Facebook)
 
-External CSV exports under `data/landing/redes/`. **Separate** from SociaVault (`sv_*`).
+External CSV exports under `data/landing/redes/`. **Separate** from SociaVault (`sv_*`) and twikit (`tk_tw_*`).
 
 | Platform | Landing path | Bronze SQL | Silver SQL |
 |----------|--------------|------------|------------|
 | Facebook | `data/landing/redes/data-fb/` | `scripts/sql/ingest_fb_redes.sql` | `scripts/sql/ingest_fb_silver.sql` |
-| Twitter/X | `data/landing/redes/data-tw/` | `scripts/sql/ingest_twitter.sql` | `scripts/sql/ingest_twitter_silver.sql` |
 
 ```bash
 uv run python scripts/python/db.py mcp-stop
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twitter.sql
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twitter_silver.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_fb_redes.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_fb_silver.sql
 ```
 
 Dictionary files (`Diccionario de Datos y Aclaraciones.txt`) are **not** ingested.
 
 ---
 
-## Twitter (`tw_*`)
+## Twitter (`tw_*`) — RETIRED
 
-### Bronze
+Legacy Twitter CSV tables (`bronze/silver.tw_*`) and `ingest_twitter*.sql` were **removed**.
 
-| Table | Source CSV | Key columns |
-|-------|------------|-------------|
-| `bronze.tw_users` | `users.csv` | `username`, `user_id` — 4 tracked accounts |
-| `bronze.tw_tweets` | `tweets.csv` | `user_id`, `text`, `raw_data` — originals only |
-| `bronze.tw_tweets_replies` | `tweets_replies.csv` | `user_id`, `inReplyToTweetIdStr`, `raw_data` |
-| `bronze.tw_comments_classification` | `comments_classification.csv` | `post_id`, `comment_id`, `free_criteria` |
+Use the **twikit** pipeline instead:
 
-Bronze replies have **no `username` column** — only `user_id` and `raw_data` JSON.
-
-### Silver
-
-| Table | Username / handle columns | Notes |
-|-------|---------------------------|-------|
-| `silver.tw_users` | **`username`**, `user_id` | **Catalog of Twitter/X accounts**: tracked (`bronze.tw_users`) + reply/post authors (legacy `raw_data.user` + optional twikit). Profile fields (`account_created_at`, followers, bio, …), flags `is_pts` / `track` / `is_diputado`, **`is_hater`** + `hater_replies_count` from classifications |
-| `silver.tw_tweets` | **`author_username`** | Join from `bronze.tw_users` on tweet `user_id` (tracked posts) |
-| `silver.tw_tweets_replies` | **`author_username`**, **`parent_author_username`** | Reply author from `raw_data → $.user.username`; parent from tracked users |
-| `silver.tw_comments_classification` | **`reply_author_username`**, **`parent_author_username`** | Joins to replies + parent tweet |
-
-Rebuild users catalog after classifications / twikit ingest:
-
-```bash
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twitter_silver.sql
-```
-
-### Classification codes (`free_criteria`)
-
-| Code | Label (`criteria_label`) |
-|------|--------------------------|
-| `1` | `apoyo_izquierda` |
-| `2` | `derecha_o_troll` |
-| `3` | `neutral` |
-| `1,2` | `ambiguo` |
-| `INCLASIFICABLE` | `inclasificable` |
-
-Classifications cover replies on the **top-10 tweets by reply volume** per tracked account (partial sample).
-
-### Example queries
-
-```sql
--- Top troll accounts replying to Myriam (no raw_data parsing needed)
-SELECT
-  r.author_username,
-  COUNT(*) AS comentarios_negativos,
-  SUM(r.like_count) AS likes_totales
-FROM silver.tw_comments_classification c
-JOIN silver.tw_tweets_replies r ON c.reply_tweet_id = r.tweet_id
-WHERE c.parent_author_username = 'myriambregman'
-  AND c.criteria_label = 'derecha_o_troll'
-GROUP BY 1
-ORDER BY comentarios_negativos DESC, likes_totales DESC;
-```
+- Skill: [`scrape-twikit-twitter`](../../collect/twikit/scrape-twikit-twitter/SKILL.md)
+- Mapping: [`twitter-legacy-to-twikit.md`](twitter-legacy-to-twikit.md)
+- Drop leftover tables (if any): `scripts/sql/drop_legacy_twitter.sql`
 
 ---
 
@@ -85,37 +38,24 @@ ORDER BY comentarios_negativos DESC, likes_totales DESC;
 
 Facebook does **not** use `username`; the equivalent is `user_name`.
 
+Gold redes views (`redes-gold`) are **Facebook-only**. Twitter analytics use `gold.v_tk_hater_*` / `gold.tk_troll_blacklist`.
+
 ---
 
-## SociaVault vs legacy
+## SociaVault vs legacy FB vs twikit
 
-| | Legacy `tw_*` / `fb_*` | SociaVault `sv_*` |
-|--|------------------------|-------------------|
-| Source | External CSV dump | Scrape via SociaVault API |
-| Reply author | `silver.tw_tweets_replies.author_username` (from `raw_data`) | `silver.sv_tw_reply.username` |
-| Actors graph | not built | `silver.sv_actor`, `silver.sv_actor_stats` |
+| | Legacy `fb_*` | Twikit `tk_tw_*` | SociaVault `sv_*` |
+|--|---------------|------------------|-------------------|
+| Source | External CSV dump | Session scrape | Paid API |
+| Twitter | retired | **canonical** | deprecated for Twitter |
+| Facebook | yes | — | `sv_fb_*` |
 
 Do not mix tables across pipelines without explicit joins on platform + user id.
 
 ---
 
-## Perfiles unificados (`silver.network_profile`)
+## Related
 
-Optional table merging FB/TW identities (tracked accounts, commenters, reply authors):
-
-```bash
-uv run python scripts/python/db.py mcp-stop
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_network_profile.sql
-```
-
-Columns: `platform`, `handle`, `display_name`, `profile_url`, `is_tracked`, activity counts.  
-Used for entity lookup; gold analytics use `gold.v_cuentas_trackeadas` + classification joins.
-
----
-
-## Gold + reportes
-
-After silver is loaded:
-
-1. [`redes-gold`](../gold/redes-gold/SKILL.md) — `ingest_redes_gold.sql`
-2. [`redes-analysis`](../../analyze/reports/redes-analysis/SKILL.md) — HTML/PDF reports
+- Gold: skill [`redes-gold`](../gold/redes-gold/SKILL.md) (FB-only)
+- Reports: skill [`redes-analysis`](../../analyze/reports/redes-analysis/SKILL.md)
+- Twitter: skill [`scrape-twikit-twitter`](../../collect/twikit/scrape-twikit-twitter/SKILL.md)

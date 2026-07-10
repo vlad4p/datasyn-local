@@ -74,6 +74,38 @@ data/landing/redes/twikit/twitter/{slug}_{YYYYMMDD}/
 
 **DuckDB:** `bronze.tk_tw_*` / `silver.tk_tw_profile|tweet|reply`
 
+## Enrich profiles (bio, metrics, posts, followers/following)
+
+For top haters (or an explicit handle list), fetch full profile + recent posts + follower/following lists with conservative rate limits:
+
+```bash
+uv run python scripts/python/db.py mcp-stop
+uv run python scripts/python/enrich_twikit_profiles.py --top-haters 10 \
+  --max-posts 100 --max-follows 2000 --ingest
+# or: --handles capibara_mood,CCDeville88
+```
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--top-haters N` | — | Rank from `silver.tk_tw_user` by `hater_replies_count` |
+| `--handles a,b` | — | Explicit list (overrides `--top-haters`) |
+| `--max-posts` | 100 | Recent tweets per profile |
+| `--max-follows` | 2000 | Cap per followers/following list (over → IDs-only) |
+| `--min-delay` | 3 | Seconds between API calls (+ jitter) |
+| `--profile-pause` | 35 | Pause between profiles |
+| `--ingest` | off | Bronze+silver via `ingest_twikit_profiles.sql` |
+
+**Landing:** `data/landing/redes/twikit/profiles/{slug}_{YYYYMMDD}/` (`profile.json`, `posts.jsonl`, `followers.jsonl`, `following.jsonl`, `manifest.json`).
+
+| Table | Role |
+|-------|------|
+| `silver.tk_tw_profile_enriched` | Bio, location, metrics, verified, image |
+| `silver.tk_tw_profile_post` | Recent posts of enriched accounts |
+| `silver.tk_tw_follow_edge` | `follower` / `following` edges (`src` = enriched user) |
+| `silver.tk_tw_profile` | Metrics MERGEd for matching `user_id`s |
+
+Checkpoint: if a profile folder already has all five files for today, that handle is skipped (safe resume).
+
 ## Classify + hater narrative clusters
 
 After ingest, batch-classify replies (efficient multi-comment LLM calls) and cluster haters:
@@ -83,8 +115,8 @@ uv sync --extra llm
 uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_tw_classification.sql
 uv run python scripts/python/classify_tk_tw_replies.py --batch-size 50 --cluster-haters
 uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_hater_narrativa.sql
-# Refresh silver.tw_users catalog (profile fields + is_hater) and HTML report
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twitter_silver.sql
+# Refresh silver.tk_tw_user catalog (profile fields + is_hater) and HTML report
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twikit_twitter_silver.sql
 uv run python scripts/python/generate_tk_hater_clusters_report.py
 ```
 
@@ -94,8 +126,19 @@ uv run python scripts/python/generate_tk_hater_clusters_report.py
 | `gold.tk_hater_narrativa_cluster` | Catálogo de narrativas canónicas |
 | `gold.tk_hater_narrativa_assignment` | reply → cluster |
 | `gold.v_tk_hater_narrativa_*` | Resumen / por tweet / temporal |
-| `silver.tw_users` | Catálogo de cuentas X (tracked + autores) con `is_hater` |
+| `silver.tk_tw_user` | Catálogo twikit-only de cuentas X con `is_hater` |
 | `reports/twikit-myriam/hater-clusters/` | HTML interactivo (gitignored) |
+
+## Troll blacklist (manual block list)
+
+Auditable `block` / `watch` list from reply behaviour + enriched risk (no auto-block on X):
+
+```bash
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_troll_blacklist.sql
+uv run python scripts/python/generate_tk_troll_blacklist_report.py
+```
+
+See skill [`troll-blacklist`](../../../analyze/reports/troll-blacklist/SKILL.md).
 
 Model: `CHAT_MODEL` or `LLM_MODEL` in `.env`.
 
@@ -108,6 +151,7 @@ Model: `CHAT_MODEL` or `LLM_MODEL` in `.env`.
 
 ## Related
 
-- [`scrape-sociavault-twitter`](../../sociavault/scrape-sociavault-twitter/SKILL.md) — paid API alternative
+- [`troll-blacklist`](../../../analyze/reports/troll-blacklist/SKILL.md) — block/watch export
+- [`twitter-legacy-to-twikit.md`](../../../ingest/references/twitter-legacy-to-twikit.md) — legacy mapping
 - [`web-scraping`](../../web-scraping/SKILL.md) — generic landing conventions
 - [`data-privacy`](../../../engineering/data-privacy/SKILL.md)
