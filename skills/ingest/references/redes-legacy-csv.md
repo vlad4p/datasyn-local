@@ -34,10 +34,16 @@ Bronze replies have **no `username` column** — only `user_id` and `raw_data` J
 
 | Table | Username / handle columns | Notes |
 |-------|---------------------------|-------|
-| `silver.tw_users` | **`username`** | Tracked accounts (Myriam, Del Caño, PTS, Izquierda Diario) |
-| `silver.tw_tweets` | **`author_username`** | Join from `tw_users` on tweet `user_id` |
-| `silver.tw_tweets_replies` | **`author_username`**, **`parent_author_username`** | Reply author from `raw_data → $.user.username`; parent from `tw_users` join |
+| `silver.tw_users` | **`username`**, `user_id` | **Catalog of Twitter/X accounts**: tracked (`bronze.tw_users`) + reply/post authors (legacy `raw_data.user` + optional twikit). Profile fields (`account_created_at`, followers, bio, …), flags `is_pts` / `track` / `is_diputado`, **`is_hater`** + `hater_replies_count` from classifications |
+| `silver.tw_tweets` | **`author_username`** | Join from `bronze.tw_users` on tweet `user_id` (tracked posts) |
+| `silver.tw_tweets_replies` | **`author_username`**, **`parent_author_username`** | Reply author from `raw_data → $.user.username`; parent from tracked users |
 | `silver.tw_comments_classification` | **`reply_author_username`**, **`parent_author_username`** | Joins to replies + parent tweet |
+
+Rebuild users catalog after classifications / twikit ingest:
+
+```bash
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twitter_silver.sql
+```
 
 ### Classification codes (`free_criteria`)
 
