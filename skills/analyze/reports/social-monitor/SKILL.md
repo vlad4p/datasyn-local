@@ -93,7 +93,7 @@ SELECT * FROM gold.v_monitor_temporal ORDER BY dia DESC LIMIT 20;
 | **Audiencia** | `gold.v_monitor_audiencia*` | hater / apoyo / neutral / bot heurístico |
 | **Haters** | `gold.v_monitor_haters_top10` | Top 10 FB+TW |
 | **Narrativas** | `gold.v_monitor_narrativa` | Clusters / temas |
-| **Grafos** | `gold.v_monitor_grafo_*` | comportamiento / coordinación / narrativa |
+| **Grafos** | `gold.v_monitor_grafo_*` + `gold.tk_hater_*` | comportamiento (FB) / **Relaciones TW** (risk, puentes, co-seguidores — mismo análisis que `hater-profiles-graph`) / narrativa |
 | **Comparativa** | `gold.v_monitor_temporal*` | Multi-persona en el tiempo |
 
 ---

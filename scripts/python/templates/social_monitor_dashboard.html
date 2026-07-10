@@ -31,11 +31,28 @@
     section.active { display: block; }
     section > h2 { font-size: 1.25rem; margin-bottom: 0.25rem; }
     section > .desc { color: var(--muted); font-size: 0.88rem; margin-bottom: 1rem; }
-    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
-    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; margin-bottom: 0.5rem; }
+    .kpi-grid.primary { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-bottom: 0.75rem; }
+    .kpi-grid.secondary { margin-bottom: 0.75rem; }
+    .kpi-grid.graph-row { margin-bottom: 1.25rem; }
+    .kpi-filter-hint { color: var(--muted); font-size: 0.78rem; margin-bottom: 0.85rem; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; border-left: 3px solid var(--border); }
+    .kpi.primary .value { font-size: 1.65rem; }
+    .kpi.accent-hater { border-left-color: var(--troll); }
+    .kpi.accent-apoyo { border-left-color: var(--apoyo); }
+    .kpi.accent-eng { border-left-color: var(--accent); }
+    .kpi.accent-graph { border-left-color: #a78bfa; }
+    .kpi.accent-bot { border-left-color: var(--ambiguo); }
     .kpi .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
     .kpi .value { font-size: 1.35rem; font-weight: 700; margin: 0.2rem 0; }
     .kpi .sub { font-size: 0.78rem; color: var(--muted); }
+    .badge.high { background: rgba(232,93,93,0.2); color: #e85d5d; }
+    .badge.medium { background: rgba(230,162,60,0.2); color: #e6a23c; }
+    .badge.low { background: rgba(62,207,142,0.2); color: #3ecf8e; }
+    .grafo-panels { display: none; }
+    .grafo-panels.visible { display: block; }
+    .legend-row { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.78rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 0.3rem; vertical-align: middle; }
     .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
     .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
     .chart-box { position: relative; height: 300px; }
@@ -107,7 +124,12 @@
           </select>
         </label>
       </div>
-      <div class="kpi-grid" id="kpi-global"></div>
+      <div id="kpi-wrap">
+        <div class="kpi-grid primary" id="kpi-primary"></div>
+        <div class="kpi-grid secondary" id="kpi-secondary"></div>
+        <div class="kpi-grid graph-row" id="kpi-graph"></div>
+        <p class="kpi-filter-hint" id="kpi-hint"></p>
+      </div>
 
       <section id="sec-perfil" class="active">
         <h2>Perfil y cuentas</h2>
@@ -163,18 +185,63 @@
 
       <section id="sec-grafos">
         <h2>Grafos</h2>
-        <p class="desc">Comportamiento (ataques/ráfagas), cuentas coordinadas (co-followers/bridges), clusters de narrativa.</p>
+        <p class="desc">Comportamiento (FB), Relaciones TW (mismo análisis que hater-profiles-graph: risk, puentes, co-seguidores) y clusters de narrativa.</p>
+        <div class="kpi-grid" id="kpi-grafo-local"></div>
         <div class="controls">
           <label>Tipo:
             <select id="selGrafo">
-              <option value="comportamiento">Comportamiento</option>
-              <option value="coordinacion">Cuentas coordinadas</option>
+              <option value="relaciones">Relaciones TW</option>
+              <option value="comportamiento">Comportamiento (FB)</option>
               <option value="narrativa">Clusters de narrativa</option>
+            </select>
+          </label>
+          <label>Edges:
+            <select id="filterEdge">
+              <option value="">Todas</option>
             </select>
           </label>
           <button type="button" id="btnFitGrafo">Ajustar vista</button>
         </div>
+        <div class="legend-row" id="grafo-legend"></div>
         <div class="panel"><div id="network" class="chart-box graph"></div></div>
+        <div class="grafo-panels" id="grafo-relaciones-panels">
+          <div class="chart-row">
+            <div class="panel">
+              <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Riesgo (haters enriquecidos)</h3>
+              <div style="overflow-x:auto;max-height:320px">
+                <table id="tblRisk"><thead><tr>
+                  <th>User</th><th>Band</th><th>Score</th><th>Fo/Fl</th><th>Señales</th>
+                </tr></thead><tbody></tbody></table>
+              </div>
+            </div>
+            <div class="panel">
+              <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Puentes (siguen ≥2 haters)</h3>
+              <div style="overflow-x:auto;max-height:320px">
+                <table id="tblBridges"><thead><tr>
+                  <th>Follower</th><th>Haters</th><th>Fo</th><th>Lista</th>
+                </tr></thead><tbody></tbody></table>
+              </div>
+            </div>
+          </div>
+          <div class="chart-row">
+            <div class="panel">
+              <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Co-seguidores (top)</h3>
+              <div style="overflow-x:auto;max-height:280px">
+                <table id="tblCoFo"><thead><tr>
+                  <th>Hater A</th><th>Hater B</th><th>Shared</th>
+                </tr></thead><tbody></tbody></table>
+              </div>
+            </div>
+            <div class="panel">
+              <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Co-following (top)</h3>
+              <div style="overflow-x:auto;max-height:280px">
+                <table id="tblCoFl"><thead><tr>
+                  <th>Hater A</th><th>Hater B</th><th>Shared</th>
+                </tr></thead><tbody></tbody></table>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section id="sec-comparativa">
@@ -253,27 +320,196 @@
       if (charts[key]) { charts[key].destroy(); delete charts[key]; }
     }
 
-    function kpi(label, value, sub) {
-      return `<div class="kpi"><div class="label">${label}</div><div class="value">${value ?? '—'}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+    function kpi(label, value, sub, cls) {
+      return `<div class="kpi ${cls || ''}"><div class="label">${label}</div><div class="value">${value ?? '—'}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
     }
 
     function fmt(n) {
       if (n == null || Number.isNaN(n)) return '—';
+      if (typeof n === 'number' && !Number.isInteger(n)) return n.toLocaleString('es-AR', { maximumFractionDigits: 1 });
       return Number(n).toLocaleString('es-AR');
     }
 
+    function pct(num, den) {
+      if (!den) return '—';
+      return ((100 * num) / den).toLocaleString('es-AR', { maximumFractionDigits: 1 }) + '%';
+    }
+
+    function personaLabel() {
+      const p = personas().find(x => x.id === selectedPersona());
+      return p ? p.nombre : selectedPersona();
+    }
+
     function renderKpis() {
-      const k = (DATA.kpis && DATA.kpis[0]) || {};
-      const el = document.getElementById('kpi-global');
-      el.innerHTML = [
-        kpi('Personas', fmt(k.personas_objetivo)),
-        kpi('Cuentas', fmt(k.cuentas_vinculadas)),
-        kpi('Plataformas', fmt(k.plataformas)),
-        kpi('Posts c/ métricas', fmt(k.posts_con_metricas)),
-        kpi('Eventos audiencia', fmt(k.eventos_audiencia)),
-        kpi('Eventos hater', fmt(k.eventos_hater), 'clasificación LLM'),
-        kpi('Actores bot (heur.)', fmt(k.actores_bot_heuristico)),
+      const pid = selectedPersona();
+      const plat = selectedPlat();
+      const aud = filterByPersona(DATA.audiencia, pid, plat);
+      const reac = filterByPersona(DATA.reacciones, pid, plat);
+      const perf = filterByPersona(DATA.perfiles, pid, plat);
+      const eng = filterByPersona(DATA.engagement, pid, plat);
+      const hats = filterByPersona(DATA.haters, pid, plat);
+
+      const eventos = aud.reduce((a, r) => a + (r.eventos || 0), 0);
+      const eventosHater = aud.filter(r => r.audiencia_clase === 'hater').reduce((a, r) => a + (r.eventos || 0), 0);
+      const bots = aud.reduce((a, r) => a + (r.actores_bot_heuristico || 0), 0);
+      const posts = reac.reduce((a, r) => a + (r.posts || 0), 0);
+      const followers = perf.filter(r => r.plataforma === 'twitter').reduce((a, r) => a + (r.followers_count || 0), 0);
+      let engSum = 0, engN = 0;
+      eng.forEach(r => {
+        if (r.engagement_por_post != null) {
+          engSum += (r.engagement_por_post || 0) * (r.posts || 1);
+          engN += (r.posts || 1);
+        }
+      });
+      const engAvg = engN ? engSum / engN : null;
+
+      const g = (DATA.grafo_stats && DATA.grafo_stats[0]) || {};
+      const risk = DATA.grafo_risk || [];
+      const showTwGraph = !plat || plat === 'twitter';
+
+      document.getElementById('kpi-primary').innerHTML = [
+        kpi('Eventos audiencia', fmt(eventos), 'comentarios / replies clasificados', 'primary accent-eng'),
+        kpi('% hater', pct(eventosHater, eventos), `${fmt(eventosHater)} eventos hostiles`, 'primary accent-hater'),
+        kpi('Engagement / post', engAvg != null ? fmt(engAvg) : '—', 'promedio ponderado', 'primary accent-apoyo'),
       ].join('');
+
+      document.getElementById('kpi-secondary').innerHTML = [
+        kpi('Cuentas vinculadas', fmt(perf.length), personaLabel()),
+        kpi('Posts c/ métricas', fmt(posts)),
+        kpi('Followers (TW)', followers ? fmt(followers) : '—', 'suma cuentas TW del filtro'),
+        kpi('Actores bot (heur.)', fmt(bots), 'señales de riesgo', 'accent-bot'),
+        kpi('Haters top list', fmt(hats.length), 'en ranking filtrado', 'accent-hater'),
+      ].join('');
+
+      const graphEl = document.getElementById('kpi-graph');
+      if (showTwGraph && (g.haters || risk.length)) {
+        graphEl.style.display = '';
+        graphEl.innerHTML = [
+          kpi('Haters enriquecidos', fmt(g.haters || risk.length), 'perfiles TW scrapeados', 'accent-graph'),
+          kpi('High-risk', fmt(g.risk_high || risk.filter(r => r.risk_band === 'high').length), 'heurística, no prueba', 'accent-hater'),
+          kpi('Bridge followers', fmt(g.bridge_followers), 'siguen ≥2 haters', 'accent-graph'),
+          kpi('Pares co-seguidores', fmt(g.pares_co_seguidores), 'audiencia compartida', 'accent-graph'),
+        ].join('');
+      } else {
+        graphEl.style.display = 'none';
+        graphEl.innerHTML = '';
+      }
+
+      const bits = [personaLabel()];
+      if (plat) bits.push(plat);
+      document.getElementById('kpi-hint').textContent = 'Filtrado: ' + bits.join(' · ');
+    }
+
+    function renderGrafoLocalKpis() {
+      const g = (DATA.grafo_stats && DATA.grafo_stats[0]) || {};
+      const nodes = (DATA.grafo_relaciones_nodes || []).length;
+      const edges = (DATA.grafo_relaciones_edges || []).length;
+      const risk = DATA.grafo_risk || [];
+      document.getElementById('kpi-grafo-local').innerHTML = [
+        kpi('Viz nodos', fmt(nodes), 'haters + puentes ≥3'),
+        kpi('Viz edges', fmt(edges), 'follows_hater'),
+        kpi('Grafo completo', fmt(g.vertices), `${fmt(g.edges)} edges raw`),
+        kpi('High / med / low', `${g.risk_high || 0} / ${g.risk_medium || 0} / ${g.risk_low || 0}`, `${risk.length} con score`),
+      ].join('');
+    }
+
+    function renderRelacionesTables() {
+      const risk = DATA.grafo_risk || [];
+      document.querySelector('#tblRisk tbody').innerHTML = risk.map(r => `<tr>
+        <td>@${r.username || '—'}</td>
+        <td><span class="badge ${r.risk_band || ''}">${r.risk_band || '—'}</span></td>
+        <td>${fmt(r.risk_score)}</td>
+        <td>${fmt(r.followers_count)} / ${fmt(r.following_count)}</td>
+        <td style="max-width:260px;font-size:0.78rem;color:var(--muted)">${r.senales || '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="5" style="color:var(--muted)">Sin datos de riesgo.</td></tr>';
+
+      const bridges = DATA.grafo_bridges || [];
+      document.querySelector('#tblBridges tbody').innerHTML = bridges.map(r => `<tr>
+        <td>@${r.follower_username || '—'}</td>
+        <td>${fmt(r.haters_followed)}</td>
+        <td>${fmt(r.follower_followers_count)}</td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem">${r.hater_usernames || '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="4" style="color:var(--muted)">Sin puentes.</td></tr>';
+
+      const cofo = DATA.grafo_co_followers || [];
+      document.querySelector('#tblCoFo tbody').innerHTML = cofo.map(r => `<tr>
+        <td>@${r.hater_a}</td><td>@${r.hater_b}</td><td>${fmt(r.shared_followers)}</td>
+      </tr>`).join('') || '<tr><td colspan="3" style="color:var(--muted)">—</td></tr>';
+
+      const cofl = DATA.grafo_co_following || [];
+      document.querySelector('#tblCoFl tbody').innerHTML = cofl.map(r => `<tr>
+        <td>@${r.hater_a}</td><td>@${r.hater_b}</td><td>${fmt(r.shared_following)}</td>
+      </tr>`).join('') || '<tr><td colspan="3" style="color:var(--muted)">—</td></tr>';
+    }
+
+    function renderGrafo() {
+      const tipo = document.getElementById('selGrafo').value;
+      const edgeFilter = document.getElementById('filterEdge').value;
+      const nodesKey = `grafo_${tipo}_nodes`;
+      const edgesKey = `grafo_${tipo}_edges`;
+      const rawNodes = DATA[nodesKey] || [];
+      let rawEdges = DATA[edgesKey] || [];
+
+      // Populate edge filter options
+      const edgeSel = document.getElementById('filterEdge');
+      const types = [...new Set(rawEdges.map(e => e.edge_type).filter(Boolean))];
+      const prev = edgeFilter;
+      edgeSel.innerHTML = '<option value="">Todas</option>' + types.map(t =>
+        `<option value="${t}">${t}</option>`).join('');
+      if (types.includes(prev)) edgeSel.value = prev;
+      if (edgeSel.value) rawEdges = rawEdges.filter(e => e.edge_type === edgeSel.value);
+
+      const legend = document.getElementById('grafo-legend');
+      const panels = document.getElementById('grafo-relaciones-panels');
+      if (tipo === 'relaciones') {
+        panels.classList.add('visible');
+        legend.innerHTML = [
+          '<span><i class="legend-dot" style="background:#e85d5d"></i>hater high</span>',
+          '<span><i class="legend-dot" style="background:#e6a23c"></i>hater medium</span>',
+          '<span><i class="legend-dot" style="background:#3ecf8e"></i>hater low</span>',
+          '<span><i class="legend-dot" style="background:#3d8bfd"></i>puente (≥3)</span>',
+        ].join('');
+        renderRelacionesTables();
+      } else {
+        panels.classList.remove('visible');
+        legend.innerHTML = '';
+      }
+
+      const nodes = rawNodes.map(n => ({
+        id: String(n.id),
+        label: n.label,
+        color: { background: n.color || '#5b8def', border: '#0f1419' },
+        shape: n.shape || (n.tipo === 'hater' ? 'box' : 'dot'),
+        size: Number(n.size) || 14,
+        title: n.title || n.label
+      }));
+      const edges = rawEdges.map(e => ({
+        id: e.id,
+        from: String(e.from),
+        to: String(e.to),
+        label: e.label || '',
+        color: e.color || '#5b8def55',
+        width: Number(e.width) || 1,
+        dashes: String(e.dashes) === 'true',
+        title: e.title || e.edge_type
+      }));
+      const container = document.getElementById('network');
+      if (network) network.destroy();
+      network = new vis.Network(container, {
+        nodes: new vis.DataSet(nodes),
+        edges: new vis.DataSet(edges)
+      }, {
+        physics: {
+          enabled: true,
+          barnesHut: { gravitationalConstant: -14000, springLength: 150, springConstant: 0.035, avoidOverlap: 0.4 },
+          stabilization: { iterations: tipo === 'relaciones' ? 150 : 80 }
+        },
+        interaction: { hover: true, tooltipDelay: 80 },
+        edges: { smooth: { type: 'continuous' } }
+      });
+      network.once('stabilizationIterationsDone', () => {
+        network.setOptions({ physics: false });
+      });
     }
 
     function renderPerfil() {
@@ -463,31 +699,6 @@
       });
     }
 
-    function renderGrafo() {
-      const tipo = document.getElementById('selGrafo').value;
-      const nodesKey = `grafo_${tipo}_nodes`;
-      const edgesKey = `grafo_${tipo}_edges`;
-      const nodes = (DATA[nodesKey] || []).map(n => ({
-        id: n.id, label: n.label, color: n.color, shape: n.shape,
-        size: Number(n.size) || 14, title: n.title
-      }));
-      const edges = (DATA[edgesKey] || []).map(e => ({
-        id: e.id, from: e.from, to: e.to, label: e.label,
-        color: e.color, width: Number(e.width) || 1,
-        dashes: String(e.dashes) === 'true', title: e.title
-      }));
-      const container = document.getElementById('network');
-      if (network) network.destroy();
-      network = new vis.Network(container, {
-        nodes: new vis.DataSet(nodes),
-        edges: new vis.DataSet(edges)
-      }, {
-        physics: { stabilization: { iterations: 80 } },
-        interaction: { hover: true, tooltipDelay: 80 },
-        edges: { smooth: { type: 'continuous' } }
-      });
-    }
-
     function renderComparativa() {
       const metric = document.getElementById('selCompMetric').value;
       destroyChart('comparativa');
@@ -541,12 +752,14 @@
     }
 
     function refreshAll() {
+      renderKpis();
       renderPerfil();
       renderReacciones();
       renderEngagement();
       renderAudiencia();
       renderHaters();
       renderNarrativa();
+      renderGrafoLocalKpis();
       if (document.getElementById('sec-grafos').classList.contains('active')) renderGrafo();
       renderComparativa();
     }
@@ -576,10 +789,10 @@
       sel.addEventListener('change', refreshAll);
       document.getElementById('selPlataforma').addEventListener('change', refreshAll);
       document.getElementById('selGrafo').addEventListener('change', renderGrafo);
+      document.getElementById('filterEdge').addEventListener('change', renderGrafo);
       document.getElementById('btnFitGrafo').addEventListener('click', () => network && network.fit());
       document.getElementById('selCompMetric').addEventListener('change', renderComparativa);
       initNav();
-      renderKpis();
       refreshAll();
     }
 

@@ -39,7 +39,7 @@ Contame qué personas y plataformas aparecen en el selector.
 | **Audiencia** | Mix haters / apoyo / neutral + señal de bots (heurística) |
 | **Haters / Top 10** | Autores hostiles más activos |
 | **Narrativas** | Temas recurrentes en comentarios/replies |
-| **Grafos** | Comportamiento, posibles cuentas coordinadas, clusters de narrativa |
+| **Grafos** | Comportamiento (FB), **Relaciones TW** (risk / puentes / co-seguidores — mismo análisis que `hater-profiles-graph`), clusters de narrativa |
 | **Comparativa** | Varias personas en la misma línea de tiempo |
 | **Metodología** | Límites del dato (leelos siempre) |
 
@@ -54,7 +54,7 @@ Usá el selector **Persona** (arriba) y, si querés, filtrá por **Plataforma**.
 3. **Reacciones** y **Engagement**: ¿qué tipo de reacción domina? ¿hay picos?
 4. **Audiencia**: proporción de haters vs apoyo; ¿cuántos actores con señal bot?
 5. **Haters / Top 10** y **Narrativas**: ¿quiénes atacan y con qué temas?
-6. **Grafos**: explorá comportamiento y coordinación (recordá: sincronía ≠ prueba).
+6. **Grafos**: en **Relaciones TW** mirá risk_band, puentes y co-seguidores (recordá: sincronía ≠ prueba de coordinación).
 
 <details>
 <summary><strong>Prompt — briefing de una persona</strong></summary>

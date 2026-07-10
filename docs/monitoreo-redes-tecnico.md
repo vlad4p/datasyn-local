@@ -81,8 +81,10 @@ Ingest resolves empty Twitter/Facebook IDs against `silver.tk_tw_profile` and `s
 | `v_monitor_temporal_engagement` | Comparable engagement series |
 | `v_monitor_grafo_comportamiento_*` | FB troll attack / burst graph |
 | `v_monitor_grafo_narrativa_*` | Narrative co-occurrence graph |
-| `v_monitor_grafo_coordinacion_*` | TW co-followers / bridges + FB `co_rafaga` |
+| `v_monitor_grafo_coordinacion_*` | TW co-followers / bridges + FB `co_rafaga` (legacy views) |
 | `v_monitor_kpis` | Global KPI row |
+
+Dashboard **Relaciones TW** mode exports directly from `gold.tk_hater_profile_risk`, `tk_hater_grafo_co_*`, `tk_hater_grafo_bridge_followers`, and a filtered viz (haters + bridges ≥3) — same analysis as `reports/twikit-myriam/hater-profiles-graph`.
 
 SQL: [`scripts/sql/ingest_social_monitor_gold.sql`](../scripts/sql/ingest_social_monitor_gold.sql)
 

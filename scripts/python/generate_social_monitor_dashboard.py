@@ -152,8 +152,20 @@ CSV_KEY_MAP: dict[str, str] = {
     "grafo_comportamiento_edges.csv": "grafo_comportamiento_edges",
     "grafo_narrativa_nodes.csv": "grafo_narrativa_nodes",
     "grafo_narrativa_edges.csv": "grafo_narrativa_edges",
-    "grafo_coordinacion_nodes.csv": "grafo_coordinacion_nodes",
-    "grafo_coordinacion_edges.csv": "grafo_coordinacion_edges",
+    "grafo_relaciones_nodes.csv": "grafo_relaciones_nodes",
+    "grafo_relaciones_edges.csv": "grafo_relaciones_edges",
+    "grafo_risk.csv": "grafo_risk",
+    "grafo_co_followers.csv": "grafo_co_followers",
+    "grafo_co_following.csv": "grafo_co_following",
+    "grafo_bridges.csv": "grafo_bridges",
+    "grafo_stats.csv": "grafo_stats",
+}
+
+RISK_COLORS = {
+    "high": "#e85d5d",
+    "medium": "#e6a23c",
+    "low": "#3ecf8e",
+    "neighbor": "#3d8bfd",
 }
 
 
@@ -361,98 +373,270 @@ def export_grafo_narrativa(con, data_dir: Path) -> tuple[int, int]:
     )
 
 
-def export_grafo_coordinacion(con, data_dir: Path) -> tuple[int, int]:
-    # Top co-follower pairs + sample bridge edges + co_rafaga among top authors
-    co = con.sql(
+def _risk_signals(row) -> str:
+    parts = []
+    if getattr(row, "flag_empty_bio", False):
+        parts.append("bio vacía")
+    if getattr(row, "flag_new_account", False):
+        parts.append("cuenta ≥2024")
+    if getattr(row, "flag_follow_ratio_high", False):
+        parts.append("following/followers≥5")
+    if getattr(row, "flag_high_output_low_audience", False):
+        parts.append("statuses/follower≥100")
+    if getattr(row, "flag_low_followers_high_status", False):
+        parts.append("<50 fo + ≥1k statuses")
+    if getattr(row, "flag_low_likes_high_status", False):
+        parts.append("pocos likes + alto output")
+    if getattr(row, "flag_shared_audience", False):
+        parts.append("≥3 bridge followers")
+    return "; ".join(parts)
+
+
+def export_grafo_relaciones_tables(con, data_dir: Path) -> None:
+    """Sidecar tables from hater-profiles-graph gold (risk, co-*, bridges, stats)."""
+    risk_df = con.sql(
         """
-        SELECT source_id, target_id, edge_type, peso_total
-        FROM gold.v_monitor_grafo_coordinacion_edges
-        WHERE edge_type = 'co_followers'
-        ORDER BY peso_total DESC
+        SELECT *
+        FROM gold.tk_hater_profile_risk
+        ORDER BY risk_score DESC, username
+        """
+    ).df()
+    n_risk = 0
+    if len(risk_df):
+        risk_df["senales"] = [_risk_signals(r) for r in risk_df.itertuples(index=False)]
+        risk_df["following_followers_ratio"] = risk_df["following_followers_ratio"].round(2)
+        risk_df["statuses_per_follower"] = risk_df["statuses_per_follower"].round(2)
+        keep = [
+            "username",
+            "risk_band",
+            "risk_score",
+            "followers_count",
+            "following_count",
+            "statuses_count",
+            "following_followers_ratio",
+            "statuses_per_follower",
+            "bridge_followers_on_me",
+            "senales",
+        ]
+        risk_df[keep].to_csv(data_dir / "grafo_risk.csv", index=False)
+        n_risk = len(risk_df)
+    else:
+        (data_dir / "grafo_risk.csv").write_text(
+            "username,risk_band,risk_score,followers_count,following_count,"
+            "statuses_count,following_followers_ratio,statuses_per_follower,"
+            "bridge_followers_on_me,senales\n",
+            encoding="utf-8",
+        )
+
+    n_co_fo = _export_df_csv(
+        con,
+        """
+        SELECT
+            COALESCE(va.label, c.hater_a_id) AS hater_a,
+            COALESCE(vb.label, c.hater_b_id) AS hater_b,
+            c.shared_followers
+        FROM gold.tk_hater_grafo_co_followers AS c
+        LEFT JOIN gold.tk_hater_grafo_vertices AS va ON va.vertex_id = c.hater_a_id
+        LEFT JOIN gold.tk_hater_grafo_vertices AS vb ON vb.vertex_id = c.hater_b_id
+        ORDER BY c.shared_followers DESC
+        LIMIT 25
+        """,
+        data_dir / "grafo_co_followers.csv",
+    )
+    n_co_fl = _export_df_csv(
+        con,
+        """
+        SELECT
+            COALESCE(va.label, c.hater_a_id) AS hater_a,
+            COALESCE(vb.label, c.hater_b_id) AS hater_b,
+            c.shared_following
+        FROM gold.tk_hater_grafo_co_following AS c
+        LEFT JOIN gold.tk_hater_grafo_vertices AS va ON va.vertex_id = c.hater_a_id
+        LEFT JOIN gold.tk_hater_grafo_vertices AS vb ON vb.vertex_id = c.hater_b_id
+        ORDER BY c.shared_following DESC
+        LIMIT 25
+        """,
+        data_dir / "grafo_co_following.csv",
+    )
+    n_br = _export_df_csv(
+        con,
+        """
+        SELECT
+            follower_username,
+            follower_display_name,
+            haters_followed,
+            follower_followers_count,
+            follower_following_count,
+            array_to_string(hater_usernames, ', ') AS hater_usernames
+        FROM gold.tk_hater_grafo_bridge_followers
+        ORDER BY haters_followed DESC, follower_followers_count DESC
         LIMIT 40
+        """,
+        data_dir / "grafo_bridges.csv",
+    )
+    _export_df_csv(
+        con,
+        """
+        SELECT
+            (SELECT COUNT(*) FROM gold.tk_hater_grafo_vertices) AS vertices,
+            (SELECT COUNT(*) FROM gold.tk_hater_grafo_vertices WHERE entity_type = 'hater') AS haters,
+            (SELECT COUNT(*) FROM gold.tk_hater_grafo_vertices WHERE entity_type = 'neighbor') AS neighbors,
+            (SELECT COUNT(*) FROM gold.tk_hater_grafo_edges) AS edges,
+            (SELECT COUNT(*) FROM gold.tk_hater_grafo_bridge_followers) AS bridge_followers,
+            (SELECT COUNT(*) FROM gold.tk_hater_grafo_co_followers) AS pares_co_seguidores,
+            (SELECT COUNT(*) FROM gold.tk_hater_grafo_co_following) AS pares_co_following,
+            (SELECT COUNT(*) FROM gold.tk_hater_profile_risk WHERE risk_band = 'high') AS risk_high,
+            (SELECT COUNT(*) FROM gold.tk_hater_profile_risk WHERE risk_band = 'medium') AS risk_medium,
+            (SELECT COUNT(*) FROM gold.tk_hater_profile_risk WHERE risk_band = 'low') AS risk_low
+        """,
+        data_dir / "grafo_stats.csv",
+    )
+    print(f"  grafo_risk: {n_risk} · co_followers: {n_co_fo} · co_following: {n_co_fl} · bridges: {n_br}")
+
+
+def export_grafo_relaciones(con, data_dir: Path) -> tuple[int, int]:
+    """TW follow graph viz: haters + bridge followers (≥3), colored by risk_band."""
+    haters = con.sql(
+        """
+        SELECT
+            v.vertex_id,
+            v.label,
+            v.entity_type AS tipo,
+            v.followers_count,
+            v.following_count,
+            v.statuses_count,
+            r.risk_band,
+            r.risk_score
+        FROM gold.tk_hater_grafo_vertices AS v
+        LEFT JOIN gold.tk_hater_profile_risk AS r
+            ON r.user_id = v.vertex_id OR LOWER(r.username) = LOWER(v.label)
+        WHERE v.entity_type = 'hater'
         """
     ).df()
     bridges = con.sql(
         """
-        SELECT source_id, target_id, edge_type, peso_total
-        FROM gold.v_monitor_grafo_coordinacion_edges
-        WHERE edge_type = 'bridge_follower'
-        ORDER BY peso_total DESC
-        LIMIT 60
+        SELECT
+            follower_id AS vertex_id,
+            follower_username AS label,
+            'neighbor' AS tipo,
+            follower_followers_count AS followers_count,
+            follower_following_count AS following_count,
+            CAST(NULL AS BIGINT) AS statuses_count,
+            CAST(NULL AS VARCHAR) AS risk_band,
+            CAST(0 AS INTEGER) AS risk_score,
+            haters_followed
+        FROM gold.tk_hater_grafo_bridge_followers
+        WHERE haters_followed >= 3
+        ORDER BY haters_followed DESC, follower_followers_count DESC
         """
     ).df()
-    rafagas = con.sql(
-        """
-        SELECT source_id, target_id, edge_type, peso_total
-        FROM gold.v_monitor_grafo_coordinacion_edges
-        WHERE edge_type = 'co_rafaga'
-        ORDER BY peso_total DESC
-        LIMIT 40
-        """
-    ).df()
-    import pandas as pd
 
-    edges = pd.concat([co, bridges, rafagas], ignore_index=True)
-    kept = set(edges["source_id"]).union(set(edges["target_id"]))
-    vertices = con.sql(
+    hater_ids = set(haters["vertex_id"].astype(str))
+    bridge_ids = set(bridges["vertex_id"].astype(str))
+    kept = hater_ids | bridge_ids
+
+    edges = con.sql(
         """
-        SELECT vertex_id, label, tipo, plataforma, peso_actividad
-        FROM gold.v_monitor_grafo_coordinacion_vertices
+        SELECT source_id, target_id, edge_type, weight
+        FROM gold.tk_hater_grafo_edges
+        WHERE edge_type = 'follows_hater'
         """
     ).df()
-    # Also invent nodes for bridge targets that are usernames only
-    present = set(vertices["vertex_id"])
-    node_rows = []
-    for row in vertices[vertices["vertex_id"].isin(kept)].itertuples(index=False):
-        st = _style_node(row.tipo, row.peso_actividad)
+    edges = edges[
+        edges["source_id"].astype(str).isin(kept) & edges["target_id"].astype(str).isin(kept)
+    ]
+
+    # Only keep bridges that appear in at least one edge (legibility)
+    connected = set(edges["source_id"].astype(str)) | set(edges["target_id"].astype(str))
+    bridges = bridges[bridges["vertex_id"].astype(str).isin(connected | hater_ids)]
+
+    node_rows: list[dict] = []
+    for row in haters.itertuples(index=False):
+        band = (row.risk_band or "low").lower()
+        color = RISK_COLORS.get(band, RISK_COLORS["low"])
         node_rows.append(
             {
-                "id": row.vertex_id,
-                "label": str(row.label or "?")[:16],
-                "tipo": row.tipo,
-                "color": st["color"],
-                "shape": st["shape"],
-                "size": st["size"],
-                "title": f"{row.label} | {row.tipo}",
-                "plataforma": row.plataforma or "",
-            }
-        )
-    for vid in kept - present:
-        st = _style_node("neighbor")
-        node_rows.append(
-            {
-                "id": vid,
-                "label": str(vid)[:16],
-                "tipo": "neighbor",
-                "color": st["color"],
-                "shape": st["shape"],
-                "size": st["size"],
-                "title": str(vid),
+                "id": str(row.vertex_id),
+                "label": str(row.label or "?")[:18],
+                "tipo": "hater",
+                "color": color,
+                "shape": "box",
+                "size": 26,
+                "title": f"@{row.label} [{band}] score={row.risk_score or 0}",
                 "plataforma": "twitter",
+                "risk_band": band,
+                "risk_score": int(row.risk_score or 0),
+                "followers_count": int(row.followers_count or 0),
+                "haters_followed": 0,
             }
         )
-    edge_rows = []
+    for row in bridges.itertuples(index=False):
+        if str(row.vertex_id) in hater_ids:
+            continue
+        hf = int(row.haters_followed or 0)
+        node_rows.append(
+            {
+                "id": str(row.vertex_id),
+                "label": str(row.label or "?")[:18],
+                "tipo": "neighbor",
+                "color": RISK_COLORS["neighbor"],
+                "shape": "dot",
+                "size": min(28, 10 + hf * 2),
+                "title": f"@{row.label} · puente ({hf} haters)",
+                "plataforma": "twitter",
+                "risk_band": "",
+                "risk_score": 0,
+                "followers_count": int(row.followers_count or 0),
+                "haters_followed": hf,
+            }
+        )
+
+    edge_rows: list[dict] = []
     for i, row in enumerate(edges.itertuples(index=False)):
-        st = EDGE_STYLE.get(row.edge_type, EDGE_STYLE["co_followers"])
         edge_rows.append(
             {
-                "id": f"co{i}",
-                "from": row.source_id,
-                "to": row.target_id,
-                "label": f"{row.edge_type[:6]} {int(row.peso_total)}",
-                "color": st["color"],
-                "width": max(1, min(10, int(max(row.peso_total, 1) * st["width_factor"]))),
-                "dashes": str(st["dashes"]).lower(),
+                "id": f"rel{i}",
+                "from": str(row.source_id),
+                "to": str(row.target_id),
+                "label": "",
+                "color": "#5b8def55",
+                "width": 1,
+                "dashes": "false",
                 "edge_type": row.edge_type,
-                "title": f"{row.edge_type} · peso {row.peso_total}",
+                "title": f"{row.edge_type}",
             }
         )
-    return _write_graph_csv(
-        data_dir / "grafo_coordinacion_nodes.csv",
-        data_dir / "grafo_coordinacion_edges.csv",
-        node_rows,
-        edge_rows,
-    )
+
+    nodes_path = data_dir / "grafo_relaciones_nodes.csv"
+    edges_path = data_dir / "grafo_relaciones_edges.csv"
+    with nodes_path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(
+            f,
+            fieldnames=[
+                "id",
+                "label",
+                "tipo",
+                "color",
+                "shape",
+                "size",
+                "title",
+                "plataforma",
+                "risk_band",
+                "risk_score",
+                "followers_count",
+                "haters_followed",
+            ],
+        )
+        w.writeheader()
+        w.writerows(node_rows)
+    with edges_path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(
+            f,
+            fieldnames=["id", "from", "to", "label", "color", "width", "dashes", "edge_type", "title"],
+        )
+        w.writeheader()
+        w.writerows(edge_rows)
+    return len(node_rows), len(edge_rows)
 
 
 README = """# Monitor de redes — dashboard unificado
@@ -475,7 +659,7 @@ open report.html
 | Engagement | Serie temporal de engagement por post |
 | Audiencia | Haters / apoyo / neutral / bots (heurística) |
 | Haters | Top 10 por persona + narrativas |
-| Grafos | Comportamiento, coordinación, clusters de narrativa |
+| Grafos | Comportamiento (FB), Relaciones TW (risk/puentes/co-seguidores), narrativa |
 | Comparativa | Varias personas en la misma vista temporal |
 | Metodología | Límites y pipeline |
 
@@ -507,8 +691,9 @@ def main() -> int:
     print(f"  grafo_comportamiento: {n1} nodes / {e1} edges")
     n2, e2 = export_grafo_narrativa(con, data_dir)
     print(f"  grafo_narrativa: {n2} nodes / {e2} edges")
-    n3, e3 = export_grafo_coordinacion(con, data_dir)
-    print(f"  grafo_coordinacion: {n3} nodes / {e3} edges")
+    export_grafo_relaciones_tables(con, data_dir)
+    n3, e3 = export_grafo_relaciones(con, data_dir)
+    print(f"  grafo_relaciones: {n3} nodes / {e3} edges")
 
     embedded = build_embedded_data(data_dir)
     template = TEMPLATE_PATH.read_text(encoding="utf-8")
