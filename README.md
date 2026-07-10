@@ -54,7 +54,7 @@ Bootstrap datasyn-local en este workspace. El usuario es periodista/investigador
    - Desde la raíz del repo: uv sync --all-extras
    - Verifica: uv --version y uv run python -c "import duckdb; print('duckdb', duckdb.__version__)"
 
-1. Lee AGENTS.md y skills/README.md (usa el skill setup-uv si hace falta más detalle).
+1. Lee AGENTS.md, CONTEXT.md y skills/README.md (usa el skill setup-uv si hace falta más detalle).
 
 2. Enlaza skills según el IDE:
    - **Cursor:** ln -sfn "$(pwd)/skills" .cursor/skills
@@ -106,9 +106,25 @@ Reglas: ingest y reportes son skills (SQL), no apps Python extra. Los archivos e
 |-------|-----|
 | 🤖 **Asistente IA + [skills](skills/)** | Convierten tu pedido en lenguaje natural en pasos concretos de SQL |
 | 📋 **[AGENTS.md](AGENTS.md)** | Define el tono, las reglas y el flujo de trabajo del asistente |
+| 📖 **[CONTEXT.md](CONTEXT.md)** | Vocabulario compartido — medalla, landing, reportes, MCP vs ingest |
 | 🗄️ **DuckDB** (`data/duckdb/`) | Motor analítico local donde viven las tablas |
 | 🔌 **MCP** | Puente que deja al asistente ejecutar SQL sobre la base |
-| 📂 **`data/landing/` → `reports/`** | Originales crudos a la entrada, salidas publicables a la salida |
+| 📂 **`data/landing/` → `reports/<project>/`** | Originales crudos a la entrada, salidas publicables a la salida |
+
+### Skills por alcance
+
+Los skills están agrupados en **buckets** bajo [`skills/`](skills/). Índice completo: [`skills/README.md`](skills/README.md). Guía de estructura: [`docs/skills-layout.md`](docs/skills-layout.md).
+
+| Alcance | Carpeta | Skill router |
+|---------|---------|--------------|
+| **Recolectar** | [`skills/collect/`](skills/collect/README.md) | `scrape-sociavault`, `web-scraping` |
+| **Ingestar** | [`skills/ingest/`](skills/ingest/README.md) | `ingest-data` → bronze / silver / gold |
+| **Analizar** | [`skills/analyze/`](skills/analyze/README.md) | reportes, grafos |
+| **Esquema** | [`skills/schema/`](skills/schema/README.md) | `create-table` |
+| **Infra** | [`skills/infra/`](skills/infra/README.md) | `setup-uv`, `configure-duckdb-mcp` |
+| **Ingeniería** | [`skills/engineering/`](skills/engineering/README.md) | `gitflow`, `data-privacy` |
+
+Router de flujos (usuario): [`datasyn-router`](skills/datasyn-router/SKILL.md).
 
 ### Del dato crudo al reporte
 
@@ -118,13 +134,29 @@ Tus datos suben de calidad por etapas —el **patrón de medalla**— y en cada 
 
 | Etapa | Qué pasa | Skill que lo hace |
 |-------|----------|-------------------|
-| **Landing** | Guardas descargas, scrapes y exportaciones sin tocarlas | [`web-scraping`](skills/web-scraping/SKILL.md) |
-| 🟤 **Bronze** | Los archivos crudos entran a DuckDB tal cual | [`ingest-data-bronze`](skills/ingest-data-bronze/SKILL.md) |
-| ⚪ **Silver** | Se limpia, deduplica, normaliza y une | [`ingest-data-silver`](skills/ingest-data-silver/SKILL.md) |
-| 🟡 **Gold** | Se agrega y resume en datasets listos para usar | [`ingest-data-gold`](skills/ingest-data-gold/SKILL.md) |
-| **Reportes** | Se generan análisis y documentos finales | [`statistical-report`](skills/statistical-report/SKILL.md) · [`sentiment-analysis`](skills/sentiment-analysis/SKILL.md) · [`graph-analysis`](skills/graph-analysis/SKILL.md) |
+| **Landing** | Guardas descargas, scrapes y exportaciones sin tocarlas | [`web-scraping`](skills/collect/web-scraping/SKILL.md) |
+| 🟤 **Bronze** | Los archivos crudos entran a DuckDB tal cual | [`ingest-data-bronze`](skills/ingest/bronze/ingest-data-bronze/SKILL.md) |
+| ⚪ **Silver** | Se limpia, deduplica, normaliza y une | [`ingest-data-silver`](skills/ingest/silver/ingest-data-silver/SKILL.md) |
+| 🟡 **Gold** | Se agrega y resume en datasets listos para usar | [`ingest-data-gold`](skills/ingest/gold/ingest-data-gold/SKILL.md) |
+| **Reportes** | Se generan análisis y documentos finales | [`statistical-report`](skills/analyze/reports/statistical-report/SKILL.md) · [`sentiment-analysis`](skills/analyze/reports/sentiment-analysis/SKILL.md) · [`graph-analysis`](skills/analyze/graph/graph-analysis/SKILL.md) |
 
-> El skill [`ingest-data`](skills/ingest-data/SKILL.md) es el punto de entrada: analiza tu pedido y lo enruta a la etapa (bronze, silver o gold) correcta.
+> El skill [`ingest-data`](skills/ingest/ingest-data/SKILL.md) es el punto de entrada: analiza tu pedido y lo enruta a la etapa (bronze, silver o gold) correcta.
+
+Pipeline legacy FB/TW (CSV en `data/landing/redes/`):
+
+<p align="center"><img src="docs/diagrams/medallion-redes.svg" alt="Medallón redes — landing, bronze, silver, gold, report bundles" width="900"/></p>
+
+### Un pedido de punta a punta
+
+Un solo mensaje ("ingesta este archivo y resúmelo") sigue siempre el mismo camino:
+
+<p align="center"><img src="docs/diagrams/request-lifecycle.svg" alt="Un pedido — lenguaje claro a respuesta auditable vía MCP" width="560"/></p>
+
+### Mapa del repositorio
+
+Izquierda: configuración y comportamiento del agente. Derecha: evidencia y salidas publicables.
+
+<p align="center"><img src="docs/diagrams/repo-layout.svg" alt="Layout del repositorio datasyn — agente y carpetas de datos" width="680"/></p>
 
 ---
 
@@ -145,7 +177,7 @@ Ejecuta un pipeline completo y explica cada paso en lenguaje claro:
 2. Ingesta ese archivo en DuckDB como una tabla llamada nyt_news
    (skill ingest-data). Después muestra COUNT(*), DESCRIBE y 5 filas de ejemplo.
 3. Realiza un análisis de sentimiento sobre el texto de titulares y resúmenes
-   (skill sentiment-analysis) y escribe un reporte markdown en reports/
+   (skill sentiment-analysis) y escribe un reporte markdown en reports/<project>/
    con: tono general, desglose positivo/neutral/negativo, algunas citas
    representativas y los límites del método.
 
@@ -160,13 +192,21 @@ cómo lo sabemos y cuáles son las salvedades.
 
 En este proyecto, una **skill** es una guía de trabajo en Markdown que le enseña al asistente *cómo* hacer una tarea concreta (ingestar un CSV, limpiar duplicados, escribir un reporte). No es código que se ejecuta: es una receta en lenguaje claro con reglas, pasos y plantillas de SQL. Cuando pides algo, el asistente busca la skill adecuada y la sigue.
 
-**Dónde se guardan:** cada skill vive en su propia carpeta dentro de [`skills/`](skills/), con un archivo `SKILL.md` adentro.
+**Dónde se guardan:** cada skill vive en un bucket de alcance dentro de [`skills/`](skills/) — por ejemplo `skills/ingest/`, `skills/collect/`, `skills/analyze/` — con un archivo `SKILL.md` en su carpeta.
 
 ```
 skills/
-└── mi-skill/
-    └── SKILL.md
+├── ingest/
+│   └── bronze/
+│       └── ingest-data-bronze/
+│           └── SKILL.md
+└── analyze/
+    └── reports/
+        └── statistical-report/
+            └── SKILL.md
 ```
+
+Vocabulario compartido: [`CONTEXT.md`](CONTEXT.md). Índice completo: [`skills/README.md`](skills/README.md). Guía de estructura: [`docs/skills-layout.md`](docs/skills-layout.md).
 
 **Cómo crear una:** crea la carpeta y un `SKILL.md` que empiece con un encabezado (frontmatter) con `name` y `description`. La `description` es clave: el asistente la usa para decidir cuándo aplicar la skill.
 
@@ -174,7 +214,7 @@ skills/
 ---
 name: export-csv
 description: >-
-  Exporta una tabla de DuckDB a un archivo CSV en reports/.
+  Exporta una tabla de DuckDB a un archivo CSV en reports/<project>/.
   Úsala cuando el usuario pida descargar, exportar o guardar
   una tabla o consulta como CSV.
 ---
@@ -188,13 +228,59 @@ Pasos:
 
    ```sql
    COPY (SELECT * FROM gold.mi_tabla)
-   TO 'reports/mi_tabla.csv' (HEADER, DELIMITER ',');
+   TO 'reports/mi-proyecto/mi_tabla.csv' (HEADER, DELIMITER ',');
    ```
 
 3. Valida: confirma que el archivo existe y su número de filas.
 ````
 
-> 💡 Después de crearla, súmala al catálogo de [`skills/README.md`](skills/README.md) y, si tu IDE las cachea, vuelve a enlazar la carpeta (`ln -sfn "$(pwd)/skills" .cursor/skills`). Mira cualquier skill existente, como [`ingest-data`](skills/ingest-data/SKILL.md), como referencia de estilo.
+> 💡 Después de crearla, súmala al catálogo de [`skills/README.md`](skills/README.md) y, si tu IDE las cachea, vuelve a enlazar la carpeta (`ln -sfn "$(pwd)/skills" .cursor/skills`). Mira cualquier skill existente, como [`ingest-data`](skills/ingest/ingest-data/SKILL.md), como referencia de estilo.
+
+---
+
+## 🔀 Gitflow — ramas y releases
+
+El repo usa **Gitflow**: `main` es producción; `develop` integra el trabajo terminado; las features son ramas cortas que se fusionan en `develop`.
+
+```
+main     ●─────────●─────────────────●  (tags: v1.0.0)
+          \       /
+develop    ●──●──●──●──●──●──●  ← integración
+                \    /
+feature          ●──●           ← trabajo nuevo
+```
+
+| Rama | Prefijo | Base | Merge a | Uso |
+|------|---------|------|---------|-----|
+| **main** | — | — | — | Código listo para release |
+| **develop** | — | `main` | — | Integración diaria |
+| **feature** | `feature/` | `develop` | `develop` | Skills, ingest, scripts |
+| **release** | `release/` | `develop` | `main` + `develop` | Estabilizar versión |
+| **hotfix** | `hotfix/` | `main` | `main` + `develop` | Fix urgente en producción |
+
+### Flujo típico (feature)
+
+```bash
+git checkout develop && git pull origin develop
+git checkout -b feature/mi-cambio
+# ... commits (solo código/skills/SQL — nunca data/landing/, .env, reportes)
+git push -u origin HEAD
+# PR → develop (preferido) o merge local --no-ff
+git checkout develop && git merge --no-ff feature/mi-cambio
+git branch -d feature/mi-cambio
+git push origin --delete feature/mi-cambio   # si quedó en remoto
+```
+
+### Estado actual
+
+```bash
+./scripts/sh/gitflow.sh status    # rama, tipo, divergencia vs main/develop
+./scripts/sh/gitflow.sh branches  # features locales y si ya están en develop
+```
+
+Guía completa para el asistente: [`skills/engineering/gitflow/SKILL.md`](skills/engineering/gitflow/SKILL.md) · referencia: [`skills/engineering/gitflow/reference.md`](skills/engineering/gitflow/reference.md)
+
+**Reglas de commit:** `feat(scope):`, `fix(scope):`, `docs(scope):` — sin PII ni datos crudos en mensajes. Ver skill [`data-privacy`](skills/engineering/data-privacy/SKILL.md) antes de commitear.
 
 ---
 
@@ -204,8 +290,10 @@ Pasos:
 |-------------|----------------|----------------|
 | 🗄️ **DuckDB** | Base de datos analítica local; ejecuta el SQL que crea y consulta tus tablas | [duckdb.org/docs](https://duckdb.org/docs/) |
 | 🔌 **MCP** (Model Context Protocol) | Estándar abierto que conecta al asistente de IA con DuckDB para ejecutar SQL | [modelcontextprotocol.io](https://modelcontextprotocol.io/) · [duckdb_mcp](https://github.com/duckdb/duckdb-mcp-server) |
-| 🧩 **Skills** | Guías de tarea en Markdown que el asistente sigue (ver [`skills/`](skills/)) | [Agent Skills (Anthropic)](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/overview) · [Cursor Rules & Skills](https://docs.cursor.com/) |
+| 🧩 **Skills** | Guías de tarea en Markdown por alcance (ver [`skills/`](skills/) y [`docs/skills-layout.md`](docs/skills-layout.md)) | [Agent Skills (Anthropic)](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/overview) · [Cursor Rules & Skills](https://docs.cursor.com/) |
 | 🐍 **uv** | Gestor de entornos y dependencias de Python | [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
+
+Diagramas: [`docs/diagrams/README.md`](docs/diagrams/README.md) — fuentes SVG en [`docs/diagrams/`](docs/diagrams/), paleta en [`docs/colors/README.md`](docs/colors/README.md).
 
 ---
 

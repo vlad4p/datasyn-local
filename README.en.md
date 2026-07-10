@@ -29,7 +29,7 @@ You collect sources → the assistant saves the originals → DuckDB holds struc
 
 **Journalists, researchers, and teams working with sources, documents, or data you can reach on your own machine.**
 
-**The AI assistant** sets up the environment with the **startup prompt** below. Day-to-day work uses **[skills](skills/)**; tone and rules live in **[AGENTS.md](AGENTS.md)**.
+**The AI assistant** sets up the environment with the **startup prompt** below. Day-to-day work uses **[skills](skills/)**; tone and rules live in **[AGENTS.md](AGENTS.md)**; shared vocabulary in **[CONTEXT.md](CONTEXT.md)**.
 
 ---
 
@@ -43,18 +43,58 @@ You collect sources → the assistant saves the originals → DuckDB holds struc
 | **Use plain language** | You ask in clear language; **skills** turn the request into DuckDB SQL (via MCP) |
 
 
-### Data flow
+### The pieces
 
-The assistant picks the right **skill** at each stage (orange = raw files, green = database, navy = reports).
+| Piece | Role |
+|-------|------|
+| 🤖 **AI assistant + [skills](skills/)** | Turn plain-language requests into concrete SQL steps |
+| 📋 **[AGENTS.md](AGENTS.md)** | Tone, rules, and workflow for the assistant |
+| 📖 **[CONTEXT.md](CONTEXT.md)** | Shared vocabulary — medallion zones, landing, reports, MCP vs ingest |
+| 🗄️ **DuckDB** (`data/duckdb/`) | Local analytics engine where tables live |
+| 🔌 **MCP** | Bridge that lets the assistant run SQL on the database |
+| 📂 **`data/landing/` → `reports/<project>/`** | Raw inputs at the door, publishable outputs at the end |
 
-<p align="center"><img src="docs/diagrams/flow.svg" alt="From source to story — collect, landing, DuckDB, reports" width="860"/></p>
+### Skills by scope
+
+Skills are grouped into **buckets** under [`skills/`](skills/). Full index: [`skills/README.md`](skills/README.md). Layout guide: [`docs/skills-layout.md`](docs/skills-layout.md).
+
+| Scope | Folder | Router skill |
+|-------|--------|--------------|
+| **Collect** | [`skills/collect/`](skills/collect/README.md) | `scrape-sociavault`, `web-scraping` |
+| **Ingest** | [`skills/ingest/`](skills/ingest/README.md) | `ingest-data` → bronze / silver / gold |
+| **Analyze** | [`skills/analyze/`](skills/analyze/README.md) | reports, graphs |
+| **Schema** | [`skills/schema/`](skills/schema/README.md) | `create-table` |
+| **Infra** | [`skills/infra/`](skills/infra/README.md) | `setup-uv`, `configure-duckdb-mcp` |
+| **Engineering** | [`skills/engineering/`](skills/engineering/README.md) | `gitflow`, `data-privacy` |
+
+User flow router: [`datasyn-router`](skills/datasyn-router/SKILL.md).
+
+### Medallion pipeline
+
+Data moves through quality stages; the assistant picks the right skill at each step.
+
+| Stage | What happens | Skill |
+|-------|--------------|-------|
+| **Landing** | Save downloads, scrapes, exports untouched | [`web-scraping`](skills/collect/web-scraping/SKILL.md) |
+| 🟤 **Bronze** | Raw files loaded into DuckDB as-is | [`ingest-data-bronze`](skills/ingest/bronze/ingest-data-bronze/SKILL.md) |
+| ⚪ **Silver** | Clean, dedupe, normalize, join | [`ingest-data-silver`](skills/ingest/silver/ingest-data-silver/SKILL.md) |
+| 🟡 **Gold** | Aggregate and summarize for analysis | [`ingest-data-gold`](skills/ingest/gold/ingest-data-gold/SKILL.md) |
+| **Reports** | Analysis and final documents | [`statistical-report`](skills/analyze/reports/statistical-report/SKILL.md) · [`sentiment-analysis`](skills/analyze/reports/sentiment-analysis/SKILL.md) · [`graph-analysis`](skills/analyze/graph/graph-analysis/SKILL.md) |
+
+> Entry point for ingest: [`ingest-data`](skills/ingest/ingest-data/SKILL.md) routes to the correct zone (bronze, silver, or gold).
+
+Legacy FB/TW pipeline (CSV under `data/landing/redes/`):
+
+<p align="center"><img src="docs/diagrams/medallion-redes.svg" alt="Redes medallion — landing, bronze, silver, gold, report bundles" width="900"/></p>
+
+### Data flow (summary)
 
 | Step | You | Skill | Output |
 |:----:|-----|-------|--------|
-| 1 | Save downloads, scrapes, exports | `web-scraping` | `data/landing/` |
-| 2 | Ask to "ingest" a file | `ingest-data` | table in DuckDB |
+| 1 | Save downloads, scrapes, exports | [`web-scraping`](skills/collect/web-scraping/SKILL.md) | `data/landing/` |
+| 2 | Ask to "ingest" a file | [`ingest-data`](skills/ingest/ingest-data/SKILL.md) | table in DuckDB |
 | 3 | Ask questions in plain language | SQL + MCP | answers in chat |
-| 4 | Request analysis or a report | `statistical-report` / `sentiment-analysis` / `graph-analysis` | `reports/` |
+| 4 | Request analysis or a report | [`statistical-report`](skills/analyze/reports/statistical-report/SKILL.md) / [`sentiment-analysis`](skills/analyze/reports/sentiment-analysis/SKILL.md) / [`graph-analysis`](skills/analyze/graph/graph-analysis/SKILL.md) | `reports/<project>/` |
 
 ### One request, start to finish
 
@@ -105,7 +145,7 @@ Bootstrap datasyn-local in this workspace. The user is a journalist/researcher �
    - From the repo root: uv sync --all-extras
    - Verify: uv --version and uv run python -c "import duckdb; print('duckdb', duckdb.__version__)"
 
-1. Read AGENTS.md and skills/README.md (use setup-uv skill if more detail is needed).
+1. Read AGENTS.md, CONTEXT.md, and skills/README.md (use setup-uv skill if more detail is needed).
 
 2. Link skills for your IDE:
    - **Cursor:** ln -sfn "$(pwd)/skills" .cursor/skills
@@ -161,7 +201,7 @@ Run a full pipeline for me, explaining each step in plain language:
 2. Ingest that file into DuckDB as a table called nyt_news
    (ingest-data skill). Then show COUNT(*), DESCRIBE, and 5 sample rows.
 3. Run a sentiment analysis on the headline and summary text
-   (sentiment-analysis skill) and write a markdown report to reports/
+   (sentiment-analysis skill) and write a markdown report to reports/<project>/
    with: overall tone, a positive/neutral/negative breakdown, a few
    representative quotes, and the limits of the method.
 
@@ -171,3 +211,74 @@ how we know, and what the caveats are.
 ```
 
 > ⚖️ **Sources:** respect each site's terms and `robots.txt`; prefer official feeds or APIs when available. The assistant keeps source URL and capture date so findings are auditable.
+
+---
+
+## 🔀 Gitflow — branches and releases
+
+This repo uses **Gitflow**: `main` is production-ready; `develop` holds integrated work; short-lived **feature** branches merge into `develop`.
+
+```
+main     ●─────────●─────────────────●  (tags: v1.0.0)
+          \       /
+develop    ●──●──●──●──●──●──●  ← integration
+                \    /
+feature          ●──●           ← new work
+```
+
+| Branch | Prefix | Base | Merge into | Purpose |
+|--------|--------|------|------------|---------|
+| **main** | — | — | — | Releasable production |
+| **develop** | — | `main` | — | Daily integration |
+| **feature** | `feature/` | `develop` | `develop` | Skills, ingest, scripts |
+| **release** | `release/` | `develop` | `main` + `develop` | Version stabilization |
+| **hotfix** | `hotfix/` | `main` | `main` + `develop` | Urgent production fix |
+
+### Typical feature workflow
+
+```bash
+git checkout develop && git pull origin develop
+git checkout -b feature/my-change
+# ... commits (skills/SQL/scripts only — never data/landing/, .env, reports)
+git push -u origin HEAD
+# PR → develop (preferred) or local --no-ff merge
+git checkout develop && git merge --no-ff feature/my-change
+git branch -d feature/my-change
+git push origin --delete feature/my-change   # if pushed to remote
+```
+
+### Check branch state
+
+```bash
+./scripts/sh/gitflow.sh status    # current branch, type, divergence from main/develop
+./scripts/sh/gitflow.sh branches  # local feature branches and merge status
+```
+
+Full agent workflow: [`skills/engineering/gitflow/SKILL.md`](skills/engineering/gitflow/SKILL.md) · cheat sheet: [`skills/engineering/gitflow/reference.md`](skills/engineering/gitflow/reference.md)
+
+**Commit style:** `feat(scope):`, `fix(scope):`, `docs(scope):` — no PII or raw data in messages. Read [`data-privacy`](skills/engineering/data-privacy/SKILL.md) before committing.
+
+---
+
+## 🧩 Create a new skill
+
+A **skill** is a Markdown workflow guide — not executable code. The assistant reads `SKILL.md` and follows the steps (SQL templates, validation, output paths).
+
+**Where skills live:** under a scope bucket in [`skills/`](skills/) — e.g. `skills/ingest/bronze/ingest-data-bronze/SKILL.md`.
+
+Shared vocabulary: [`CONTEXT.md`](CONTEXT.md). Full index: [`skills/README.md`](skills/README.md). Layout guide: [`docs/skills-layout.md`](docs/skills-layout.md).
+
+After creating a skill, add it to the bucket `README.md` and [`skills/README.md`](skills/README.md). Update [`datasyn-router`](skills/datasyn-router/SKILL.md) if user-facing flows change.
+
+---
+
+## 🛠️ Tools in use
+
+| Tool | Purpose | Docs |
+|------|---------|------|
+| 🗄️ **DuckDB** | Local analytics database | [duckdb.org/docs](https://duckdb.org/docs/) |
+| 🔌 **MCP** | Connects the AI assistant to DuckDB | [modelcontextprotocol.io](https://modelcontextprotocol.io/) |
+| 🧩 **Skills** | Scoped task guides (see [`skills/`](skills/), [`docs/skills-layout.md`](docs/skills-layout.md)) | [Agent Skills](https://docs.anthropic.com/en/docs/agents-and-tools/agent-skills/overview) |
+| 🐍 **uv** | Python environment manager | [docs.astral.sh/uv](https://docs.astral.sh/uv/) |
+
+Diagrams: [`docs/diagrams/README.md`](docs/diagrams/README.md) — SVG sources in [`docs/diagrams/`](docs/diagrams/), palette in [`docs/colors/README.md`](docs/colors/README.md).

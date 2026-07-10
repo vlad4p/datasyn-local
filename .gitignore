@@ -19,6 +19,10 @@ htmlcov/
 .env.local
 .env.*.local
 
+# Alternate local data directory (outside data/)
+.data/
+.data/**
+
 # DuckDB databases and sidecar files
 data/duckdb/**
 !data/duckdb/.gitkeep
@@ -28,6 +32,8 @@ data/duckdb/**
 *.wal
 *.tmp
 *.duckdb.wal
+*.sqlite
+*.sqlite3
 
 # Landing zone — raw downloads, scrapes, exports (keep structure only)
 data/landing/**
@@ -37,23 +43,46 @@ data/landing/**
 # Generated reports and outputs
 reports/**
 !reports/.gitkeep
+!reports/README.md
 output/
-
-*.log
-.logs/
+exports/
+downloads/
+tmp/
+scratch/
 
 # Local data artifacts (outside landing/duckdb)
 *.parquet
 *.feather
 *.arrow
 
+# Data files at repo root (never commit datasets here)
+/*.csv
+/*.tsv
+/*.json
+/*.xlsx
+/*.parquet
+
 # Scraped / cached HTML snapshots
 *.html.gz
 .cache/
 
+# Credentials, tokens, sessions (never commit)
+*.pem
+*.key
+*.p12
+credentials.json
+secrets.yaml
+secrets.json
+*credentials*
+cookies.txt
+*cookies*.json
+.data/twikit_cookies.json
+*.session
+*.token
+
 # IDE / OS
 .idea/
-.vscode/
+.vscode/mcp.json
 *.swp
 *.swo
 .DS_Store
@@ -67,8 +96,11 @@ Thumbs.db
 .cursor/
 kilo.json
 
-# User data in landing (not committed)
-data/landing/*.csv
-data/landing/*.json
-data/landing/*.xlsx
+# Logs and backups
+*.log
+.logs/
+*.bak
+*.backup
+
+# Lock file (local resolution — do not commit)
 uv.lock
