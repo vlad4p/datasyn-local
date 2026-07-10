@@ -205,7 +205,7 @@
 
       <section id="sec-grafos">
         <h2>Grafos</h2>
-        <p class="desc">Comportamiento (FB), Relaciones TW (risk/señales, puentes, co-seguidores) y clusters. Toggle Haters/Apoyo cambia la fuente del grafo de relaciones.</p>
+        <p class="desc">Comportamiento (FB), Relaciones TW, y <strong>Clusters de narrativa</strong> filtrables por polaridad (Haters/Apoyo). El selector Polaridad cambia Relaciones y Narrativas TW.</p>
         <div class="kpi-grid" id="kpi-grafo-local"></div>
         <div class="controls">
           <label>Polaridad:
@@ -509,6 +509,14 @@
         const prefix = grafoPrefix();
         nodesKey = prefix + 'relaciones_nodes';
         edgesKey = prefix + 'relaciones_edges';
+      } else if (tipo === 'narrativa') {
+        // Polaridad switches TW cluster graphs; FB co-occurrence is fallback only if empty
+        nodesKey = isApoyo ? 'grafo_narrativa_apoyo_nodes' : 'grafo_narrativa_hater_nodes';
+        edgesKey = isApoyo ? 'grafo_narrativa_apoyo_edges' : 'grafo_narrativa_hater_edges';
+        if (!(DATA[nodesKey] || []).length) {
+          nodesKey = 'grafo_narrativa_nodes';
+          edgesKey = 'grafo_narrativa_edges';
+        }
       } else {
         nodesKey = `grafo_${tipo}_nodes`;
         edgesKey = `grafo_${tipo}_edges`;
@@ -546,6 +554,26 @@
         }
         renderRelacionesTables();
         renderGrafoLocalKpis();
+      } else if (tipo === 'narrativa') {
+        panels.classList.remove('visible');
+        if (isApoyo) {
+          legend.innerHTML = [
+            '<span><i class="legend-dot" style="background:#3dd68c"></i>cluster apoyo</span>',
+            '<span><i class="legend-dot" style="background:#3dd68c"></i>autor defensor</span>',
+            '<span><i class="legend-dot" style="background:#fbbf24"></i>coocurrencia</span>',
+          ].join('');
+        } else {
+          legend.innerHTML = [
+            '<span><i class="legend-dot" style="background:#a78bfa"></i>cluster hostil</span>',
+            '<span><i class="legend-dot" style="background:#e85d5d"></i>autor hater</span>',
+            '<span><i class="legend-dot" style="background:#fbbf24"></i>coocurrencia</span>',
+          ].join('');
+        }
+        document.getElementById('kpi-grafo-local').innerHTML = [
+          kpi('Nodos', fmt(rawNodes.length), isApoyo ? 'clusters + defensores TW' : 'clusters + haters TW'),
+          kpi('Edges', fmt(rawEdges.length), 'autor→narrativa / coocurrencia'),
+          kpi('Polaridad', isApoyo ? 'Apoyo' : 'Haters', 'filtro activo'),
+        ].join('');
       } else {
         panels.classList.remove('visible');
         legend.innerHTML = '';
@@ -578,7 +606,7 @@
         physics: {
           enabled: true,
           barnesHut: { gravitationalConstant: -14000, springLength: 150, springConstant: 0.035, avoidOverlap: 0.4 },
-          stabilization: { iterations: tipo === 'relaciones' ? 150 : 80 }
+          stabilization: { iterations: (tipo === 'relaciones' || tipo === 'narrativa') ? 150 : 80 }
         },
         interaction: { hover: true, tooltipDelay: 80 },
         edges: { smooth: { type: 'continuous' } }

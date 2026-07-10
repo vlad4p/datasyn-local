@@ -163,6 +163,10 @@ CSV_KEY_MAP: dict[str, str] = {
     "grafo_comportamiento_edges.csv": "grafo_comportamiento_edges",
     "grafo_narrativa_nodes.csv": "grafo_narrativa_nodes",
     "grafo_narrativa_edges.csv": "grafo_narrativa_edges",
+    "grafo_narrativa_hater_nodes.csv": "grafo_narrativa_hater_nodes",
+    "grafo_narrativa_hater_edges.csv": "grafo_narrativa_hater_edges",
+    "grafo_narrativa_apoyo_nodes.csv": "grafo_narrativa_apoyo_nodes",
+    "grafo_narrativa_apoyo_edges.csv": "grafo_narrativa_apoyo_edges",
     "grafo_relaciones_nodes.csv": "grafo_relaciones_nodes",
     "grafo_relaciones_edges.csv": "grafo_relaciones_edges",
     "grafo_risk.csv": "grafo_risk",
@@ -393,6 +397,187 @@ def export_grafo_narrativa(con, data_dir: Path) -> tuple[int, int]:
     return _write_graph_csv(
         data_dir / "grafo_narrativa_nodes.csv",
         data_dir / "grafo_narrativa_edges.csv",
+        node_rows,
+        edge_rows,
+    )
+
+
+def export_grafo_narrativa_polaridad(
+    con,
+    data_dir: Path,
+    *,
+    polaridad: str,
+) -> tuple[int, int]:
+    """TW narrative cluster graph for hater or apoyo polarity.
+
+    Nodes: narrative clusters + top authors per cluster.
+    Edges: autor_narrativa + narrativa_coocurrencia (shared authors).
+    """
+    if polaridad == "apoyo":
+        assignment = "gold.tk_apoyo_narrativa_assignment"
+        cluster = "gold.tk_apoyo_narrativa_cluster"
+        autor_tipo = "supporter"
+        autor_color = SUPPORT_COLORS["medium"]
+        cluster_color = "#3dd68c"
+        out_prefix = "grafo_narrativa_apoyo"
+        edge_prefix = "nap"
+    else:
+        assignment = "gold.tk_hater_narrativa_assignment"
+        cluster = "gold.tk_hater_narrativa_cluster"
+        autor_tipo = "hater"
+        autor_color = RISK_COLORS["high"]
+        cluster_color = "#a78bfa"
+        out_prefix = "grafo_narrativa_hater"
+        edge_prefix = "nh"
+
+    try:
+        clusters = con.execute(
+            f"""
+            SELECT cluster_id, label, n_replies, descripcion
+            FROM {cluster}
+            ORDER BY n_replies DESC NULLS LAST
+            LIMIT 20
+            """
+        ).df()
+    except Exception:
+        clusters = __import__("pandas").DataFrame()
+
+    if len(clusters) == 0:
+        return _write_graph_csv(
+            data_dir / f"{out_prefix}_nodes.csv",
+            data_dir / f"{out_prefix}_edges.csv",
+            [],
+            [],
+        )
+
+    cluster_ids = [str(x) for x in clusters["cluster_id"].tolist()]
+    placeholders = ",".join(["?"] * len(cluster_ids))
+
+    authors = con.execute(
+        f"""
+        WITH counts AS (
+          SELECT
+            COALESCE(NULLIF(TRIM(username), ''), 'anon') AS username,
+            cluster_id,
+            COUNT(*) AS n
+          FROM {assignment}
+          WHERE cluster_id IN ({placeholders})
+            AND username IS NOT NULL
+            AND LENGTH(TRIM(username)) > 0
+          GROUP BY 1, 2
+        ),
+        ranked AS (
+          SELECT *,
+            ROW_NUMBER() OVER (PARTITION BY cluster_id ORDER BY n DESC) AS rn
+          FROM counts
+        )
+        SELECT username, cluster_id, n
+        FROM ranked
+        WHERE rn <= 5
+        ORDER BY n DESC
+        LIMIT 80
+        """,
+        cluster_ids,
+    ).df()
+
+    cooc = con.execute(
+        f"""
+        WITH pairs AS (
+          SELECT
+            a.cluster_id AS source_id,
+            b.cluster_id AS target_id,
+            COUNT(DISTINCT a.username) AS peso_total
+          FROM {assignment} AS a
+          JOIN {assignment} AS b
+            ON a.username = b.username
+           AND a.cluster_id < b.cluster_id
+          WHERE a.cluster_id IN ({placeholders})
+            AND b.cluster_id IN ({placeholders})
+            AND a.username IS NOT NULL
+            AND LENGTH(TRIM(a.username)) > 0
+          GROUP BY 1, 2
+          HAVING COUNT(DISTINCT a.username) >= 2
+        )
+        SELECT source_id, target_id, peso_total
+        FROM pairs
+        ORDER BY peso_total DESC
+        LIMIT 40
+        """,
+        cluster_ids + cluster_ids,
+    ).df()
+
+    node_rows: list[dict] = []
+    seen_authors: set[str] = set()
+    for row in clusters.itertuples(index=False):
+        cid = str(row.cluster_id)
+        n_rep = int(row.n_replies or 0)
+        node_rows.append(
+            {
+                "id": f"narr:{cid}",
+                "label": str(row.label or "?")[:18],
+                "tipo": "narrativa",
+                "color": cluster_color,
+                "shape": "diamond",
+                "size": min(36, 16 + n_rep // 5),
+                "title": f"{row.label} · {n_rep} replies · {polaridad}",
+                "plataforma": "twitter",
+            }
+        )
+
+    for row in authors.itertuples(index=False):
+        uname = str(row.username)
+        aid = f"autor:{uname.lower()}"
+        if aid not in seen_authors:
+            seen_authors.add(aid)
+            node_rows.append(
+                {
+                    "id": aid,
+                    "label": f"@{uname}"[:18],
+                    "tipo": autor_tipo,
+                    "color": autor_color,
+                    "shape": "dot",
+                    "size": min(28, 10 + int(row.n or 0)),
+                    "title": f"@{uname} · {polaridad}",
+                    "plataforma": "twitter",
+                }
+            )
+
+    edge_rows: list[dict] = []
+    for i, row in enumerate(authors.itertuples(index=False)):
+        peso = int(row.n or 1)
+        edge_rows.append(
+            {
+                "id": f"{edge_prefix}_an{i}",
+                "from": f"autor:{str(row.username).lower()}",
+                "to": f"narr:{row.cluster_id}",
+                "label": str(peso),
+                "color": "#a78bfa55" if polaridad != "apoyo" else "#3dd68c55",
+                "width": max(1, min(8, peso)),
+                "dashes": "true",
+                "edge_type": "autor_narrativa",
+                "title": f"autor_narrativa · {peso}",
+            }
+        )
+
+    for i, row in enumerate(cooc.itertuples(index=False)):
+        peso = int(row.peso_total or 1)
+        edge_rows.append(
+            {
+                "id": f"{edge_prefix}_co{i}",
+                "from": f"narr:{row.source_id}",
+                "to": f"narr:{row.target_id}",
+                "label": str(peso),
+                "color": "#fbbf2488",
+                "width": max(1, min(10, peso)),
+                "dashes": "false",
+                "edge_type": "narrativa_coocurrencia",
+                "title": f"coocurrencia · {peso} autores",
+            }
+        )
+
+    return _write_graph_csv(
+        data_dir / f"{out_prefix}_nodes.csv",
+        data_dir / f"{out_prefix}_edges.csv",
         node_rows,
         edge_rows,
     )
@@ -975,6 +1160,24 @@ def main() -> int:
     print(f"  grafo_comportamiento: {n1} nodes / {e1} edges")
     n2, e2 = export_grafo_narrativa(con, data_dir)
     print(f"  grafo_narrativa: {n2} nodes / {e2} edges")
+    try:
+        nh, eh = export_grafo_narrativa_polaridad(con, data_dir, polaridad="hater")
+        print(f"  grafo_narrativa_hater: {nh} nodes / {eh} edges")
+    except Exception as exc:
+        print(f"  (narrativa hater skipped: {exc})")
+        for name in ("grafo_narrativa_hater_nodes.csv", "grafo_narrativa_hater_edges.csv"):
+            p = data_dir / name
+            if not p.exists():
+                p.write_text("", encoding="utf-8")
+    try:
+        na, ea = export_grafo_narrativa_polaridad(con, data_dir, polaridad="apoyo")
+        print(f"  grafo_narrativa_apoyo: {na} nodes / {ea} edges")
+    except Exception as exc:
+        print(f"  (narrativa apoyo skipped: {exc})")
+        for name in ("grafo_narrativa_apoyo_nodes.csv", "grafo_narrativa_apoyo_edges.csv"):
+            p = data_dir / name
+            if not p.exists():
+                p.write_text("", encoding="utf-8")
     export_grafo_relaciones_tables(con, data_dir)
     n3, e3 = export_grafo_relaciones(con, data_dir)
     print(f"  grafo_relaciones: {n3} nodes / {e3} edges")
