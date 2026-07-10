@@ -85,7 +85,7 @@ WHEN MATCHED THEN UPDATE SET
   ingested_at = s.ingested_at
 WHEN NOT MATCHED THEN INSERT *;
 
--- Flatten reply batches; skip error-only JSONL rows (no "replies" field).
+-- Flatten reply batches. Skip error-only JSONL rows (no "replies" field).
 CREATE OR REPLACE TEMP TABLE staging_tk_tw_reply AS
 WITH raw AS (
   SELECT
@@ -141,3 +141,137 @@ WHEN MATCHED THEN UPDATE SET
   source = s.source,
   ingested_at = s.ingested_at
 WHEN NOT MATCHED THEN INSERT *;
+
+-- Sparse profiles from reply authors (id / username / name only).
+-- WHEN MATCHED: refresh names only — do not null out full tracked metrics.
+CREATE OR REPLACE TEMP TABLE staging_tk_tw_profile_from_replies AS
+SELECT DISTINCT
+  author_id AS user_id,
+  username,
+  author_name AS display_name,
+  NULL::BIGINT AS followers_count,
+  NULL::BIGINT AS following_count,
+  NULL::BIGINT AS statuses_count,
+  NULL::VARCHAR AS description,
+  'twitter' AS platform,
+  'twikit' AS source,
+  current_timestamp AS ingested_at
+FROM silver.tk_tw_reply
+WHERE author_id IS NOT NULL AND username IS NOT NULL;
+
+MERGE INTO silver.tk_tw_profile AS t
+USING staging_tk_tw_profile_from_replies AS s
+ON t.user_id = s.user_id
+WHEN MATCHED THEN UPDATE SET
+  username = s.username,
+  display_name = COALESCE(s.display_name, t.display_name)
+WHEN NOT MATCHED THEN INSERT *;
+
+-- ---------------------------------------------------------------------------
+-- Catalog: silver.tk_tw_user (twikit-only - replaces legacy silver.tw_users)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS silver.tk_tw_profile_enriched (
+  user_id VARCHAR,
+  username VARCHAR,
+  display_name VARCHAR,
+  bio VARCHAR,
+  location VARCHAR,
+  followers_count BIGINT,
+  following_count BIGINT,
+  statuses_count BIGINT,
+  favourites_count BIGINT,
+  listed_count BIGINT,
+  account_created_at VARCHAR,
+  is_verified BOOLEAN,
+  is_blue_verified BOOLEAN,
+  is_protected BOOLEAN,
+  profile_image_url VARCHAR,
+  profile_url VARCHAR,
+  platform VARCHAR,
+  source VARCHAR,
+  ingested_at TIMESTAMP
+);
+
+CREATE OR REPLACE TEMP TABLE staging_tk_tw_user_hater AS
+SELECT
+  r.author_id AS user_id,
+  COUNT(*) FILTER (WHERE c.criterio_label = 'derecha_o_troll') AS hater_replies_count,
+  COUNT(*) AS replies_observed_count,
+  MIN(r.created_at_ts) AS first_seen_at,
+  MAX(r.created_at_ts) AS last_seen_at
+FROM silver.tk_tw_reply AS r
+LEFT JOIN silver.tk_tw_reply_classification AS c
+  ON c.reply_id = r.reply_id
+WHERE r.author_id IS NOT NULL
+GROUP BY r.author_id;
+
+CREATE OR REPLACE TABLE silver.tk_tw_user AS
+WITH base AS (
+  SELECT
+    p.user_id,
+    p.username,
+    p.display_name,
+    p.followers_count,
+    p.following_count,
+    p.statuses_count,
+    p.description AS bio,
+    CAST(NULL AS VARCHAR) AS location,
+    CAST(NULL AS VARCHAR) AS account_created_at,
+    CAST(NULL AS BOOLEAN) AS is_blue_verified,
+    CAST(NULL AS BOOLEAN) AS is_verified,
+    CAST(NULL AS BOOLEAN) AS is_protected,
+    CAST(NULL AS VARCHAR) AS profile_image_url,
+    'https://x.com/' || p.username AS profile_url,
+    p.platform,
+    p.source,
+    p.ingested_at
+  FROM silver.tk_tw_profile AS p
+),
+enriched AS (
+  SELECT
+    e.user_id,
+    e.username,
+    e.display_name,
+    e.followers_count,
+    e.following_count,
+    e.statuses_count,
+    e.bio,
+    e.location,
+    e.account_created_at,
+    e.is_blue_verified,
+    e.is_verified,
+    e.is_protected,
+    e.profile_image_url,
+    e.profile_url,
+    e.platform,
+    e.source,
+    e.ingested_at
+  FROM silver.tk_tw_profile_enriched AS e
+)
+SELECT
+  COALESCE(en.user_id, b.user_id) AS user_id,
+  COALESCE(en.username, b.username) AS username,
+  COALESCE(en.display_name, b.display_name) AS display_name,
+  COALESCE(en.followers_count, b.followers_count) AS followers_count,
+  COALESCE(en.following_count, b.following_count) AS following_count,
+  COALESCE(en.statuses_count, b.statuses_count) AS statuses_count,
+  COALESCE(en.bio, b.bio) AS bio,
+  COALESCE(en.location, b.location) AS location,
+  COALESCE(en.account_created_at, b.account_created_at) AS account_created_at,
+  COALESCE(en.is_blue_verified, b.is_blue_verified) AS is_blue_verified,
+  COALESCE(en.is_verified, b.is_verified) AS is_verified,
+  COALESCE(en.is_protected, b.is_protected) AS is_protected,
+  COALESCE(en.profile_image_url, b.profile_image_url) AS profile_image_url,
+  COALESCE(en.profile_url, b.profile_url) AS profile_url,
+  COALESCE(h.hater_replies_count, 0) AS hater_replies_count,
+  COALESCE(h.replies_observed_count, 0) AS replies_observed_count,
+  (COALESCE(h.hater_replies_count, 0) >= 1) AS is_hater,
+  h.first_seen_at,
+  h.last_seen_at,
+  COALESCE(en.platform, b.platform, 'twitter') AS platform,
+  'twikit' AS source,
+  COALESCE(en.ingested_at, b.ingested_at, current_timestamp) AS ingested_at
+FROM base AS b
+FULL OUTER JOIN enriched AS en ON b.user_id = en.user_id
+LEFT JOIN staging_tk_tw_user_hater AS h
+  ON h.user_id = COALESCE(en.user_id, b.user_id);

@@ -158,7 +158,7 @@ ORDER BY avisos DESC;
 
 Gold tables feed directly into `reports/<project>/`. Use [`statistical-report`](../../../analyze/reports/statistical-report/SKILL.md),
 [`graph-analysis`](../../../analyze/graph/graph-analysis/SKILL.md), [`sentiment-analysis`](../../../analyze/reports/sentiment-analysis/SKILL.md),
-or [`redes-analysis`](../../../analyze/reports/redes-analysis/SKILL.md) for legacy FB/TW pipelines.
+or [`redes-analysis`](../../../analyze/reports/redes-analysis/SKILL.md) for legacy Facebook pipelines (Twitter → `troll-blacklist`).
 
 ---
 

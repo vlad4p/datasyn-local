@@ -25,7 +25,7 @@ uv run python scripts/python/db.py mcp-serve   # Cursor MCP (stdio)
 | `sociavault_client.py` | SociaVault REST API client (`SOCIAVAULT_API_KEY`) |
 | `sociavault_scrape_common.py` | Shared landing paths, manifest, ingest helpers |
 | `scrape_sociavault_facebook.py` | Facebook → `data/landing/redes/sociavault/facebook/` |
-| `scrape_sociavault_twitter.py` | X/Twitter → `data/landing/redes/sociavault/twitter/` |
+| `scrape_sociavault_twitter.py` | X/Twitter via SociaVault (**deprecated** — prefer twikit) |
 | `scrape_sociavault_instagram.py` | Instagram → `data/landing/redes/sociavault/instagram/` |
 | `scrape_sociavault_tiktok.py` | TikTok → `data/landing/redes/sociavault/tiktok/` |
 
@@ -58,19 +58,23 @@ uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk
 uv run python scripts/python/classify_tk_tw_replies.py --batch-size 50 --cluster-haters
 uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_hater_narrativa.sql
 # Refresh Twitter account catalog (is_hater + profile fields)
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twitter_silver.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twikit_twitter_silver.sql
 uv run python scripts/python/generate_tk_hater_clusters_report.py
+# Auditable troll blacklist (no auto-block on X)
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_troll_blacklist.sql
+uv run python scripts/python/generate_tk_troll_blacklist_report.py
 ```
 
-## Redes reports (legacy FB/TW CSV)
+## Redes reports (legacy Facebook CSV)
 
-Skill: [`redes-analysis`](../../skills/analyze/reports/redes-analysis/SKILL.md). Gold SQL: `scripts/sql/ingest_redes_gold.sql`.
+Skill: [`redes-analysis`](../../skills/analyze/reports/redes-analysis/SKILL.md). Gold SQL: `scripts/sql/ingest_redes_gold.sql` (FB-only).
 
-| Script | Output bundle under `reports/redes/` |
-|--------|--------------------------------------|
-| `generate_redes_dashboard.py` | `dashboard/` — unified Chart.js + vis.js dashboard (CSV externals) |
-| `export_redes_reports_zip.py` | `_exports/export_{date}.zip` |
-| `generate_tk_hater_clusters_report.py` | `reports/twikit-myriam/hater-clusters/` — twikit hater narratives |
+| Script | Output bundle under `reports/` |
+|--------|--------------------------------|
+| `generate_redes_dashboard.py` | `redes/dashboard/` — Chart.js + vis.js dashboard |
+| `export_redes_reports_zip.py` | `redes/_exports/export_{date}.zip` |
+| `generate_tk_hater_clusters_report.py` | `twikit-myriam/hater-clusters/` |
+| `generate_tk_troll_blacklist_report.py` | `twikit-myriam/troll-blacklist/` |
 
 ## Graph helpers
 

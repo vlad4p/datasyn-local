@@ -1,27 +1,26 @@
 ---
 name: redes-gold
 description: >-
-  Build gold analytics views for legacy Facebook/Twitter redes data — sentiment,
+  Build gold analytics views for legacy Facebook redes data — sentiment,
   narrative, trolls, ráfagas, and graph tables. Runs scripts/sql/ingest_redes_gold.sql.
   Use when the user asks for gold redes views, troll KPIs, narrativa, or report-ready
-  aggregates from silver.fb_* / silver.tw_* classification tables.
+  aggregates from silver.fb_* classification tables. (Twitter is twikit-only.)
 ---
 
-# Redes gold — vistas analíticas (FB + TW legacy)
+# Redes gold — vistas analíticas (Facebook only)
 
-**Zone:** `gold.*` views from legacy `silver.fb_*` / `silver.tw_*` + LLM classification.  
+**Zone:** `gold.*` views from legacy `silver.fb_*` + LLM classification.  
 **Script:** [`scripts/sql/ingest_redes_gold.sql`](../../../../scripts/sql/ingest_redes_gold.sql)  
-**Reference:** [`references/gold-views.md`](references/gold-views.md)
+**Reference:** [`references/gold-views.md`](references/gold-views.md)  
+**Twitter:** use twikit (`tk_tw_*` / `gold.tk_hater_*` / skill `troll-blacklist`) — not this pipeline.
 
 ---
 
 ## Prerequisites
 
-1. Silver legacy ingested — see [`references/redes-legacy-csv.md`](../../references/redes-legacy-csv.md)
-2. Classification tables populated:
-   - `silver.fb_comment_classification`
-   - `silver.tw_comments_classification`
-3. Optional: `silver.network_profile` — [`scripts/sql/ingest_network_profile.sql`](../../../../scripts/sql/ingest_network_profile.sql)
+1. Silver Facebook ingested — see [`references/redes-legacy-csv.md`](../../references/redes-legacy-csv.md)
+2. Classification table populated: `silver.fb_comment_classification`
+3. Optional: `silver.network_profile` — [`scripts/sql/ingest_network_profile.sql`](../../../../scripts/sql/ingest_network_profile.sql) (FB-only)
 4. Optional: entidades gold — [`scripts/sql/ingest_gold_entidades.sql`](../../../../scripts/sql/ingest_gold_entidades.sql) (después de `network_profile`)
 
 ---
@@ -31,9 +30,8 @@ description: >-
 1. **Verify silver** (MCP `query` or `db.py info`)
    ```sql
    SELECT COUNT(*) FROM silver.fb_comment_classification;
-   SELECT COUNT(*) FROM silver.tw_comments_classification;
-   SELECT parent_author_username, COUNT(*) AS n
-   FROM silver.tw_comments_classification
+   SELECT fanpage_descripcion, COUNT(*) AS n
+   FROM silver.fb_comment_classification
    GROUP BY 1 ORDER BY 2 DESC LIMIT 5;
    ```
 

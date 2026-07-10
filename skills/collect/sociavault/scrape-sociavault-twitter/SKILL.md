@@ -1,15 +1,18 @@
 ---
 name: scrape-sociavault-twitter
 description: >-
-  Scrape a public X/Twitter account via SociaVault: last N tweets (by
-  created_at), full tweet detail enrich, all replies. MERGEs silver sv_tw_*.
-  Use when the user asks to scrape Twitter/X with SociaVault (e.g. last 10
-  tweets from an account).
+  DEPRECATED for Twitter/X. Prefer scrape-twikit-twitter. Historical SociaVault
+  Twitter scrape docs (sv_tw_*). Use only if explicitly asked for SociaVault Twitter.
 ---
 
-# Scrape Twitter / X (SociaVault)
+# Scrape Twitter / X (SociaVault) — DEPRECATED
 
-**Platform:** X (Twitter) · **Schema:** `sv_tw_*` (parallel to legacy `tw_*` CSV dumps)
+> **Deprecated.** Canonical Twitter/X pipeline is **twikit**:
+> [`scrape-twikit-twitter`](../../twikit/scrape-twikit-twitter/SKILL.md).
+> Legacy CSV `tw_*` tables are also retired — see
+> [`twitter-legacy-to-twikit.md`](../../../ingest/references/twitter-legacy-to-twikit.md).
+
+**Platform:** X (Twitter) · **Schema:** `sv_tw_*` (historical; may not exist in DB)
 
 ## Count flag
 
@@ -72,8 +75,10 @@ SELECT COUNT(*) FROM silver.sv_tw_reply;
 - **`user-tweets` returns ~100 popular tweets**, not full history — "last N" is best-effort among that pool
 - Replies often incomplete vs `reply_count` (X API limitation)
 - Use `--no-enrich` to skip per-tweet detail calls (saves credits)
-- Legacy CSV dumps in `data/landing/redes/data-tw/` are a **separate** pipeline (`tw_*` tables) — see [`ingest/references/redes-legacy-csv.md`](../../../ingest/references/redes-legacy-csv.md)
+- Prefer **twikit** for Twitter/X: [`scrape-twikit-twitter`](../../twikit/scrape-twikit-twitter/SKILL.md)
+- Legacy CSV `tw_*` tables are **retired**
 
 ## Related
 
+- [`scrape-twikit-twitter`](../../twikit/scrape-twikit-twitter/SKILL.md) — canonical Twitter pipeline
 - [`scrape-sociavault`](../scrape-sociavault/SKILL.md)

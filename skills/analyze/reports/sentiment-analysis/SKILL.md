@@ -157,11 +157,13 @@ SELECT * FROM articles_sentiment LIMIT 10;
 
 ---
 
-## Redes sociales — posición LLM (legacy FB/TW)
+## Redes sociales — posición LLM
 
-For tracked PTS accounts, sentiment is **political position** from human/LLM classification — not TextBlob polarity.
+### Facebook (legacy redes)
 
-**Source tables:** `silver.fb_comment_classification`, `silver.tw_comments_classification`  
+For tracked PTS Facebook pages, sentiment is **political position** from human/LLM classification — not TextBlob polarity.
+
+**Source tables:** `silver.fb_comment_classification`  
 **Gold views:** `gold.v_comentarios_clasificados`, `gold.v_comentario_narrativa` — see skill [`redes-gold`](../../ingest/gold/redes-gold/SKILL.md)
 
 | `posicion` | Meaning |
@@ -174,7 +176,7 @@ For tracked PTS accounts, sentiment is **political position** from human/LLM cla
 
 **Narrativa:** secondary theme from `resumen` (SQL heuristics) — insulto, spam, Bolivia, etc.
 
-**Reports:** skill [`redes-analysis`](../redes-analysis/SKILL.md) — HTML dashboard, troll graph, PDF.
+**Reports:** skill [`redes-analysis`](../redes-analysis/SKILL.md) — HTML dashboard, troll graph.
 
 ```sql
 -- Via MCP after gold ingest
@@ -182,3 +184,9 @@ SELECT cuenta_slug, posicion, COUNT(*) AS n
 FROM gold.v_comentarios_clasificados
 GROUP BY 1, 2 ORDER BY 1, 3 DESC;
 ```
+
+### Twitter/X (twikit)
+
+**Source:** `silver.tk_tw_reply_classification`  
+**Gold:** `gold.v_tk_hater_narrativa_*`, `gold.tk_troll_blacklist`  
+**Skills:** [`scrape-twikit-twitter`](../../../collect/twikit/scrape-twikit-twitter/SKILL.md), [`troll-blacklist`](../troll-blacklist/SKILL.md)

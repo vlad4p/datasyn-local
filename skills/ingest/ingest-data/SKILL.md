@@ -37,7 +37,8 @@ landing/ ──→ bronze ──→ silver ──→ gold ──→ reports/<pro
 | "Scrapeá y guardá en la DB" | Bronze | `ingest-data-bronze` |
 | "Limpiá duplicados y normalizá nombres" | Silver | `ingest-data-silver` |
 | "Creá una tabla uniendo empresas con socios" | Silver | `ingest-data-silver` |
-| "Ingestá el dump CSV de Twitter en redes/" | Bronze → Silver | `ingest-data-bronze` + `ingest-data-silver` · see [`references/redes-legacy-csv.md`](../references/redes-legacy-csv.md) |
+| "Ingestá el dump CSV de Facebook en redes/" | Bronze → Silver | `ingest-data-bronze` + `ingest-data-silver` · see [`references/redes-legacy-csv.md`](../references/redes-legacy-csv.md) |
+| "Ingestá Twitter/X" | Twikit silver | skill `scrape-twikit-twitter` · [`twitter-legacy-to-twikit.md`](../references/twitter-legacy-to-twikit.md) |
 | "Gold / reportes redes PTS" | Gold → Analyze | [`redes-gold`](../gold/redes-gold/SKILL.md) → [`redes-analysis`](../../analyze/reports/redes-analysis/SKILL.md) |
 | "Creá un dataset para reportes diarios" | Gold | `ingest-data-gold` |
 | "Agrupá por sector y calculá totales" | Gold | `ingest-data-gold` |

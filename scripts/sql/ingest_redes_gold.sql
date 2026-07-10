@@ -1,12 +1,12 @@
 -- Gold views for redes sociales: sentimiento, narrativa, trolls, grafo
--- Fuentes: silver.fb_* , silver.tw_* , silver.network_profile
+-- Fuentes: silver.fb_* (Facebook only — Twitter vive en pipeline twikit tk_tw_*)
 -- Uso: uv run python scripts/python/db.py mcp-stop
 --      uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_redes_gold.sql
 
 CREATE SCHEMA IF NOT EXISTS gold;
 
 -- ---------------------------------------------------------------------------
--- Dimension: cuentas trackeadas del análisis
+-- Dimension: cuentas trackeadas del análisis (FB + handles TW de referencia)
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW gold.v_cuentas_trackeadas AS
 SELECT *
@@ -21,7 +21,7 @@ FROM (
 ) AS t(cuenta_slug, cuenta_nombre, plataforma, tw_username, fb_fanpage);
 
 -- ---------------------------------------------------------------------------
--- Base unificada de comentarios clasificados (FB + TW)
+-- Base de comentarios clasificados (Facebook only)
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW gold.v_comentarios_clasificados AS
 SELECT
@@ -50,37 +50,7 @@ LEFT JOIN silver.fb_comment AS c
     ON CAST(c.comentario_id AS VARCHAR) = cl.comment_id
 LEFT JOIN gold.v_cuentas_trackeadas AS ct
     ON ct.plataforma = 'facebook'
-   AND ct.fb_fanpage = cl.fanpage_descripcion
-
-UNION ALL
-
-SELECT
-    'twitter'::VARCHAR AS plataforma,
-    CAST(cl.reply_tweet_id AS VARCHAR) AS comentario_id,
-    CAST(cl.parent_tweet_id AS VARCHAR) AS contenido_padre_id,
-    cl.parent_author_username AS cuenta_objetivo_raw,
-    ct.cuenta_slug,
-    ct.cuenta_nombre,
-    r.published_at AS fecha,
-    DATE_TRUNC('day', r.published_at)::DATE AS dia,
-    DATE_TRUNC('week', r.published_at)::DATE AS semana,
-    cl.criteria_label AS posicion,
-    cl.criteria_code AS codigo_criterio,
-    TRIM(cl.summary) AS resumen,
-    CAST(cl.reply_author_user_id AS VARCHAR) AS autor_id,
-    cl.reply_author_username AS autor_nombre,
-    CASE
-        WHEN cl.reply_author_user_id IS NOT NULL THEN 'id:' || CAST(cl.reply_author_user_id AS VARCHAR)
-        WHEN cl.reply_author_username IS NOT NULL THEN 'handle:' || LOWER(TRIM(cl.reply_author_username))
-        ELSE 'anon:' || CAST(cl.reply_tweet_id AS VARCHAR)
-    END AS autor_key,
-    TRUE AS has_comment_match
-FROM silver.tw_comments_classification AS cl
-LEFT JOIN silver.tw_tweets_replies AS r
-    ON cl.reply_tweet_id = r.tweet_id
-LEFT JOIN gold.v_cuentas_trackeadas AS ct
-    ON ct.plataforma = 'twitter'
-   AND LOWER(ct.tw_username) = LOWER(cl.parent_author_username);
+   AND ct.fb_fanpage = cl.fanpage_descripcion;
 
 -- ---------------------------------------------------------------------------
 -- Narrativa temática (heurística sobre resumen + posición)

@@ -8,7 +8,8 @@ Reports and network analysis from DuckDB tables. Outputs go to `reports/<project
 |-------|-------------|
 | [`statistical-report`](reports/statistical-report/SKILL.md) | EDA, profiling, multi-format reports |
 | [`sentiment-analysis`](reports/sentiment-analysis/SKILL.md) | Text tone and framing |
-| [`redes-analysis`](reports/redes-analysis/SKILL.md) | Legacy FB/TW: gold reports, trolls, ráfagas, HTML/PDF |
+| [`redes-analysis`](reports/redes-analysis/SKILL.md) | Legacy FB: gold reports, trolls, ráfagas, HTML |
+| [`troll-blacklist`](reports/troll-blacklist/SKILL.md) | Twikit block/watch list (manual, auditable) |
 
 ## Sub-scope: Graph
 
@@ -20,4 +21,5 @@ Reports and network analysis from DuckDB tables. Outputs go to `reports/<project
 
 Flow: `graph-ingest` → `graph-analysis` → optional `interactive-graph-reports`.
 
-**Redes PTS:** `redes-gold` (SQL views) → `redes-analysis` (HTML/PDF). Trolls graph uses `gold.grafo_*_trolls` — see [`redes-analysis`](reports/redes-analysis/SKILL.md).
+**Redes PTS (Facebook):** `redes-gold` (SQL views) → `redes-analysis` (HTML). Trolls graph uses `gold.grafo_*_trolls`.  
+**Twitter/X:** twikit → `troll-blacklist` / hater reports.

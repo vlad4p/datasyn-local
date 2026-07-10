@@ -17,7 +17,7 @@ See [`sociavault/README.md`](sociavault/README.md).
 | Platform | Skill |
 |----------|-------|
 | Facebook | [`scrape-sociavault-facebook`](sociavault/scrape-sociavault-facebook/SKILL.md) |
-| Twitter/X | [`scrape-sociavault-twitter`](sociavault/scrape-sociavault-twitter/SKILL.md) |
+| Twitter/X | [`scrape-sociavault-twitter`](sociavault/scrape-sociavault-twitter/SKILL.md) (**deprecated** — use twikit) |
 | Instagram | [`scrape-sociavault-instagram`](sociavault/scrape-sociavault-instagram/SKILL.md) |
 | TikTok | [`scrape-sociavault-tiktok`](sociavault/scrape-sociavault-tiktok/SKILL.md) |
 
