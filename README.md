@@ -289,6 +289,8 @@ Guía completa para el asistente: [`skills/engineering/gitflow/SKILL.md`](skills
 | Guía | Contenido |
 |------|-----------|
 | [`docs/guia-datos.md`](docs/guia-datos.md) | Prompts listos: credenciales X/Twitter (twikit), scrape, LLM opcional + clusters, reportes; compartir o apuntar a una DuckDB externa |
+| [`docs/guia-monitoreo-redes.md`](docs/guia-monitoreo-redes.md) | Monitor unificado: estudiar personas multiplataforma, reacciones, haters, grafos, comparativas |
+| [`docs/monitoreo-redes-tecnico.md`](docs/monitoreo-redes-tecnico.md) | Doc técnica del sistema de monitoreo (identidad, gold, dashboard) |
 
 Diagramas: [`docs/diagrams/README.md`](docs/diagrams/README.md) — fuentes SVG en [`docs/diagrams/`](docs/diagrams/), paleta en [`docs/colors/README.md`](docs/colors/README.md).
 
