@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitor de redes — unificado</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419; --surface: #1a2332; --surface2: #243044; --text: #e7ecf3;
+      --muted: #8b9cb3; --accent: #5b8def; --border: #2d3a4f;
+      --apoyo: #3dd68c; --troll: #f07178; --neutral: #8b9cb3; --ambiguo: #f5a524;
+      --sidebar-w: 230px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    .app { display: flex; min-height: 100vh; }
+    nav {
+      width: var(--sidebar-w); background: var(--surface); border-right: 1px solid var(--border);
+      padding: 1rem 0; position: fixed; top: 0; bottom: 0; overflow-y: auto; z-index: 10;
+    }
+    nav h1 { font-size: 0.95rem; padding: 0 1rem 0.75rem; border-bottom: 1px solid var(--border); margin-bottom: 0.5rem; }
+    nav a {
+      display: block; padding: 0.45rem 1rem; color: var(--muted); text-decoration: none;
+      font-size: 0.85rem; border-left: 3px solid transparent;
+    }
+    nav a:hover, nav a.active { color: var(--text); background: rgba(91,141,239,0.08); border-left-color: var(--accent); }
+    main { margin-left: var(--sidebar-w); flex: 1; padding: 1.5rem 1.75rem 3rem; max-width: 1240px; }
+    section { display: none; margin-bottom: 2rem; }
+    section.active { display: block; }
+    section > h2 { font-size: 1.25rem; margin-bottom: 0.25rem; }
+    section > .desc { color: var(--muted); font-size: 0.88rem; margin-bottom: 1rem; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; }
+    .kpi .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .kpi .value { font-size: 1.35rem; font-weight: 700; margin: 0.2rem 0; }
+    .kpi .sub { font-size: 0.78rem; color: var(--muted); }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+    .chart-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+    .chart-box { position: relative; height: 300px; }
+    .chart-box.tall { height: 380px; }
+    .chart-box.graph { height: 520px; }
+    .controls { margin-bottom: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+    select, button {
+      background: var(--surface2); color: var(--text); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.4rem 0.65rem; font-size: 0.85rem;
+    }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+    th, td { text-align: left; padding: 0.45rem 0.55rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; font-weight: 500; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .badge { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600; }
+    .badge.tw { background: #1da1f2; color: #fff; }
+    .badge.fb { background: #1877f2; color: #fff; }
+    .badge.ig { background: #e1306c; color: #fff; }
+    .badge.hater { background: rgba(240,113,120,0.2); color: var(--troll); }
+    .badge.apoyo { background: rgba(61,214,140,0.2); color: var(--apoyo); }
+    .badge.bot { background: rgba(245,165,36,0.2); color: var(--ambiguo); }
+    .limits { font-size: 0.86rem; color: var(--muted); line-height: 1.55; }
+    .limits li { margin: 0.35rem 0 0.35rem 1.1rem; }
+    .limits code { color: var(--accent); font-size: 0.82rem; }
+    .persona-card { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .cuenta-chip {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.65rem 0.8rem; font-size: 0.84rem;
+    }
+    .cuenta-chip .meta { color: var(--muted); font-size: 0.75rem; margin-top: 0.25rem; }
+    footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.8rem; }
+    @media (max-width: 768px) {
+      nav { position: relative; width: 100%; }
+      main { margin-left: 0; }
+      .app { flex-direction: column; }
+      .persona-card { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <nav id="nav">
+      <h1>Monitor redes</h1>
+      <a href="#perfil" data-sec="perfil" class="active">Perfil</a>
+      <a href="#reacciones" data-sec="reacciones">Reacciones</a>
+      <a href="#engagement" data-sec="engagement">Engagement</a>
+      <a href="#audiencia" data-sec="audiencia">Audiencia</a>
+      <a href="#haters" data-sec="haters">Haters / Top 10</a>
+      <a href="#narrativa" data-sec="narrativa">Narrativas</a>
+      <a href="#grafos" data-sec="grafos">Grafos</a>
+      <a href="#comparativa" data-sec="comparativa">Comparativa</a>
+      <a href="#metodo" data-sec="metodo">Metodología</a>
+    </nav>
+    <main>
+      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem">
+        Identidad curada · Facebook legacy + Twitter/X (twikit) · Generado: __GENERATED__
+      </p>
+      <div class="controls" style="margin-bottom:1.25rem">
+        <label>Persona:
+          <select id="selPersona"></select>
+        </label>
+        <label>Plataforma:
+          <select id="selPlataforma">
+            <option value="">Todas</option>
+            <option value="facebook">Facebook</option>
+            <option value="twitter">Twitter/X</option>
+          </select>
+        </label>
+      </div>
+      <div class="kpi-grid" id="kpi-global"></div>
+
+      <section id="sec-perfil" class="active">
+        <h2>Perfil y cuentas</h2>
+        <p class="desc">Persona canónica, campos OSINT y cuentas vinculadas por plataforma.</p>
+        <div class="panel" id="perfil-osint"></div>
+        <div class="persona-card" id="perfil-cuentas"></div>
+      </section>
+
+      <section id="sec-reacciones">
+        <h2>Reacciones</h2>
+        <p class="desc">Desglose de reacciones (FB) y engagement de posts (TW).</p>
+        <div class="chart-row">
+          <div class="panel"><div class="chart-box"><canvas id="chartReacciones"></canvas></div></div>
+          <div class="panel"><div class="chart-box"><canvas id="chartReaccionesTipo"></canvas></div></div>
+        </div>
+      </section>
+
+      <section id="sec-engagement">
+        <h2>Engagement</h2>
+        <p class="desc">Posts, reacciones y engagement por post a lo largo del tiempo.</p>
+        <div class="panel"><div class="chart-box tall"><canvas id="chartEngagement"></canvas></div></div>
+      </section>
+
+      <section id="sec-audiencia">
+        <h2>Audiencia: haters, apoyo, bots</h2>
+        <p class="desc">Clasificación de comentaristas/repliers. Bots = heurística (cuenta nueva, ratio follow, bio vacía, alto output).</p>
+        <div class="chart-row">
+          <div class="panel"><div class="chart-box"><canvas id="chartAudiencia"></canvas></div></div>
+          <div class="panel"><div class="chart-box"><canvas id="chartBots"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <table id="tblAudiencia"><thead><tr>
+            <th>Plataforma</th><th>Clase</th><th>Eventos</th><th>Actores</th><th>Bots (heur.)</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </section>
+
+      <section id="sec-haters">
+        <h2>Top 10 haters</h2>
+        <p class="desc">Autores hostiles más activos por persona (FB trolls + TW blacklist).</p>
+        <div class="panel">
+          <table id="tblHaters"><thead><tr>
+            <th>#</th><th>Plat.</th><th>Actor</th><th>Eventos</th><th>Tier / risk</th><th>Narrativas</th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </section>
+
+      <section id="sec-narrativa">
+        <h2>Narrativas</h2>
+        <p class="desc">Temas / clusters identificados en comentarios y replies hostiles.</p>
+        <div class="panel"><div class="chart-box tall"><canvas id="chartNarrativa"></canvas></div></div>
+      </section>
+
+      <section id="sec-grafos">
+        <h2>Grafos</h2>
+        <p class="desc">Comportamiento (ataques/ráfagas), cuentas coordinadas (co-followers/bridges), clusters de narrativa.</p>
+        <div class="controls">
+          <label>Tipo:
+            <select id="selGrafo">
+              <option value="comportamiento">Comportamiento</option>
+              <option value="coordinacion">Cuentas coordinadas</option>
+              <option value="narrativa">Clusters de narrativa</option>
+            </select>
+          </label>
+          <button type="button" id="btnFitGrafo">Ajustar vista</button>
+        </div>
+        <div class="panel"><div id="network" class="chart-box graph"></div></div>
+      </section>
+
+      <section id="sec-comparativa">
+        <h2>Comparativa temporal</h2>
+        <p class="desc">Varias personas en la misma visualización (comentarios hostiles / engagement).</p>
+        <div class="controls">
+          <label>Métrica:
+            <select id="selCompMetric">
+              <option value="hostilidad">Comentarios hostiles</option>
+              <option value="engagement">Engagement por post</option>
+              <option value="reacciones">Reacciones</option>
+            </select>
+          </label>
+        </div>
+        <div class="panel"><div class="chart-box tall"><canvas id="chartComparativa"></canvas></div></div>
+      </section>
+
+      <section id="sec-metodo">
+        <h2>Metodología y límites</h2>
+        <div class="panel limits">
+          <p><strong>Pipeline:</strong> seed curado (<code>config/identidades*.csv</code>) →
+            <code>silver.identidad</code> / <code>identidad_cuenta</code> →
+            <code>gold.v_monitor_*</code> (FB legacy + twikit) → este dashboard.</p>
+          <ul>
+            <li>v1 usa datos vivos de <strong>Facebook legacy</strong> y <strong>Twitter/X (twikit)</strong>. Instagram/TikTok quedan listos en el modelo de identidad pero sin filas aún.</li>
+            <li>Clasificación LLM + heurísticas de narrativa — no es verdad absoluta.</li>
+            <li><strong>Bots</strong>: heurística (cuenta nueva, ratio follow alto, bio vacía, alto output / baja audiencia). No prueba de automatización.</li>
+            <li><code>co_rafaga</code> / <code>co_followers</code> = sincronía o audiencia compartida, <em>no</em> prueba de coordinación.</li>
+            <li>Muestra TW parcial (tweets seleccionados + replies). FB tiene más volumen clasificado.</li>
+            <li>Campos OSINT (Wikidata, sitio, provincia) se completan en el seed curado — checklist en la doc técnica.</li>
+          </ul>
+        </div>
+      </section>
+
+      <footer>datasyn · monitor unificado · datos embebidos (offline)</footer>
+    </main>
+  </div>
+
+  <script>
+    const DATA = __DATA_JSON__;
+    const charts = {};
+    let network = null;
+
+    const COLORS = {
+      hater: '#f07178', apoyo: '#3dd68c', neutral: '#8b9cb3', otro: '#f5a524',
+      facebook: '#1877f2', twitter: '#1da1f2',
+      likes: '#5b8def', loves: '#f07178', wows: '#a78bfa', hahas: '#f5a524',
+      sads: '#60a5fa', angrys: '#ef4444', cares: '#3dd68c',
+      retweets: '#3dd68c', quotes: '#a78bfa', views: '#8b9cb3'
+    };
+
+    function personas() {
+      const map = new Map();
+      (DATA.perfiles || []).forEach(p => {
+        if (!map.has(p.persona_id)) map.set(p.persona_id, p.nombre_canonico);
+      });
+      return [...map.entries()].map(([id, nombre]) => ({ id, nombre }));
+    }
+
+    function selectedPersona() {
+      return document.getElementById('selPersona').value;
+    }
+    function selectedPlat() {
+      return document.getElementById('selPlataforma').value;
+    }
+
+    function filterByPersona(rows, personaId, plat) {
+      return (rows || []).filter(r => {
+        if (personaId && r.persona_id !== personaId) return false;
+        if (plat && r.plataforma !== plat) return false;
+        return true;
+      });
+    }
+
+    function destroyChart(key) {
+      if (charts[key]) { charts[key].destroy(); delete charts[key]; }
+    }
+
+    function kpi(label, value, sub) {
+      return `<div class="kpi"><div class="label">${label}</div><div class="value">${value ?? '—'}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
+    }
+
+    function fmt(n) {
+      if (n == null || Number.isNaN(n)) return '—';
+      return Number(n).toLocaleString('es-AR');
+    }
+
+    function renderKpis() {
+      const k = (DATA.kpis && DATA.kpis[0]) || {};
+      const el = document.getElementById('kpi-global');
+      el.innerHTML = [
+        kpi('Personas', fmt(k.personas_objetivo)),
+        kpi('Cuentas', fmt(k.cuentas_vinculadas)),
+        kpi('Plataformas', fmt(k.plataformas)),
+        kpi('Posts c/ métricas', fmt(k.posts_con_metricas)),
+        kpi('Eventos audiencia', fmt(k.eventos_audiencia)),
+        kpi('Eventos hater', fmt(k.eventos_hater), 'clasificación LLM'),
+        kpi('Actores bot (heur.)', fmt(k.actores_bot_heuristico)),
+      ].join('');
+    }
+
+    function renderPerfil() {
+      const pid = selectedPersona();
+      const plat = selectedPlat();
+      const rows = filterByPersona(DATA.perfiles, pid, plat);
+      const first = rows[0] || (DATA.perfiles || []).find(p => p.persona_id === pid) || {};
+      document.getElementById('perfil-osint').innerHTML = `
+        <strong>${first.nombre_canonico || '—'}</strong>
+        <span class="badge">${first.tipo || ''}</span>
+        <div class="meta" style="margin-top:0.5rem;color:var(--muted);font-size:0.85rem;line-height:1.5">
+          Rol: ${first.rol || '—'} · Partido: ${first.partido || '—'} · Provincia: ${first.provincia || '—'}<br>
+          Sitio: ${first.sitio_web ? `<a href="${first.sitio_web}" style="color:var(--accent)">${first.sitio_web}</a>` : '—'}
+          · Wikidata: ${first.wikidata_id || '—'}
+        </div>`;
+      document.getElementById('perfil-cuentas').innerHTML = rows.map(r => `
+        <div class="cuenta-chip">
+          <span class="badge ${r.plataforma === 'twitter' ? 'tw' : r.plataforma === 'facebook' ? 'fb' : 'ig'}">${r.plataforma}</span>
+          <strong style="margin-left:0.35rem">${r.handle || r.platform_user_id || '—'}</strong>
+          <div class="meta">
+            Followers: ${fmt(r.followers_count)} · Posts: ${fmt(r.posts_count)}
+            ${r.is_verified ? ' · ✓ verificado' : ''}<br>
+            ${r.url ? `<a href="${r.url}" style="color:var(--accent)">${r.url}</a>` : ''}
+          </div>
+        </div>`).join('') || '<p style="color:var(--muted)">Sin cuentas para este filtro.</p>';
+    }
+
+    function renderReacciones() {
+      const rows = filterByPersona(DATA.reacciones, selectedPersona(), selectedPlat());
+      destroyChart('reacciones');
+      destroyChart('reaccionesTipo');
+      const labels = rows.map(r => `${r.nombre_canonico} (${r.plataforma})`);
+      charts.reacciones = new Chart(document.getElementById('chartReacciones'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Reacciones', data: rows.map(r => r.reacciones_total), backgroundColor: COLORS.likes },
+            { label: 'Comentarios', data: rows.map(r => r.comentarios), backgroundColor: COLORS.hahas },
+            { label: 'Shares / RT', data: rows.map(r => (r.compartidos || 0) + (r.retweets || 0)), backgroundColor: COLORS.retweets },
+          ]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Volumen de reacciones' } } }
+      });
+      const fb = rows.filter(r => r.plataforma === 'facebook');
+      const tw = rows.filter(r => r.plataforma === 'twitter');
+      const tipoLabels = [];
+      const tipoData = [];
+      const tipoColors = [];
+      if (fb.length) {
+        const sum = (k) => fb.reduce((a, r) => a + (r[k] || 0), 0);
+        [['likes','likes'],['loves','loves'],['wows','wows'],['hahas','hahas'],['sads','sads'],['angrys','angrys'],['cares','cares']].forEach(([k, c]) => {
+          tipoLabels.push('FB ' + k); tipoData.push(sum(k)); tipoColors.push(COLORS[c]);
+        });
+      }
+      if (tw.length) {
+        const sum = (k) => tw.reduce((a, r) => a + (r[k] || 0), 0);
+        [['likes','likes'],['retweets','retweets'],['quotes','quotes'],['views','views']].forEach(([k, c]) => {
+          tipoLabels.push('TW ' + k); tipoData.push(sum(k)); tipoColors.push(COLORS[c]);
+        });
+      }
+      charts.reaccionesTipo = new Chart(document.getElementById('chartReaccionesTipo'), {
+        type: 'doughnut',
+        data: { labels: tipoLabels, datasets: [{ data: tipoData, backgroundColor: tipoColors }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Desglose por tipo' } } }
+      });
+    }
+
+    function renderEngagement() {
+      const rows = filterByPersona(DATA.engagement, selectedPersona(), selectedPlat())
+        .filter(r => r.dia).sort((a, b) => String(a.dia).localeCompare(String(b.dia)));
+      destroyChart('engagement');
+      const byDay = {};
+      rows.forEach(r => {
+        const d = String(r.dia).slice(0, 10);
+        if (!byDay[d]) byDay[d] = { eng: 0, n: 0, reac: 0 };
+        byDay[d].eng += (r.engagement_por_post || 0) * (r.posts || 1);
+        byDay[d].n += (r.posts || 1);
+        byDay[d].reac += (r.reacciones || 0);
+      });
+      const labels = Object.keys(byDay).sort();
+      charts.engagement = new Chart(document.getElementById('chartEngagement'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Engagement / post',
+              data: labels.map(d => byDay[d].n ? byDay[d].eng / byDay[d].n : 0),
+              borderColor: COLORS.likes, tension: 0.2, yAxisID: 'y'
+            },
+            {
+              label: 'Reacciones',
+              data: labels.map(d => byDay[d].reac),
+              borderColor: COLORS.hater, tension: 0.2, yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            y: { position: 'left', title: { display: true, text: 'Eng / post' } },
+            y1: { position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Reacciones' } }
+          }
+        }
+      });
+    }
+
+    function renderAudiencia() {
+      const rows = filterByPersona(DATA.audiencia, selectedPersona(), selectedPlat());
+      destroyChart('audiencia');
+      destroyChart('bots');
+      const clases = ['hater', 'apoyo', 'neutral', 'otro'];
+      const byPlat = {};
+      rows.forEach(r => {
+        const k = r.plataforma;
+        if (!byPlat[k]) byPlat[k] = {};
+        byPlat[k][r.audiencia_clase] = (byPlat[k][r.audiencia_clase] || 0) + (r.eventos || 0);
+      });
+      charts.audiencia = new Chart(document.getElementById('chartAudiencia'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(byPlat),
+          datasets: clases.map(c => ({
+            label: c,
+            data: Object.keys(byPlat).map(p => byPlat[p][c] || 0),
+            backgroundColor: COLORS[c] || COLORS.otro
+          }))
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Clases de audiencia' } }, scales: { x: { stacked: true }, y: { stacked: true } } }
+      });
+      charts.bots = new Chart(document.getElementById('chartBots'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Eventos bot (heur.)', 'Resto'],
+          datasets: [{
+            data: [
+              rows.reduce((a, r) => a + (r.eventos_bot_heuristico || 0), 0),
+              Math.max(0, rows.reduce((a, r) => a + (r.eventos || 0), 0) - rows.reduce((a, r) => a + (r.eventos_bot_heuristico || 0), 0))
+            ],
+            backgroundColor: [COLORS.ambiguo || '#f5a524', COLORS.neutral]
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: 'Señal bot (heurística)' } } }
+      });
+      const tbody = document.querySelector('#tblAudiencia tbody');
+      tbody.innerHTML = rows.map(r => `<tr>
+        <td><span class="badge ${r.plataforma === 'twitter' ? 'tw' : 'fb'}">${r.plataforma}</span></td>
+        <td><span class="badge ${r.audiencia_clase === 'hater' ? 'hater' : r.audiencia_clase === 'apoyo' ? 'apoyo' : ''}">${r.audiencia_clase}</span></td>
+        <td>${fmt(r.eventos)}</td>
+        <td>${fmt(r.actores_distintos)}</td>
+        <td>${fmt(r.actores_bot_heuristico)}</td>
+      </tr>`).join('');
+    }
+
+    function renderHaters() {
+      const rows = filterByPersona(DATA.haters, selectedPersona(), selectedPlat());
+      const tbody = document.querySelector('#tblHaters tbody');
+      tbody.innerHTML = rows.map(r => `<tr>
+        <td>${r.ranking}</td>
+        <td><span class="badge ${r.plataforma === 'twitter' ? 'tw' : 'fb'}">${r.plataforma}</span></td>
+        <td>${r.actor_nombre || r.actor_id || '—'}</td>
+        <td>${fmt(r.score_eventos)}</td>
+        <td>${r.tier || '—'} ${r.risk_score != null ? `(risk ${r.risk_score})` : ''}</td>
+        <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.narrativas || '—'}</td>
+      </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted)">Sin haters para este filtro.</td></tr>';
+    }
+
+    function renderNarrativa() {
+      const rows = filterByPersona(DATA.narrativa, selectedPersona(), selectedPlat())
+        .sort((a, b) => (b.comentarios || 0) - (a.comentarios || 0)).slice(0, 15);
+      destroyChart('narrativa');
+      charts.narrativa = new Chart(document.getElementById('chartNarrativa'), {
+        type: 'bar',
+        data: {
+          labels: rows.map(r => (r.narrativa || '?').toString().slice(0, 28)),
+          datasets: [{
+            label: 'Comentarios / replies',
+            data: rows.map(r => r.comentarios),
+            backgroundColor: rows.map(r => r.plataforma === 'twitter' ? COLORS.twitter : COLORS.facebook)
+          }]
+        },
+        options: {
+          indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+          plugins: { title: { display: true, text: 'Top narrativas' } }
+        }
+      });
+    }
+
+    function renderGrafo() {
+      const tipo = document.getElementById('selGrafo').value;
+      const nodesKey = `grafo_${tipo}_nodes`;
+      const edgesKey = `grafo_${tipo}_edges`;
+      const nodes = (DATA[nodesKey] || []).map(n => ({
+        id: n.id, label: n.label, color: n.color, shape: n.shape,
+        size: Number(n.size) || 14, title: n.title
+      }));
+      const edges = (DATA[edgesKey] || []).map(e => ({
+        id: e.id, from: e.from, to: e.to, label: e.label,
+        color: e.color, width: Number(e.width) || 1,
+        dashes: String(e.dashes) === 'true', title: e.title
+      }));
+      const container = document.getElementById('network');
+      if (network) network.destroy();
+      network = new vis.Network(container, {
+        nodes: new vis.DataSet(nodes),
+        edges: new vis.DataSet(edges)
+      }, {
+        physics: { stabilization: { iterations: 80 } },
+        interaction: { hover: true, tooltipDelay: 80 },
+        edges: { smooth: { type: 'continuous' } }
+      });
+    }
+
+    function renderComparativa() {
+      const metric = document.getElementById('selCompMetric').value;
+      destroyChart('comparativa');
+      const plist = personas();
+      const palette = ['#5b8def', '#f07178', '#3dd68c', '#f5a524', '#a78bfa', '#60a5fa'];
+      let datasets = [];
+      let allDays = new Set();
+
+      if (metric === 'hostilidad') {
+        const rows = (DATA.temporal || []).filter(r =>
+          r.posicion === 'derecha_o_troll' || r.sentimiento === 'negativo'
+        );
+        plist.forEach((p, i) => {
+          const byDay = {};
+          rows.filter(r => r.persona_id === p.id).forEach(r => {
+            const d = String(r.dia).slice(0, 10);
+            allDays.add(d);
+            byDay[d] = (byDay[d] || 0) + (r.comentarios || 0);
+          });
+          datasets.push({ persona: p, byDay, color: palette[i % palette.length] });
+        });
+      } else {
+        const rows = DATA.temporal_engagement || [];
+        plist.forEach((p, i) => {
+          const byDay = {};
+          rows.filter(r => r.persona_id === p.id).forEach(r => {
+            const d = String(r.dia).slice(0, 10);
+            allDays.add(d);
+            const val = metric === 'engagement' ? (r.engagement_por_post || 0) : (r.reacciones || 0);
+            byDay[d] = (byDay[d] || 0) + val;
+          });
+          datasets.push({ persona: p, byDay, color: palette[i % palette.length] });
+        });
+      }
+      const labels = [...allDays].sort();
+      charts.comparativa = new Chart(document.getElementById('chartComparativa'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: datasets.map(d => ({
+            label: d.persona.nombre,
+            data: labels.map(day => d.byDay[day] || 0),
+            borderColor: d.color, tension: 0.2, pointRadius: 0
+          }))
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { title: { display: true, text: 'Comparativa multi-persona' } }
+        }
+      });
+    }
+
+    function refreshAll() {
+      renderPerfil();
+      renderReacciones();
+      renderEngagement();
+      renderAudiencia();
+      renderHaters();
+      renderNarrativa();
+      if (document.getElementById('sec-grafos').classList.contains('active')) renderGrafo();
+      renderComparativa();
+    }
+
+    function initNav() {
+      document.querySelectorAll('nav a').forEach(a => {
+        a.addEventListener('click', (e) => {
+          e.preventDefault();
+          document.querySelectorAll('nav a').forEach(x => x.classList.remove('active'));
+          document.querySelectorAll('main section').forEach(s => s.classList.remove('active'));
+          a.classList.add('active');
+          const sec = document.getElementById('sec-' + a.dataset.sec);
+          if (sec) sec.classList.add('active');
+          if (a.dataset.sec === 'grafos') renderGrafo();
+        });
+      });
+    }
+
+    function init() {
+      const sel = document.getElementById('selPersona');
+      personas().forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id; opt.textContent = p.nombre;
+        sel.appendChild(opt);
+      });
+      if (personas().some(p => p.id === 'myriambregman')) sel.value = 'myriambregman';
+      sel.addEventListener('change', refreshAll);
+      document.getElementById('selPlataforma').addEventListener('change', refreshAll);
+      document.getElementById('selGrafo').addEventListener('change', renderGrafo);
+      document.getElementById('btnFitGrafo').addEventListener('click', () => network && network.fit());
+      document.getElementById('selCompMetric').addEventListener('change', renderComparativa);
+      initNav();
+      renderKpis();
+      refreshAll();
+    }
+
+    init();
+  </script>
+</body>
+</html>
