@@ -18,20 +18,30 @@
 
 ## En resumen
 
-**datasyn-local** convierte tu computadora en un espacio de análisis de datos que se maneja **conversando**. Le pides en lenguaje natural —"ingesta este CSV", "limpia los duplicados", "crea un reporte de sentimiento"— y un asistente de IA traduce ese pedido en **SQL de DuckDB**, construye los datasets y entrega resultados auditables. Todo corre **local**: tus fuentes nunca salen de tu máquina.
+**datasyn-local** agrega a tu Asistente de IA instrucciones (skills + prompts) para realizar analisis de datos. Por ejemplo puedes solicitarle en lenguaje natural:
+
+***
+ *"ingesta este CSV data_example.csv", "limpia los duplicados", "crea un analisis de sentimiento", "finalmente crea un reporte interactivo en html"*
+***
+
+y tu **asistente de IA** traduce ese pedido y crea los scripts en **sql**, **python** o **sh**; que luego ejecutara para realizar el analisis
 
 
 ## 📌 Requisitos
-A continuacion se listan los requisitos, que de ser necesario instalará tu asistente.
-- **Python 3.11+** 
-- **[uv](https://docs.astral.sh/uv/)** — entorno Python (lo configura el prompt de arranque)
 
-### Instalar un IDE
-
-Necesitas un editor con asistente de IA integrado:
+### Instalar un IDE con un Asistente de IA
 
 - **[OpenCode](https://opencode.ai):** `curl -fsSL https://opencode.ai/install | bash`
 - **[VS Code](https://code.visualstudio.com/):** [Descargar](https://code.visualstudio.com/download) · macOS: `brew install --cask visual-studio-code`
+
+### Configurar herramientas
+
+Se requiere validar tener instaladas las siguientes herramientas, otras como **R-project** deben ser especificadas. 
+
+- **Python 3.11+** 
+- **[uv](https://docs.astral.sh/uv/)** — entorno Python (lo configura el prompt de arranque)
+
+Sino, las tienes instaladas, podria funcionar con el siguiente **prompt**
 
 ---
 
@@ -47,7 +57,7 @@ No instalas nada a mano: clonas el repositorio, pegas el prompt de abajo en tu a
 <summary><strong>📋 Clic para ver el prompt de arranque</strong></summary>
 
 ```text
-Bootstrap datasyn-local en este workspace. El usuario es periodista/investigador — explica los pasos en lenguaje claro.
+Bootstrap datasyn-local en este workspace. El usuario es cientifico/periodista/investigador — explica los pasos en lenguaje claro.
 
 0. Configura el entorno uv primero:
    - Si no hay uv: instálalo (curl -LsSf https://astral.sh/uv/install.sh | sh o brew install uv)
@@ -75,7 +85,7 @@ Bootstrap datasyn-local en este workspace. El usuario es periodista/investigador
    ./scripts/sh/bootstrap.sh
    (configura MCP, verifica MCP y muestra estado de la base.)
 
-Reglas: ingest y reportes son skills (SQL), no apps Python extra. Los archivos externos siempre van primero a data/landing/. Resume cada paso para alguien no técnico.
+Reglas: ingest y reportes son skills (SQL), no apps Python extra. Los archivos externos siempre van primero a data/landing/. Resume cada paso de forma clara
 ```
 
 </details>
