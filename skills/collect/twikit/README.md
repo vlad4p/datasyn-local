@@ -4,6 +4,6 @@ Scrape X/Twitter with [twikit](https://twikit.readthedocs.io/en/latest/twikit.ht
 
 | Skill | Script |
 |-------|--------|
-| [`scrape-twikit-twitter`](scrape-twikit-twitter/SKILL.md) | `scripts/python/scrape_twikit_twitter.py` |
+| [`scrape-twikit-twitter`](scrape-twikit-twitter/SKILL.md) | `scripts/python/scrape/twikit/scrape_twikit_twitter.py` |
 
 Landing: `data/landing/redes/twikit/twitter/`.

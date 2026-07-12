@@ -54,7 +54,7 @@ Date ranges use `search_tweet` (`from:handle since: until:`) by default; `--no-s
 ```bash
 uv sync
 # July 2026 + top ~100 replies + ingest
-uv run python scripts/python/scrape_twikit_twitter.py \
+uv run python scripts/python/scrape/twikit/scrape_twikit_twitter.py \
   --handle myriambregman \
   --since 2026-07-01 --until 2026-08-01 \
   --fetch-replies --max-replies 100 --concurrency 3 \
@@ -81,10 +81,13 @@ For top haters **or** top supporters (apoyo), fetch full profile + recent posts 
 ```bash
 uv run python scripts/python/db.py mcp-stop
 # Haters (default role)
-uv run python scripts/python/enrich_twikit_profiles.py --top-haters 10 \
+uv run python scripts/python/scrape/twikit/enrich_twikit_profiles.py --top-haters 10 \
   --max-posts 100 --max-follows 2000 --ingest
+# Scoped to one target (avoids mixing multi-account tops):
+uv run python scripts/python/scrape/twikit/enrich_twikit_profiles.py --top-haters 75 \
+  --target-username NicolasdelCano --max-posts 100 --max-follows 2000 --ingest
 # Apoyo / defensores (separate landing + silver tables)
-uv run python scripts/python/enrich_twikit_profiles.py --role apoyo --top-supporters 30 \
+uv run python scripts/python/scrape/twikit/enrich_twikit_profiles.py --role apoyo --top-supporters 30 \
   --max-posts 100 --max-follows 2000 --ingest
 # or: --handles capibara_mood,CCDeville88
 ```
@@ -94,6 +97,7 @@ uv run python scripts/python/enrich_twikit_profiles.py --role apoyo --top-suppor
 | `--role` | `hater` | `hater` or `apoyo` (landing + ingest target) |
 | `--top-haters N` | — | Rank from `silver.tk_tw_user` by `hater_replies_count` |
 | `--top-supporters N` | — | Rank by `apoyo_replies_count` (forces `role=apoyo`) |
+| `--target-username` | — | Scope top-N to replies on this target account (e.g. `NicolasdelCano`) |
 | `--handles a,b` | — | Explicit list (overrides top-N) |
 | `--max-posts` | 100 | Recent tweets per profile |
 | `--max-follows` | 2000 | Cap per followers/following list (over → IDs-only) |
@@ -114,7 +118,7 @@ Checkpoint: if a profile folder already has all five files for today, that handl
 After apoyo enrich:
 
 ```bash
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_apoyo_profile_graph.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/twikit/ingest_tk_apoyo_profile_graph.sql
 ```
 
 ## Classify + narrative clusters (haters and apoyo)
@@ -123,14 +127,14 @@ After ingest, batch-classify replies (efficient multi-comment LLM calls) and clu
 
 ```bash
 uv sync --extra llm
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_tw_classification.sql
-uv run python scripts/python/classify_tk_tw_replies.py --batch-size 50 --cluster-haters
-uv run python scripts/python/classify_tk_tw_replies.py --cluster-only --cluster-apoyo
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_hater_narrativa.sql
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_apoyo_narrativa.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/twikit/ingest_tk_tw_classification.sql
+uv run python scripts/python/classify/classify_tk_tw_replies.py --batch-size 50 --cluster-haters
+uv run python scripts/python/classify/classify_tk_tw_replies.py --cluster-only --cluster-apoyo
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/twikit/ingest_tk_hater_narrativa.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/twikit/ingest_tk_apoyo_narrativa.sql
 # Refresh silver.tk_tw_user catalog (is_hater + is_supporter)
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twikit_twitter_silver.sql
-uv run python scripts/python/generate_tk_hater_clusters_report.py
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/twikit/ingest_twikit_twitter_silver.sql
+uv run python scripts/python/reports/generate_tk_hater_clusters_report.py
 ```
 
 | Table / view | Role |
@@ -146,8 +150,8 @@ uv run python scripts/python/generate_tk_hater_clusters_report.py
 Auditable `block` / `watch` list from reply behaviour + enriched risk (no auto-block on X):
 
 ```bash
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_troll_blacklist.sql
-uv run python scripts/python/generate_tk_troll_blacklist_report.py
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/twikit/ingest_tk_troll_blacklist.sql
+uv run python scripts/python/reports/generate_tk_troll_blacklist_report.py
 ```
 
 See skill [`troll-blacklist`](../../../analyze/reports/troll-blacklist/SKILL.md).

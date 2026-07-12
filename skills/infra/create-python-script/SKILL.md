@@ -9,16 +9,29 @@ description: >-
 
 ## Scope
 
-- **Allowed:** extend `scripts/python/db.py` or new modules in `scripts/python/`
+- **Allowed:** extend `scripts/python/db.py` or new modules under the taxonomy below
 - **Not for:** ingest or report pipelines — use skills `ingest-data` and `statistical-report`
-- **Exception:** existing report exporters in `scripts/python/generate_redes_*_report.py` — extend via skill [`redes-analysis`](../analyze/reports/redes-analysis/SKILL.md)
+- **Exception:** report exporters in `scripts/python/reports/` — extend via skill [`redes-analysis`](../analyze/reports/redes-analysis/SKILL.md) or [`social-monitor`](../analyze/reports/social-monitor/SKILL.md)
 - **SQL queries:** prefer MCP (`db.py run-sql`) over direct `db.connect()` + `con.execute()`
+
+## Where to put a new script
+
+| Kind | Folder |
+|------|--------|
+| Scrape / download | `scripts/python/scrape/<domain>/` |
+| LLM classify / label | `scripts/python/classify/` |
+| Report HTML/CSV export | `scripts/python/reports/` (+ `templates/` if needed) |
+| Graph / entity analysis helpers | `scripts/python/analyze/` |
+| Misc utilities | `scripts/python/tools/` |
+| DuckDB / MCP / Quack | extend `scripts/python/db.py` |
+
+SQL files go under `scripts/sql/<domain>/` (see [`scripts/sql/README.md`](../../../scripts/sql/README.md)). Use `db.resolve_sql("basename.sql")` so basename lookups still work.
 
 ## Workflow
 
 1. Confirm a skill (SQL) is insufficient
-2. Add module under `scripts/python/`
-3. Reuse `import db` for connections and paths
+2. Add module under the matching folder above
+3. Reuse `import db` for connections and paths (`sys.path` → `scripts/python`)
 4. `uv add <package>` if needed
 5. Document usage in `scripts/python/README.md`
 
@@ -44,6 +57,7 @@ sys.path.insert(0, str(Path("scripts/python").resolve()))
 import db
 
 con = db.connect()
+sql_path = db.resolve_sql("ingest_identidades.sql")
 ```
 
 ## Standards

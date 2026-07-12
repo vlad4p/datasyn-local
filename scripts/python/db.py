@@ -80,6 +80,33 @@ def get_db_path() -> Path:
     )
 
 
+def resolve_sql(name_or_path: str | Path) -> Path:
+    """Resolve a SQL file path; basename searches under scripts/sql/**.
+
+    Accepts absolute/relative paths, or just a filename like
+    ``ingest_twikit_twitter.sql`` after domain subfolders were introduced.
+    """
+    raw = Path(name_or_path)
+    if raw.is_file():
+        return raw.resolve()
+    candidate = (PROJECT_ROOT / raw).resolve()
+    if candidate.is_file():
+        return candidate
+    basename = raw.name
+    sql_root = PROJECT_ROOT / "scripts" / "sql"
+    matches = sorted(sql_root.rglob(basename))
+    if len(matches) == 1:
+        return matches[0].resolve()
+    if len(matches) > 1:
+        listed = ", ".join(str(m.relative_to(PROJECT_ROOT)) for m in matches)
+        raise FileNotFoundError(
+            f"Ambiguous SQL basename {basename!r}; matches: {listed}"
+        )
+    raise FileNotFoundError(
+        f"SQL file not found: {name_or_path} (searched {sql_root}/**/{basename})"
+    )
+
+
 def get_landing_path() -> Path:
     return _path_from_settings(
         "DATASYN_LANDING_PATH",
@@ -937,7 +964,7 @@ def main(argv: list[str] | None = None) -> int:
         return quack_host_stop()
     if args.command == "quack-sql":
         if args.file:
-            sql = Path(args.file).read_text()
+            sql = resolve_sql(args.file).read_text()
         elif args.sql:
             sql = args.sql
         else:
@@ -945,7 +972,7 @@ def main(argv: list[str] | None = None) -> int:
         return quack_run_sql(sql)
     if args.command == "run-sql":
         if args.file:
-            sql = Path(args.file).read_text()
+            sql = resolve_sql(args.file).read_text()
         elif args.sql:
             sql = args.sql
         else:

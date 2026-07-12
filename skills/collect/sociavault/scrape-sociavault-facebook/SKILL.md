@@ -38,7 +38,7 @@ description: >-
 3. **Scrape + full pipeline:**
 
 ```bash
-uv run python scripts/python/scrape_sociavault_facebook.py \
+uv run python scripts/python/scrape/sociavault/scrape_sociavault_facebook.py \
   --url "https://www.facebook.com/example" \
   --last 10 \
   --fetch-comments \
@@ -60,11 +60,11 @@ data/landing/redes/sociavault/facebook/{slug}_{YYYYMMDD}/
 5. **Manual ingest** (if not using `--ingest` / `--ingest-full`):
 
 ```bash
-uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_facebook.sql
-uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_facebook_silver.sql
-uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_classification.sql
-uv run python scripts/python/db.py run-sql --file scripts/sql/ingest_sociavault_entities.sql
-uv run python scripts/python/classify_sv_comments.py --platform facebook --limit 500
+uv run python scripts/python/db.py run-sql --file scripts/sql/sociavault/ingest_sociavault_facebook.sql
+uv run python scripts/python/db.py run-sql --file scripts/sql/sociavault/ingest_sociavault_facebook_silver.sql
+uv run python scripts/python/db.py run-sql --file scripts/sql/sociavault/ingest_sociavault_classification.sql
+uv run python scripts/python/db.py run-sql --file scripts/sql/sociavault/ingest_sociavault_entities.sql
+uv run python scripts/python/classify/classify_sv_comments.py --platform facebook --limit 500
 ```
 
 ## DuckDB tables

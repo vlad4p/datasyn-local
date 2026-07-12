@@ -1,6 +1,6 @@
 # Reglas de troll bloqueable (twikit-only)
 
-**Fuente de verdad:** `scripts/sql/ingest_tk_troll_blacklist.sql`  
+**Fuente de verdad:** `scripts/sql/twikit/ingest_tk_troll_blacklist.sql`  
 **Tabla:** `gold.tk_troll_blacklist`  
 **Alcance:** solo datos descargados con twikit (`silver.tk_tw_*`, `gold.tk_hater_*`).  
 **Uso:** lista auditable para bloqueo **manual** en X. **No** se bloquea automáticamente.

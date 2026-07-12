@@ -2,7 +2,7 @@
 
 # 📰 datasyn-local
 
-**Analiza tus datos en tu propia computadora** — usando lenguaje natural.
+**Skills para analizar y procesar datos** — usando lenguaje natural.
 
 <p>
   <span style="background:#0e2d58;color:#fffceb;padding:4px 10px;border-radius:4px;font-weight:600">🤖 Asistente IA</span>

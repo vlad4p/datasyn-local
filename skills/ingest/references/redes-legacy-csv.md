@@ -4,12 +4,12 @@ External CSV exports under `data/landing/redes/`. **Separate** from SociaVault (
 
 | Platform | Landing path | Bronze SQL | Silver SQL |
 |----------|--------------|------------|------------|
-| Facebook | `data/landing/redes/data-fb/` | `scripts/sql/ingest_fb_redes.sql` | `scripts/sql/ingest_fb_silver.sql` |
+| Facebook | `data/landing/redes/data-fb/` | `scripts/sql/redes/ingest_fb_redes.sql` | `scripts/sql/redes/ingest_fb_silver.sql` |
 
 ```bash
 uv run python scripts/python/db.py mcp-stop
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_fb_redes.sql
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_fb_silver.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/redes/ingest_fb_redes.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/redes/ingest_fb_silver.sql
 ```
 
 Dictionary files (`Diccionario de Datos y Aclaraciones.txt`) are **not** ingested.
@@ -24,7 +24,7 @@ Use the **twikit** pipeline instead:
 
 - Skill: [`scrape-twikit-twitter`](../../collect/twikit/scrape-twikit-twitter/SKILL.md)
 - Mapping: [`twitter-legacy-to-twikit.md`](twitter-legacy-to-twikit.md)
-- Drop leftover tables (if any): `scripts/sql/drop_legacy_twitter.sql`
+- Drop leftover tables (if any): `scripts/sql/ops/drop_legacy_twitter.sql`
 
 ---
 

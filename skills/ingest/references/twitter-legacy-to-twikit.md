@@ -49,4 +49,4 @@ Twitter/X data now lives only in the **twikit** pipeline.
 | Enrich profiles | `enrich_twikit_profiles.py` + `ingest_twikit_profiles.sql` |
 | Hater narrativa | `ingest_tk_hater_narrativa.sql` |
 | Troll blacklist | `ingest_tk_troll_blacklist.sql` + skill `troll-blacklist` |
-| Drop legacy tables | `scripts/sql/drop_legacy_twitter.sql` |
+| Drop legacy tables | `scripts/sql/ops/drop_legacy_twitter.sql` |

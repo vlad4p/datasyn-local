@@ -13,17 +13,17 @@ Skill: [`skills/analyze/reports/social-monitor/SKILL.md`](../skills/analyze/repo
 config/identidades.seed.csv
 config/identidad_cuentas.seed.csv
         │
-        ▼  scripts/sql/ingest_identidades.sql
+        ▼  scripts/sql/monitor/ingest_identidades.sql
 silver.identidad
 silver.identidad_cuenta
         │
         ├─ silver.fb_* + gold.v_* / grafo_*_trolls (legacy FB)
         └─ silver.tk_tw_* + gold.tk_hater_* / tk_troll_blacklist (twikit)
         │
-        ▼  scripts/sql/ingest_social_monitor_gold.sql
+        ▼  scripts/sql/monitor/ingest_social_monitor_gold.sql
 gold.v_monitor_*
         │
-        ▼  scripts/python/generate_social_monitor_dashboard.py
+        ▼  scripts/python/reports/generate_social_monitor_dashboard.py
            + templates/social_monitor_dashboard.html
 reports/monitor/dashboard/   (gitignored)
 ```
@@ -87,16 +87,16 @@ Dashboard **Relaciones TW** mode has a **Haters/Apoyo toggle**:
 - Haters → `gold.tk_hater_profile_risk`, `tk_hater_grafo_*`
 - Apoyo → `gold.tk_apoyo_profile_risk`, `tk_apoyo_grafo_*` (mirror pipeline; landing under `profiles/apoyo/`)
 
-SQL: [`scripts/sql/ingest_social_monitor_gold.sql`](../scripts/sql/ingest_social_monitor_gold.sql)
+SQL: [`scripts/sql/monitor/ingest_social_monitor_gold.sql`](../scripts/sql/monitor/ingest_social_monitor_gold.sql)
 
 ### Apoyo pipeline (mirror of haters)
 
 ```bash
 uv run python scripts/python/db.py mcp-stop
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twikit_twitter_silver.sql
-uv run python scripts/python/enrich_twikit_profiles.py --role apoyo --top-supporters 30 --ingest
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_apoyo_profile_graph.sql
-uv run python scripts/python/classify_tk_tw_replies.py --cluster-only --cluster-apoyo
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/twikit/ingest_twikit_twitter_silver.sql
+uv run python scripts/python/scrape/twikit/enrich_twikit_profiles.py --role apoyo --top-supporters 30 --ingest
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/twikit/ingest_tk_apoyo_profile_graph.sql
+uv run python scripts/python/classify/classify_tk_tw_replies.py --cluster-only --cluster-apoyo
 ```
 
 Separate silver tables (`*_apoyo`) avoid mixing supporters into hater gold (hater ingest does `CREATE OR REPLACE` over all `profiles/*/` globs).
@@ -118,10 +118,10 @@ Contrasts daily La Nación política/sociedad coverage with Twitter activity for
 
 | Step | Artifact |
 |------|----------|
-| Stage Quack → local bronze + silver LN | `scripts/sql/ingest_lanacion_silver.sql` (`--attach-quack`) |
-| Gold LN×TW series / picos / titulares | `scripts/sql/ingest_contexto_ln_tw.sql` |
-| LLM article → hater-cluster affinity | `scripts/python/classify_lanacion_to_hater_clusters.py` → `gold.ln_hecho_hater_cluster` |
-| Affinity views | `scripts/sql/ingest_contexto_ln_hater_afinidade.sql` |
+| Stage Quack → local bronze + silver LN | `scripts/sql/news/ingest_lanacion_silver.sql` (`--attach-quack`) |
+| Gold LN×TW series / picos / titulares | `scripts/sql/news/ingest_contexto_ln_tw.sql` |
+| LLM article → hater-cluster affinity | `scripts/python/classify/classify_lanacion_to_hater_clusters.py` → `gold.ln_hecho_hater_cluster` |
+| Affinity views | `scripts/sql/news/ingest_contexto_ln_hater_afinidade.sql` |
 
 | View / table | Role |
 |--------------|------|
@@ -135,13 +135,13 @@ Contrasts daily La Nación política/sociedad coverage with Twitter activity for
 ```bash
 uv run python scripts/python/db.py mcp-stop
 uv run python scripts/python/db.py run-sql --ingest --attach-quack \
-  --file scripts/sql/ingest_lanacion_silver.sql
+  --file scripts/sql/news/ingest_lanacion_silver.sql
 uv run python scripts/python/db.py run-sql --ingest \
-  --file scripts/sql/ingest_contexto_ln_tw.sql
-uv run python scripts/python/classify_lanacion_to_hater_clusters.py
+  --file scripts/sql/news/ingest_contexto_ln_tw.sql
+uv run python scripts/python/classify/classify_lanacion_to_hater_clusters.py
 uv run python scripts/python/db.py run-sql --ingest \
-  --file scripts/sql/ingest_contexto_ln_hater_afinidade.sql
-uv run python scripts/python/generate_social_monitor_dashboard.py
+  --file scripts/sql/news/ingest_contexto_ln_hater_afinidade.sql
+uv run python scripts/python/reports/generate_social_monitor_dashboard.py
 ```
 
 Dashboard section **Hechos × Redes** exports CSVs: `contexto_ln_tw_diario`, `contexto_ln_titulares`, `contexto_ln_tw_picos`, `contexto_ln_cluster_articulos`, `contexto_hater_cluster_diario`.
@@ -152,8 +152,8 @@ Dashboard section **Hechos × Redes** exports CSVs: `contexto_ln_tw_diario`, `co
 
 | Piece | Path |
 |-------|------|
-| Generator | `scripts/python/generate_social_monitor_dashboard.py` |
-| Template | `scripts/python/templates/social_monitor_dashboard.html` |
+| Generator | `scripts/python/reports/generate_social_monitor_dashboard.py` |
+| Template | `scripts/python/reports/templates/social_monitor_dashboard.html` |
 | Output | `reports/monitor/dashboard/` via `db.get_report_bundle("monitor", "dashboard")` |
 
 Stack: **Chart.js 4.4.1** + **vis-network** (same as `redes_dashboard`). Data is embedded as `const DATA = …` so the HTML opens offline.
@@ -162,9 +162,9 @@ Stack: **Chart.js 4.4.1** + **vis-network** (same as `redes_dashboard`). Data is
 
 ```bash
 uv run python scripts/python/db.py mcp-stop
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_identidades.sql
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_social_monitor_gold.sql
-uv run python scripts/python/generate_social_monitor_dashboard.py
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/monitor/ingest_identidades.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/monitor/ingest_social_monitor_gold.sql
+uv run python scripts/python/reports/generate_social_monitor_dashboard.py
 ```
 
 Writes require MCP stopped (single DuckDB writer). Analysis reads should use MCP `query` when available.

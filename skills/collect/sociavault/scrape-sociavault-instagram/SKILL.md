@@ -20,7 +20,7 @@ description: >-
 ## Workflow
 
 ```bash
-uv run python scripts/python/scrape_sociavault_instagram.py \
+uv run python scripts/python/scrape/sociavault/scrape_sociavault_instagram.py \
   --handle instagram \
   --last 10 \
   --fetch-comments \

@@ -56,28 +56,28 @@ uv run python scripts/python/db.py mcp-stop || true
 
 case "$PLATFORM" in
   facebook)
-    uv run python scripts/python/scrape_sociavault_facebook.py \
+    uv run python scripts/python/scrape/sociavault/scrape_sociavault_facebook.py \
       --url "$ACCOUNT" \
       --fetch-comments \
       --ingest \
       $SCRAPE_ARGS
     ;;
   twitter)
-    uv run python scripts/python/scrape_sociavault_twitter.py \
+    uv run python scripts/python/scrape/sociavault/scrape_sociavault_twitter.py \
       --handle "$ACCOUNT" \
       --fetch-replies \
       --ingest \
       $SCRAPE_ARGS
     ;;
   instagram)
-    uv run python scripts/python/scrape_sociavault_instagram.py \
+    uv run python scripts/python/scrape/sociavault/scrape_sociavault_instagram.py \
       --handle "$ACCOUNT" \
       --fetch-comments \
       --ingest \
       $SCRAPE_ARGS
     ;;
   tiktok)
-    uv run python scripts/python/scrape_sociavault_tiktok.py \
+    uv run python scripts/python/scrape/sociavault/scrape_sociavault_tiktok.py \
       --handle "$ACCOUNT" \
       --fetch-comments \
       --ingest \
@@ -91,16 +91,16 @@ esac
 
 echo ""
 echo "Ensuring classification schema..."
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_sociavault_classification.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/sociavault/ingest_sociavault_classification.sql
 
 echo ""
 echo "Building entities..."
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_sociavault_entities.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/sociavault/ingest_sociavault_entities.sql
 
 if [ "$SKIP_CLASSIFY" -eq 0 ]; then
   echo ""
   echo "Classifying comments (limit=$CLASSIFY_LIMIT)..."
-  uv run python scripts/python/classify_sv_comments.py \
+  uv run python scripts/python/classify/classify_sv_comments.py \
     --platform "$PLATFORM" \
     --limit "$CLASSIFY_LIMIT"
 else

@@ -43,13 +43,13 @@ reports/twikit-myriam/troll-blacklist/
 
 ```bash
 uv run python scripts/python/db.py mcp-stop
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_troll_blacklist.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/twikit/ingest_tk_troll_blacklist.sql
 ```
 
 ### 2. Export report
 
 ```bash
-uv run python scripts/python/generate_tk_troll_blacklist_report.py
+uv run python scripts/python/reports/generate_tk_troll_blacklist_report.py
 ```
 
 ### 3. Explore (MCP)
@@ -80,4 +80,4 @@ LIMIT 20;
 
 - Collect: [`scrape-twikit-twitter`](../../../collect/twikit/scrape-twikit-twitter/SKILL.md)
 - Mapping legacy→twikit: [`twitter-legacy-to-twikit.md`](../../../ingest/references/twitter-legacy-to-twikit.md)
-- Profile risk graph: `scripts/sql/ingest_tk_hater_profile_graph.sql`
+- Profile risk graph: `scripts/sql/twikit/ingest_tk_hater_profile_graph.sql`

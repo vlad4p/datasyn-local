@@ -1,6 +1,6 @@
 # Gold views — redes PTS (catalog)
 
-Source: `scripts/sql/ingest_redes_gold.sql`
+Source: `scripts/sql/redes/ingest_redes_gold.sql`
 
 ## Base
 
@@ -67,7 +67,7 @@ Añade `narrativa`, `sentimiento`, `es_troll` (heurística sobre `resumen`).
 
 ## Entidades (persona detrás de la cuenta)
 
-Source: `scripts/sql/ingest_gold_entidades.sql` (prereq: `silver.network_profile`).
+Source: `scripts/sql/redes/ingest_gold_entidades.sql` (prereq: `silver.network_profile`).
 
 ### `gold.v_entidades`
 Una fila por `canonical_key` de `silver.network_profile`.  

@@ -14,13 +14,13 @@ echo "   Fecha: $FECHA"
 echo "================================================"
 
 # 1. Scrapear
-uv run python scripts/python/scrape_boletin.py --fecha "$FECHA"
+uv run python scripts/python/scrape/boletin/scrape_boletin.py --fecha "$FECHA"
 
 # 2. Ingestar a DuckDB
 echo ""
 echo "📦 Ingestionando a la base de datos..."
 TMP_SQL="/tmp/ingest_boletin_${FECHA_YMD}.sql"
-sed "s/{FECHA}/$FECHA_YMD/g" scripts/sql/ingest_boletin.sql > "$TMP_SQL"
+sed "s/{FECHA}/$FECHA_YMD/g" scripts/sql/boletin/ingest_boletin.sql > "$TMP_SQL"
 uv run python scripts/python/db.py run-sql --file "$TMP_SQL"
 rm -f "$TMP_SQL"
 

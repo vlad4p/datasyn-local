@@ -2,7 +2,7 @@
 name: redes-gold
 description: >-
   Build gold analytics views for legacy Facebook redes data — sentiment,
-  narrative, trolls, ráfagas, and graph tables. Runs scripts/sql/ingest_redes_gold.sql.
+  narrative, trolls, ráfagas, and graph tables. Runs scripts/sql/redes/ingest_redes_gold.sql.
   Use when the user asks for gold redes views, troll KPIs, narrativa, or report-ready
   aggregates from silver.fb_* classification tables. (Twitter is twikit-only.)
 ---
@@ -10,7 +10,7 @@ description: >-
 # Redes gold — vistas analíticas (Facebook only)
 
 **Zone:** `gold.*` views from legacy `silver.fb_*` + LLM classification.  
-**Script:** [`scripts/sql/ingest_redes_gold.sql`](../../../../scripts/sql/ingest_redes_gold.sql)  
+**Script:** [`scripts/sql/redes/ingest_redes_gold.sql`](../../../../scripts/sql/redes/ingest_redes_gold.sql)  
 **Reference:** [`references/gold-views.md`](references/gold-views.md)  
 **Twitter:** use twikit (`tk_tw_*` / `gold.tk_hater_*` / skill `troll-blacklist`) — not this pipeline.
 
@@ -20,8 +20,8 @@ description: >-
 
 1. Silver Facebook ingested — see [`references/redes-legacy-csv.md`](../../references/redes-legacy-csv.md)
 2. Classification table populated: `silver.fb_comment_classification`
-3. Optional: `silver.network_profile` — [`scripts/sql/ingest_network_profile.sql`](../../../../scripts/sql/ingest_network_profile.sql) (FB-only)
-4. Optional: entidades gold — [`scripts/sql/ingest_gold_entidades.sql`](../../../../scripts/sql/ingest_gold_entidades.sql) (después de `network_profile`)
+3. Optional: `silver.network_profile` — [`scripts/sql/redes/ingest_network_profile.sql`](../../../../scripts/sql/redes/ingest_network_profile.sql) (FB-only)
+4. Optional: entidades gold — [`scripts/sql/redes/ingest_gold_entidades.sql`](../../../../scripts/sql/redes/ingest_gold_entidades.sql) (después de `network_profile`)
 
 ---
 
@@ -38,8 +38,8 @@ description: >-
 2. **Stop MCP** — gold script writes to DuckDB
    ```bash
    uv run python scripts/python/db.py mcp-stop
-   uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_redes_gold.sql
-   uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_gold_entidades.sql
+   uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/redes/ingest_redes_gold.sql
+   uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/redes/ingest_gold_entidades.sql
    ```
 
 3. **Validate gold**

@@ -11,7 +11,7 @@ echo "📰 Scraper diario — Contrataciones Públicas"
 echo "   Fecha: $FECHA"
 echo "================================================"
 
-uv run python scripts/python/scrape_contrataciones.py --fecha "$FECHA"
+uv run python scripts/python/scrape/boletin/scrape_contrataciones.py --fecha "$FECHA"
 
 echo ""
 echo "📦 Ingestionando a la base de datos..."

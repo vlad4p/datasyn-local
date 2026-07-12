@@ -1,108 +1,77 @@
 # Python scripts
 
-Optional helpers under `scripts/python/`. **Ingest and reports are skills (SQL)** — these scripts support MCP, scraping, classification, and report export.
+Organized by function under `scripts/python/`. Ingest/report **pipelines** live in skills; these modules are the runnable entrypoints.
 
-## Core
+```text
+scripts/python/
+  db.py                 # DuckDB paths, MCP, Quack, run-sql (+ resolve_sql)
+  scrape/
+    twikit/             # X/Twitter via twikit
+    sociavault/         # SociaVault FB/IG/TT (+ deprecated TW)
+    boletin/            # Boletín / contrataciones scrapers
+  classify/             # LLM classify (twikit, SV, La Nación)
+  reports/              # HTML/CSV report generators + templates/
+  analyze/              # Graph helpers, entity extract
+  tools/                # Misc (embed README diagrams)
+```
 
-| Script | Usage |
-|--------|--------|
-| `db.py` | DuckDB paths, connection, MCP (`mcp-config`, `mcp-serve`), Quack client + host (`quack-serve`, `quack-host`, `run-sql`) |
-| `classify_sv_comments.py` | LLM classification for SociaVault comments (`LLM_API_KEY` in `.env`) |
-| `classify_tk_tw_replies.py` | Batch LLM classify twikit replies + hater narrative clusters (`CHAT_MODEL`/`LLM_MODEL`) |
-| `embed_readme_diagrams.py` | Sync diagram `<img>` tags in README files from `docs/diagrams/*.svg` |
+`db.resolve_sql("ingest_….sql")` finds files under `scripts/sql/**` by basename.
+
+## db
 
 ```bash
 uv run python scripts/python/db.py info
 uv run python scripts/python/db.py mcp-check
 uv run python scripts/python/db.py mcp-config
-uv run python scripts/python/db.py mcp-serve   # Cursor MCP (stdio)
+uv run python scripts/python/db.py mcp-serve
+uv run python scripts/python/db.py mcp-stop
 ```
 
-## SociaVault scrape
+## scrape
 
-| Script | Usage |
-|--------|--------|
-| `sociavault_client.py` | SociaVault REST API client (`SOCIAVAULT_API_KEY`) |
-| `sociavault_scrape_common.py` | Shared landing paths, manifest, ingest helpers |
-| `scrape_sociavault_facebook.py` | Facebook → `data/landing/redes/sociavault/facebook/` |
-| `scrape_sociavault_twitter.py` | X/Twitter via SociaVault (**deprecated** — prefer twikit) |
-| `scrape_sociavault_instagram.py` | Instagram → `data/landing/redes/sociavault/instagram/` |
-| `scrape_sociavault_tiktok.py` | TikTok → `data/landing/redes/sociavault/tiktok/` |
+| Path | Usage |
+|------|--------|
+| `scrape/twikit/scrape_twikit_twitter.py` | X via twikit → landing |
+| `scrape/twikit/enrich_twikit_profiles.py` | Enrich haters/apoyo profiles + follows |
+| `scrape/sociavault/scrape_sociavault_*.py` | SociaVault platforms |
+| `scrape/boletin/scrape_boletin.py` | Boletín Oficial |
+| `scrape/boletin/scrape_contrataciones.py` | Contrataciones |
 
 ```bash
-uv run python scripts/python/scrape_sociavault_twitter.py \
-  --handle myriambregman --last 10 --fetch-replies --ingest-full
-
-./scripts/sh/scrape_sociavault.sh twitter myriambregman --last 10 --fetch-replies
+uv run python scripts/python/scrape/twikit/scrape_twikit_twitter.py \
+  --handle myriambregman --since 2026-07-01 --until 2026-08-01 \
+  --fetch-replies --max-replies 100 --ingest
 ```
 
-Skill: [`scrape-sociavault`](../../skills/collect/sociavault/scrape-sociavault/SKILL.md)
+## classify
 
-## Twikit scrape (X session)
+| Path | Usage |
+|------|--------|
+| `classify/classify_tk_tw_replies.py` | Twikit replies + narrative clusters |
+| `classify/classify_lanacion_to_hater_clusters.py` | LN → hater cluster affinity |
+| `classify/classify_sv_comments.py` | SociaVault comment LLM labels |
 
-| Script | Usage |
-|--------|--------|
-| `scrape_twikit_twitter.py` | X/Twitter via twikit → `data/landing/redes/twikit/twitter/` |
+## reports
 
-```bash
-# Auth: TWITTER_USERNAME / TWITTER_PASSWORD in .env (cookies saved to .data/)
-uv run python scripts/python/scrape_twikit_twitter.py \
-  --handle myriambregman --last 10 --fetch-replies
-```
+| Path | Bundle |
+|------|--------|
+| `reports/generate_social_monitor_dashboard.py` | `reports/monitor/dashboard/` |
+| `reports/generate_redes_dashboard.py` | `reports/redes/dashboard/` |
+| `reports/generate_tk_hater_clusters_report.py` | twikit hater clusters |
+| `reports/generate_tk_troll_blacklist_report.py` | troll blacklist |
+| `reports/export_redes_reports_zip.py` | zip of redes bundles |
 
-Skill: [`scrape-twikit-twitter`](../../skills/collect/twikit/scrape-twikit-twitter/SKILL.md)
+Templates: `reports/templates/`.
 
-```bash
-# Classify replies + cluster hater narratives (batch LLM)
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_tw_classification.sql
-uv run python scripts/python/classify_tk_tw_replies.py --batch-size 50 --cluster-haters
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_hater_narrativa.sql
-# Refresh Twitter account catalog (is_hater + profile fields)
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twikit_twitter_silver.sql
-uv run python scripts/python/generate_tk_hater_clusters_report.py
-# Auditable troll blacklist (no auto-block on X)
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_troll_blacklist.sql
-uv run python scripts/python/generate_tk_troll_blacklist_report.py
-```
+## analyze / tools
 
-## Redes reports (legacy Facebook CSV)
+| Path | Usage |
+|------|--------|
+| `analyze/helper_grafo_interactivo.py` | vis.js graph HTML helpers |
+| `analyze/extraer_entidades.py` | Entity extract for graph ingest |
+| `tools/embed_readme_diagrams.py` | Sync diagram `<img>` in READMEs |
 
-Skill: [`redes-analysis`](../../skills/analyze/reports/redes-analysis/SKILL.md). Gold SQL: `scripts/sql/ingest_redes_gold.sql` (FB-only).  
-Unified monitor: [`social-monitor`](../../skills/analyze/reports/social-monitor/SKILL.md) — `ingest_identidades.sql` + `ingest_social_monitor_gold.sql`.
-
-| Script | Output bundle under `reports/` |
-|--------|--------------------------------|
-| `generate_social_monitor_dashboard.py` | `monitor/dashboard/` — unified persona monitor (Chart.js + vis.js) |
-| `generate_redes_dashboard.py` | `redes/dashboard/` — Chart.js + vis.js dashboard |
-| `export_redes_reports_zip.py` | `redes/_exports/export_{date}.zip` |
-| `generate_tk_hater_clusters_report.py` | `twikit-myriam/hater-clusters/` |
-| `generate_tk_troll_blacklist_report.py` | `twikit-myriam/troll-blacklist/` |
-
-## Graph helpers
-
-| Script | Usage |
-|--------|--------|
-| `helper_grafo_interactivo.py` | Export graph JSON + HTML (vis.js / Chart.js) |
-| `grafo_interactivo.py` | Build interactive graph from landing JSON or DB |
-| `extraer_entidades.py` | Extract entities for graph ingest |
-| `analisis_entidades_grafo.py` | Entity graph analysis pipeline |
-
-Skill: [`interactive-graph-reports`](../../skills/analyze/graph/interactive-graph-reports/SKILL.md)
-
-## Boletín / contrataciones
-
-| Script | Usage |
-|--------|--------|
-| `boletin_scraper.py` | Scrape Boletín Oficial avisos |
-| `scrape_boletin.py` | Landing + ingest wrapper |
-| `boletin_contrataciones_scraper.py` | Contrataciones scrape |
-| `scrape_contrataciones.py` | Landing + ingest wrapper |
-| `analizar_contrataciones.py` | Parse contrataciones PDFs |
-| `analizar_pdfs_contrataciones.py` | PDF text extraction |
-
-Shell wrappers: `scripts/sh/scrape_boletin_diario.sh`, `scripts/sh/scrape_contrataciones_diario.sh`
-
-## Import from repo root
+## Import pattern
 
 ```python
 import sys
@@ -112,6 +81,7 @@ sys.path.insert(0, str(Path("scripts/python").resolve()))
 import db
 
 con = db.connect()
+sql_path = db.resolve_sql("ingest_identidades.sql")
 ```
 
-Skills: [`ingest-data`](../../skills/ingest/ingest-data/SKILL.md) · layout: [`docs/skills-layout.md`](../../docs/skills-layout.md)
+Skills: [`ingest-data`](../../skills/ingest/ingest-data/SKILL.md) · SQL index: [`../sql/README.md`](../sql/README.md)

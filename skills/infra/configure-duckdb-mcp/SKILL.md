@@ -245,7 +245,7 @@ Stage remote bronze into the local file DB (default catalog stays local; no `USE
 ```bash
 uv run python scripts/python/db.py mcp-stop
 uv run python scripts/python/db.py run-sql --ingest --attach-quack \
-  --file scripts/sql/ingest_lanacion_silver.sql
+  --file scripts/sql/news/ingest_lanacion_silver.sql
 ```
 
 SQL pattern (one `.query()` per statement — Quack streaming limit):

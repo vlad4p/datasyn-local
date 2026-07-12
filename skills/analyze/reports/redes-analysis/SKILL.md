@@ -65,10 +65,10 @@ reports/redes/dashboard/
 
 ```bash
 uv run python scripts/python/db.py mcp-stop
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_redes_gold.sql
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_network_profile.sql
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_gold_entidades.sql
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_redes_comment_similarity.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/redes/ingest_redes_gold.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/redes/ingest_network_profile.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/redes/ingest_gold_entidades.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/redes/ingest_redes_comment_similarity.sql
 ```
 
 ### 2. Explore (reads — MCP preferred)
@@ -78,7 +78,7 @@ Use MCP `query` for ad-hoc analysis. Example patterns in [`redes-gold`](../../..
 ### 3. Generate dashboard
 
 ```bash
-uv run python scripts/python/generate_redes_dashboard.py
+uv run python scripts/python/reports/generate_redes_dashboard.py
 ```
 
 | Script | Bundle folder | Files |
@@ -94,7 +94,7 @@ open reports/redes/dashboard/report.html
 ### 4. Export zip (compartir offline)
 
 ```bash
-uv run python scripts/python/export_redes_reports_zip.py
+uv run python scripts/python/reports/export_redes_reports_zip.py
 # → reports/redes/_exports/export_{date}.zip
 ```
 
@@ -163,7 +163,7 @@ ORDER BY dia;
 ### Perfiles unificados (opcional)
 
 ```bash
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_network_profile.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/redes/ingest_network_profile.sql
 ```
 
 ```sql
@@ -181,8 +181,8 @@ To add a new chart:
 
 1. Add or extend a gold view in `ingest_redes_gold.sql` (or related SQL)
 2. Add export entry in `SQL_EXPORTS` inside `generate_redes_dashboard.py`
-3. Add Chart.js / vis.js section in `scripts/python/templates/redes_dashboard.html`
-4. Regenerate: `uv run python scripts/python/generate_redes_dashboard.py`
+3. Add Chart.js / vis.js section in `scripts/python/reports/templates/redes_dashboard.html`
+4. Regenerate: `uv run python scripts/python/reports/generate_redes_dashboard.py`
 
 Follow [`create-python-script`](../../../infra/create-python-script/SKILL.md) for script conventions.
 

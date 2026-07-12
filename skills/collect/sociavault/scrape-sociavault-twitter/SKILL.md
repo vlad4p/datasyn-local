@@ -33,7 +33,7 @@ description: >-
 ## Workflow
 
 ```bash
-uv run python scripts/python/scrape_sociavault_twitter.py \
+uv run python scripts/python/scrape/sociavault/scrape_sociavault_twitter.py \
   --handle myriambregman \
   --last 10 \
   --fetch-replies \

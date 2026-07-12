@@ -32,13 +32,13 @@ To add or refresh diagrams:
 xmllint --noout docs/diagrams/*.svg
 
 # Re-embed <img> tags in READMEs (after inline SVG → img migration)
-uv run python scripts/python/embed_readme_diagrams.py README.md README.en.md
+uv run python scripts/python/tools/embed_readme_diagrams.py README.md README.en.md
 ```
 
 When adding a diagram:
 
 1. Add `docs/diagrams/<name>.svg`.
-2. Extend `META` in [`scripts/python/embed_readme_diagrams.py`](../../scripts/python/embed_readme_diagrams.py) if using the embed helper.
+2. Extend `META` in [`scripts/python/tools/embed_readme_diagrams.py`](../../scripts/python/tools/embed_readme_diagrams.py) if using the embed helper.
 3. Reference with repo-relative path: `<img src="docs/diagrams/<name>.svg" …>`.
 
 Related: [`docs/skills-layout.md`](../skills-layout.md) · [`skills/README.md`](../../skills/README.md)

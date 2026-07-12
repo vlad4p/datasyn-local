@@ -131,12 +131,12 @@ PRIMARY KEY (entidad_id, aviso_id)
 
 #### Example: Boletín Oficial
 
-The existing script `scripts/python/extraer_entidades.py` extracts companies and
+The existing script `scripts/python/analyze/extraer_entidades.py` extracts companies and
 socios from the Argentine government gazette. It is **only useful for that data
 source** — it uses regex patterns tailored to Spanish legal text.
 
 ```bash
-uv run python scripts/python/extraer_entidades.py
+uv run python scripts/python/analyze/extraer_entidades.py
 ```
 
 For any other data source, build a new script with `create-python-script` skill.
@@ -173,7 +173,7 @@ finally:
 
 For legacy FB/TW troll analysis, graph tables are **views** in `gold.*` — not generic `grafo_vertices`.
 
-**Ingest:** [`scripts/sql/ingest_redes_gold.sql`](../../../../scripts/sql/ingest_redes_gold.sql) via skill [`redes-gold`](../../../ingest/gold/redes-gold/SKILL.md)
+**Ingest:** [`scripts/sql/redes/ingest_redes_gold.sql`](../../../../scripts/sql/redes/ingest_redes_gold.sql) via skill [`redes-gold`](../../../ingest/gold/redes-gold/SKILL.md)
 
 | View | Role |
 |------|------|
@@ -182,7 +182,7 @@ For legacy FB/TW troll analysis, graph tables are **views** in `gold.*` — not 
 | `gold.grafo_edges_agg_trolls` | Aggregated weights for visualization |
 | `gold.grafo_*_narrativa` | Narrative co-occurrence + cuenta weights |
 
-**Interactive HTML:** `scripts/python/generate_redes_dashboard.py` — sección Grafo (subgrafo top autores).
+**Interactive HTML:** `scripts/python/reports/generate_redes_dashboard.py` — sección Grafo (subgrafo top autores).
 **Analysis skill:** [`redes-analysis`](../reports/redes-analysis/SKILL.md)
 
 ```sql

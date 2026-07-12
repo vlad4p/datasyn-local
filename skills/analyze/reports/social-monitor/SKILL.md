@@ -54,8 +54,8 @@ reports/monitor/dashboard/report.html
 
 ```bash
 uv run python scripts/python/db.py mcp-stop
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_identidades.sql
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_social_monitor_gold.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/monitor/ingest_identidades.sql
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/monitor/ingest_social_monitor_gold.sql
 ```
 
 Prereqs (if stale):
@@ -68,13 +68,13 @@ Prereqs (if stale):
 ```bash
 # After classify_tk_tw_replies.py has labeled apoyo_izquierda replies:
 uv run python scripts/python/db.py mcp-stop
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twikit_twitter_silver.sql  # is_supporter
-uv run python scripts/python/enrich_twikit_profiles.py --role apoyo --top-supporters 30 \
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/twikit/ingest_twikit_twitter_silver.sql  # is_supporter
+uv run python scripts/python/scrape/twikit/enrich_twikit_profiles.py --role apoyo --top-supporters 30 \
   --max-follows 2000 --ingest
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_apoyo_profile_graph.sql
-uv run python scripts/python/classify_tk_tw_replies.py --cluster-only --cluster-apoyo
-uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_social_monitor_gold.sql
-uv run python scripts/python/generate_social_monitor_dashboard.py
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/twikit/ingest_tk_apoyo_profile_graph.sql
+uv run python scripts/python/classify/classify_tk_tw_replies.py --cluster-only --cluster-apoyo
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/monitor/ingest_social_monitor_gold.sql
+uv run python scripts/python/reports/generate_social_monitor_dashboard.py
 ```
 
 Landing: `data/landing/redes/twikit/profiles/apoyo/{slug}_{date}/` (separate from hater profiles).
@@ -87,25 +87,25 @@ Persona scope: `myriambregman`. Docs: [`docs/monitoreo-redes-tecnico.md`](../../
 ```bash
 uv run python scripts/python/db.py mcp-stop
 uv run python scripts/python/db.py run-sql --ingest --attach-quack \
-  --file scripts/sql/ingest_lanacion_silver.sql
+  --file scripts/sql/news/ingest_lanacion_silver.sql
 uv run python scripts/python/db.py run-sql --ingest \
-  --file scripts/sql/ingest_contexto_ln_tw.sql
-uv run python scripts/python/classify_lanacion_to_hater_clusters.py
+  --file scripts/sql/news/ingest_contexto_ln_tw.sql
+uv run python scripts/python/classify/classify_lanacion_to_hater_clusters.py
 uv run python scripts/python/db.py run-sql --ingest \
-  --file scripts/sql/ingest_contexto_ln_hater_afinidade.sql
+  --file scripts/sql/news/ingest_contexto_ln_hater_afinidade.sql
 ```
 
 ### 2. Generate dashboard
 
 ```bash
-uv run python scripts/python/generate_social_monitor_dashboard.py
+uv run python scripts/python/reports/generate_social_monitor_dashboard.py
 open reports/monitor/dashboard/report.html
 ```
 
 | Script | Bundle | Files |
 |--------|--------|-------|
 | `generate_social_monitor_dashboard.py` | `monitor/dashboard/` | `report.html`, `data/*.csv`, `data.json`, `README.md` |
-| Template | `scripts/python/templates/social_monitor_dashboard.html` | Chart.js 4.4.1 + vis-network |
+| Template | `scripts/python/reports/templates/social_monitor_dashboard.html` | Chart.js 4.4.1 + vis-network |
 
 ### 3. Explore (reads — MCP preferred)
 
@@ -127,8 +127,8 @@ SELECT * FROM gold.v_monitor_temporal ORDER BY dia DESC LIMIT 20;
 | **Reacciones** | `gold.v_monitor_reacciones` | Likes/loves/… (FB); likes/RT/quotes (TW) |
 | **Engagement** | `gold.v_monitor_engagement` | Serie temporal eng/post |
 | **Audiencia** | `gold.v_monitor_audiencia*` | hater / apoyo / neutral / bot heurístico |
-| **Haters** | `gold.v_monitor_haters_top10` | Top 10 FB+TW |
-| **Apoyo** | `gold.v_monitor_apoyo_top10` | Top 10 defensores TW |
+| **Haters** | `gold.v_monitor_haters_top10` | Top 75 TW (+ top 10 FB) |
+| **Apoyo** | `gold.v_monitor_apoyo_top10` | Top 50 defensores TW |
 | **Narrativas** | `gold.v_monitor_narrativa` | Clusters hostiles + apoyo (toggle polaridad) |
 | **Grafos** | `gold.tk_hater_*` + `gold.tk_apoyo_*` | Toggle **Haters/Apoyo** en Relaciones TW |
 | **Comparativa** | `gold.v_monitor_temporal*` | Multi-persona en el tiempo |
@@ -167,7 +167,7 @@ SELECT * FROM gold.v_monitor_temporal ORDER BY dia DESC LIMIT 20;
 | `v_monitor_grafo_*` | behavior / narrative / coordination graphs |
 | `v_monitor_kpis` | global KPIs |
 
-SQL: [`scripts/sql/ingest_social_monitor_gold.sql`](../../../../scripts/sql/ingest_social_monitor_gold.sql)
+SQL: [`scripts/sql/monitor/ingest_social_monitor_gold.sql`](../../../../scripts/sql/monitor/ingest_social_monitor_gold.sql)
 
 ---
 

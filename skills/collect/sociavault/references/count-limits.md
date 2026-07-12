@@ -8,7 +8,7 @@ Scrapes by **count** (last N posts/tweets/videos), not by date range.
 | últimos 3 posts de FB | `--last 3` or `--max-posts 3` |
 | últimos 20 videos TikTok | `--last 20` or `--max-videos 20` |
 
-Algorithm ([`sociavault_limits.py`](../../../../scripts/python/sociavault_limits.py)):
+Algorithm ([`sociavault_limits.py`](../../../../scripts/python/scrape/sociavault/sociavault_limits.py)):
 
 1. Paginate API until no cursor
 2. Dedupe by platform ID

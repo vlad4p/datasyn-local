@@ -20,7 +20,7 @@ description: >-
 ## Workflow
 
 ```bash
-uv run python scripts/python/scrape_sociavault_tiktok.py \
+uv run python scripts/python/scrape/sociavault/scrape_sociavault_tiktok.py \
   --handle tiktok \
   --last 10 \
   --fetch-comments \
