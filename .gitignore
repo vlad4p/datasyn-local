@@ -101,6 +101,7 @@ kilo.json
 .logs/
 *.bak
 *.backup
+duckdb.bkp/
 
 # Lock file (local resolution — do not commit)
 uv.lock

@@ -264,15 +264,19 @@ SELECT
         risk.flag_new_account
         OR risk.flag_follow_ratio_high
         OR risk.flag_high_output_low_audience
-        OR risk.flag_empty_bio,
+        OR risk.flag_empty_bio
+        OR risk_apoyo.flag_new_account
+        OR risk_apoyo.flag_follow_ratio_high
+        OR risk_apoyo.flag_high_output_low_audience
+        OR risk_apoyo.flag_empty_bio,
         FALSE
     ) AS es_bot_heuristico,
-    risk.risk_band,
-    risk.risk_score,
+    COALESCE(risk.risk_band, risk_apoyo.risk_band) AS risk_band,
+    COALESCE(risk.risk_score, risk_apoyo.risk_score) AS risk_score,
     r.reply_id AS content_id,
     r.created_at_ts AS occurred_at,
     DATE_TRUNC('day', r.created_at_ts)::DATE AS dia,
-    COALESCE(na.label, cl.narrativa_raw, cl.resumen) AS narrativa
+    COALESCE(na.label, na_apoyo.label, cl.narrativa_raw, cl.resumen) AS narrativa
 FROM silver.tk_tw_reply AS r
 JOIN silver.tk_tw_reply_classification AS cl
     ON cl.reply_id = r.reply_id
@@ -286,10 +290,16 @@ JOIN gold.v_monitor_cuenta_map AS m
     )
 LEFT JOIN gold.tk_hater_profile_risk AS risk
     ON risk.user_id = r.author_id
+LEFT JOIN gold.tk_apoyo_profile_risk AS risk_apoyo
+    ON risk_apoyo.user_id = r.author_id
 LEFT JOIN gold.tk_hater_narrativa_assignment AS asg
     ON asg.reply_id = r.reply_id
 LEFT JOIN gold.tk_hater_narrativa_cluster AS na
-    ON na.cluster_id = asg.cluster_id;
+    ON na.cluster_id = asg.cluster_id
+LEFT JOIN gold.tk_apoyo_narrativa_assignment AS asg_apoyo
+    ON asg_apoyo.reply_id = r.reply_id
+LEFT JOIN gold.tk_apoyo_narrativa_cluster AS na_apoyo
+    ON na_apoyo.cluster_id = asg_apoyo.cluster_id;
 
 -- ---------------------------------------------------------------------------
 -- Audiencia resumen (agregado)
@@ -380,6 +390,58 @@ FROM ranked
 WHERE ranking <= 10;
 
 -- ---------------------------------------------------------------------------
+-- Apoyo / defensores top 10 por persona (TW supporters)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE VIEW gold.v_monitor_apoyo_top10 AS
+WITH tw_targets AS (
+    SELECT DISTINCT persona_id, nombre_canonico
+    FROM gold.v_monitor_cuenta_map
+    WHERE plataforma = 'twitter'
+      AND LOWER(handle) IN (
+          SELECT DISTINCT LOWER(username)
+          FROM silver.tk_tw_tweet
+          WHERE username IS NOT NULL
+      )
+),
+tw AS (
+    SELECT
+        tg.persona_id,
+        tg.nombre_canonico,
+        'twitter'::VARCHAR AS plataforma,
+        u.user_id AS actor_id,
+        COALESCE(u.username, u.display_name) AS actor_nombre,
+        COALESCE(u.apoyo_replies_count, 0) AS score_eventos,
+        CAST(NULL AS BIGINT) AS dias_activos,
+        CAST(NULL AS VARCHAR) AS cuentas_objetivo,
+        CAST(NULL AS VARCHAR) AS narrativas,
+        risk.risk_band AS tier,
+        CAST(risk.risk_score AS DOUBLE) AS risk_score,
+        ROW_NUMBER() OVER (
+            PARTITION BY tg.persona_id
+            ORDER BY COALESCE(u.apoyo_replies_count, 0) DESC,
+                     COALESCE(u.replies_observed_count, 0) DESC
+        ) AS ranking_src
+    FROM silver.tk_tw_user AS u
+    CROSS JOIN tw_targets AS tg
+    LEFT JOIN gold.tk_apoyo_profile_risk AS risk
+        ON risk.user_id = u.user_id
+    WHERE u.is_supporter
+),
+ranked AS (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (
+            PARTITION BY persona_id, plataforma
+            ORDER BY score_eventos DESC, COALESCE(risk_score, 0) DESC
+        ) AS ranking
+    FROM tw
+    WHERE ranking_src <= 50
+)
+SELECT *
+FROM ranked
+WHERE ranking <= 10;
+
+-- ---------------------------------------------------------------------------
 -- Narrativas por persona
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW gold.v_monitor_narrativa AS
@@ -408,6 +470,27 @@ SELECT
     SUM(r.n_replies) AS comentarios,
     AVG(r.pct_haters) AS pct_narrativa
 FROM gold.v_tk_hater_narrativa_resumen AS r
+JOIN (
+    SELECT DISTINCT persona_id, nombre_canonico
+    FROM gold.v_monitor_cuenta_map
+    WHERE plataforma = 'twitter'
+      AND LOWER(handle) IN (
+          SELECT DISTINCT LOWER(username) FROM silver.tk_tw_tweet WHERE username IS NOT NULL
+      )
+) AS m ON TRUE
+GROUP BY m.persona_id, m.nombre_canonico, COALESCE(r.label, 'sin_cluster')
+
+UNION ALL
+
+SELECT
+    m.persona_id,
+    m.nombre_canonico,
+    'twitter'::VARCHAR AS plataforma,
+    COALESCE(r.label, 'sin_cluster') AS narrativa,
+    'apoyo_izquierda'::VARCHAR AS posicion,
+    SUM(r.n_replies) AS comentarios,
+    AVG(r.pct_apoyo) AS pct_narrativa
+FROM gold.v_tk_apoyo_narrativa_resumen AS r
 JOIN (
     SELECT DISTINCT persona_id, nombre_canonico
     FROM gold.v_monitor_cuenta_map
@@ -452,6 +535,30 @@ SELECT
     SUM(t.n_replies) AS comentarios,
     t.narrativa_cluster AS narrativa
 FROM gold.v_tk_hater_narrativa_temporal AS t
+JOIN (
+    SELECT DISTINCT persona_id, nombre_canonico
+    FROM gold.v_monitor_cuenta_map
+    WHERE plataforma = 'twitter'
+      AND LOWER(handle) IN (
+          SELECT DISTINCT LOWER(username) FROM silver.tk_tw_tweet WHERE username IS NOT NULL
+      )
+) AS m ON TRUE
+WHERE t.dia IS NOT NULL
+GROUP BY m.persona_id, m.nombre_canonico, t.dia, t.narrativa_cluster
+
+UNION ALL
+
+-- TW apoyo narrativa temporal (as support signal)
+SELECT
+    m.persona_id,
+    m.nombre_canonico,
+    'twitter'::VARCHAR AS plataforma,
+    t.dia,
+    'apoyo_izquierda'::VARCHAR AS posicion,
+    'positivo'::VARCHAR AS sentimiento,
+    SUM(t.n_replies) AS comentarios,
+    t.narrativa_cluster AS narrativa
+FROM gold.v_tk_apoyo_narrativa_temporal AS t
 JOIN (
     SELECT DISTINCT persona_id, nombre_canonico
     FROM gold.v_monitor_cuenta_map

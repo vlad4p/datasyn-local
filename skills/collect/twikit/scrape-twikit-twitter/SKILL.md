@@ -76,46 +76,59 @@ data/landing/redes/twikit/twitter/{slug}_{YYYYMMDD}/
 
 ## Enrich profiles (bio, metrics, posts, followers/following)
 
-For top haters (or an explicit handle list), fetch full profile + recent posts + follower/following lists with conservative rate limits:
+For top haters **or** top supporters (apoyo), fetch full profile + recent posts + follower/following lists with conservative rate limits:
 
 ```bash
 uv run python scripts/python/db.py mcp-stop
+# Haters (default role)
 uv run python scripts/python/enrich_twikit_profiles.py --top-haters 10 \
+  --max-posts 100 --max-follows 2000 --ingest
+# Apoyo / defensores (separate landing + silver tables)
+uv run python scripts/python/enrich_twikit_profiles.py --role apoyo --top-supporters 30 \
   --max-posts 100 --max-follows 2000 --ingest
 # or: --handles capibara_mood,CCDeville88
 ```
 
 | Flag | Default | Meaning |
 |------|---------|---------|
+| `--role` | `hater` | `hater` or `apoyo` (landing + ingest target) |
 | `--top-haters N` | — | Rank from `silver.tk_tw_user` by `hater_replies_count` |
-| `--handles a,b` | — | Explicit list (overrides `--top-haters`) |
+| `--top-supporters N` | — | Rank by `apoyo_replies_count` (forces `role=apoyo`) |
+| `--handles a,b` | — | Explicit list (overrides top-N) |
 | `--max-posts` | 100 | Recent tweets per profile |
 | `--max-follows` | 2000 | Cap per followers/following list (over → IDs-only) |
 | `--min-delay` | 3 | Seconds between API calls (+ jitter) |
 | `--profile-pause` | 35 | Pause between profiles |
-| `--ingest` | off | Bronze+silver via `ingest_twikit_profiles.sql` |
+| `--ingest` | off | Bronze+silver via role-specific SQL |
 
-**Landing:** `data/landing/redes/twikit/profiles/{slug}_{YYYYMMDD}/` (`profile.json`, `posts.jsonl`, `followers.jsonl`, `following.jsonl`, `manifest.json`).
+**Landing (haters):** `data/landing/redes/twikit/profiles/{slug}_{YYYYMMDD}/`  
+**Landing (apoyo):** `data/landing/redes/twikit/profiles/apoyo/{slug}_{YYYYMMDD}/`
 
-| Table | Role |
-|-------|------|
-| `silver.tk_tw_profile_enriched` | Bio, location, metrics, verified, image |
-| `silver.tk_tw_profile_post` | Recent posts of enriched accounts |
-| `silver.tk_tw_follow_edge` | `follower` / `following` edges (`src` = enriched user) |
-| `silver.tk_tw_profile` | Metrics MERGEd for matching `user_id`s |
+| Role | Tables |
+|------|--------|
+| hater | `silver.tk_tw_profile_enriched`, `tk_tw_profile_post`, `tk_tw_follow_edge` |
+| apoyo | `silver.tk_tw_profile_enriched_apoyo`, `tk_tw_profile_post_apoyo`, `tk_tw_follow_edge_apoyo` |
 
 Checkpoint: if a profile folder already has all five files for today, that handle is skipped (safe resume).
 
-## Classify + hater narrative clusters
+After apoyo enrich:
 
-After ingest, batch-classify replies (efficient multi-comment LLM calls) and cluster haters:
+```bash
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_apoyo_profile_graph.sql
+```
+
+## Classify + narrative clusters (haters and apoyo)
+
+After ingest, batch-classify replies (efficient multi-comment LLM calls) and cluster narratives:
 
 ```bash
 uv sync --extra llm
 uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_tw_classification.sql
 uv run python scripts/python/classify_tk_tw_replies.py --batch-size 50 --cluster-haters
+uv run python scripts/python/classify_tk_tw_replies.py --cluster-only --cluster-apoyo
 uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_hater_narrativa.sql
-# Refresh silver.tk_tw_user catalog (profile fields + is_hater) and HTML report
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_apoyo_narrativa.sql
+# Refresh silver.tk_tw_user catalog (is_hater + is_supporter)
 uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twikit_twitter_silver.sql
 uv run python scripts/python/generate_tk_hater_clusters_report.py
 ```
@@ -123,10 +136,9 @@ uv run python scripts/python/generate_tk_hater_clusters_report.py
 | Table / view | Role |
 |--------------|------|
 | `silver.tk_tw_reply_classification` | Posición + resumen + `narrativa_raw` por reply |
-| `gold.tk_hater_narrativa_cluster` | Catálogo de narrativas canónicas |
-| `gold.tk_hater_narrativa_assignment` | reply → cluster |
-| `gold.v_tk_hater_narrativa_*` | Resumen / por tweet / temporal |
-| `silver.tk_tw_user` | Catálogo twikit-only de cuentas X con `is_hater` |
+| `gold.tk_hater_narrativa_*` / `v_tk_hater_narrativa_*` | Clusters hostiles (`derecha_o_troll`) |
+| `gold.tk_apoyo_narrativa_*` / `v_tk_apoyo_narrativa_*` | Clusters de apoyo (`apoyo_izquierda`) |
+| `silver.tk_tw_user` | Catálogo con `is_hater` + `is_supporter` |
 | `reports/twikit-myriam/hater-clusters/` | HTML interactivo (gitignored) |
 
 ## Troll blacklist (manual block list)

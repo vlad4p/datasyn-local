@@ -1,4 +1,4 @@
-"""Enrich top hater (or listed) X profiles via twikit.
+"""Enrich top hater/supporter (or listed) X profiles via twikit.
 
 Fetches full profile (bio + metrics), recent posts, and follower/following
 lists with conservative rate-limiting to reduce ban risk.
@@ -6,6 +6,9 @@ lists with conservative rate-limiting to reduce ban risk.
 Usage:
     uv run python scripts/python/enrich_twikit_profiles.py --top-haters 10 \\
       --max-posts 100 --max-follows 2000 --ingest
+
+    uv run python scripts/python/enrich_twikit_profiles.py --role apoyo \\
+      --top-supporters 30 --max-follows 2000 --ingest
 
     uv run python scripts/python/enrich_twikit_profiles.py \\
       --handles capibara_mood,CCDeville88 --ingest
@@ -76,9 +79,16 @@ def _profile_complete(run_dir: Path) -> bool:
     return all((run_dir / name).is_file() for name in required)
 
 
-def _make_run_dir(slug: str) -> Path:
+def _profiles_root(role: str = "hater") -> Path:
+    root = db.get_landing_path() / "redes" / "twikit" / "profiles"
+    if role == "apoyo":
+        return root / "apoyo"
+    return root
+
+
+def _make_run_dir(slug: str, *, role: str = "hater") -> Path:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
-    run_dir = db.get_landing_path() / "redes" / "twikit" / "profiles" / f"{slug}_{stamp}"
+    run_dir = _profiles_root(role) / f"{slug}_{stamp}"
     run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir
 
@@ -127,6 +137,27 @@ def _load_top_haters(n: int) -> list[str]:
               AND username IS NOT NULL
               AND LENGTH(TRIM(username)) > 0
             ORDER BY hater_replies_count DESC NULLS LAST,
+                     replies_observed_count DESC NULLS LAST
+            LIMIT ?
+            """,
+            [n],
+        ).fetchall()
+    finally:
+        con.close()
+    return [str(r[0]).lstrip("@") for r in rows]
+
+
+def _load_top_supporters(n: int) -> list[str]:
+    con = db.connect(read_only=True)
+    try:
+        rows = con.execute(
+            """
+            SELECT username
+            FROM silver.tk_tw_user
+            WHERE is_supporter
+              AND username IS NOT NULL
+              AND LENGTH(TRIM(username)) > 0
+            ORDER BY apoyo_replies_count DESC NULLS LAST,
                      replies_observed_count DESC NULLS LAST
             LIMIT ?
             """,
@@ -357,10 +388,11 @@ async def enrich_one(
     max_follows: int,
     min_delay: float,
     jitter: float,
+    role: str = "hater",
 ) -> Path:
     handle = handle.lstrip("@")
     slug = account_slug(handle)
-    run_dir = _make_run_dir(slug)
+    run_dir = _make_run_dir(slug, role=role)
 
     if _profile_complete(run_dir):
         print(f"Checkpoint skip @{handle} → {run_dir} (already complete)")
@@ -418,24 +450,32 @@ async def enrich_one(
     else:
         fo_count = int(profile.get("followers_count") or 0)
         fl_count = int(profile.get("following_count") or 0)
-        following, following_mode = await _fetch_user_list(
-            client,
-            user_id,
-            direction="following",
-            max_follows=max_follows,
-            expected_count=fl_count,
-            min_delay=min_delay,
-            jitter=jitter,
-        )
-        followers, followers_mode = await _fetch_user_list(
-            client,
-            user_id,
-            direction="followers",
-            max_follows=max_follows,
-            expected_count=fo_count,
-            min_delay=min_delay,
-            jitter=jitter,
-        )
+        try:
+            following, following_mode = await _fetch_user_list(
+                client,
+                user_id,
+                direction="following",
+                max_follows=max_follows,
+                expected_count=fl_count,
+                min_delay=min_delay,
+                jitter=jitter,
+            )
+        except Exception as exc:
+            print(f"  following list failed ({exc}); continuing with empty")
+            following, following_mode = [], "error"
+        try:
+            followers, followers_mode = await _fetch_user_list(
+                client,
+                user_id,
+                direction="followers",
+                max_follows=max_follows,
+                expected_count=fo_count,
+                min_delay=min_delay,
+                jitter=jitter,
+            )
+        except Exception as exc:
+            print(f"  followers list failed ({exc}); continuing with empty")
+            followers, followers_mode = [], "error"
 
     for row in followers:
         _append_jsonl(followers_path, row)
@@ -477,9 +517,9 @@ async def enrich_one(
     return run_dir
 
 
-def _run_ingest(run_dirs: list[Path]) -> None:
+def _run_ingest(run_dirs: list[Path], *, role: str = "hater") -> None:
     """Write batch pointer + run ingest SQL via db.cmd_run_sql."""
-    root = db.get_landing_path() / "redes" / "twikit" / "profiles"
+    root = _profiles_root(role)
     root.mkdir(parents=True, exist_ok=True)
     pointer = {
         "run_dirs": [_repo_relative(p) for p in run_dirs],
@@ -489,9 +529,16 @@ def _run_ingest(run_dirs: list[Path]) -> None:
         "following_glob": _repo_relative(root / "*" / "following.jsonl"),
         "manifests_glob": _repo_relative(root / "*" / "manifest.json"),
     }
-    _write_json(root / "_current_batch.json", pointer)
+    batch_name = "_current_batch_apoyo.json" if role == "apoyo" else "_current_batch.json"
+    # Pointer lives next to the role root (apoyo under profiles/apoyo/, haters under profiles/)
+    _write_json(root / batch_name, pointer)
 
-    sql_path = REPO_ROOT / "scripts" / "sql" / "ingest_twikit_profiles.sql"
+    sql_name = (
+        "ingest_twikit_profiles_apoyo.sql"
+        if role == "apoyo"
+        else "ingest_twikit_profiles.sql"
+    )
+    sql_path = REPO_ROOT / "scripts" / "sql" / sql_name
     sql = sql_path.read_text()
     for key, value in pointer.items():
         if isinstance(value, list):
@@ -501,12 +548,12 @@ def _run_ingest(run_dirs: list[Path]) -> None:
         missing = re.findall(r"\{\{(\w+)\}\}", sql)
         raise TwikitScrapeError(f"Unresolved SQL tokens: {', '.join(missing)}")
 
-    print("Ingest ingest_twikit_profiles.sql…")
+    print(f"Ingest {sql_name}…")
     con = db.connect_for_ingest(release_mcp=True)
     try:
         for stmt in _split_sql(sql):
             con.execute(stmt)
-        print("  OK ingest_twikit_profiles.sql")
+        print(f"  OK {sql_name}")
     finally:
         con.close()
 
@@ -552,19 +599,24 @@ async def enrich_profiles(
     profile_pause: float,
     cookies_path: Path,
     ingest: bool,
+    role: str = "hater",
 ) -> list[Path]:
     client = await _login_client(cookies_path)
     run_dirs: list[Path] = []
     for i, handle in enumerate(handles):
-        run_dir = await enrich_one(
-            client,
-            handle,
-            max_posts=max_posts,
-            max_follows=max_follows,
-            min_delay=min_delay,
-            jitter=jitter,
-        )
-        run_dirs.append(run_dir)
+        try:
+            run_dir = await enrich_one(
+                client,
+                handle,
+                max_posts=max_posts,
+                max_follows=max_follows,
+                min_delay=min_delay,
+                jitter=jitter,
+                role=role,
+            )
+            run_dirs.append(run_dir)
+        except Exception as exc:
+            print(f"!!! Failed @{handle}: {exc} — skipping, continue batch")
         if i < len(handles) - 1:
             print(f"Profile pause {profile_pause:.0f}s…")
             await asyncio.sleep(profile_pause)
@@ -577,7 +629,7 @@ async def enrich_profiles(
         pass
 
     if ingest and run_dirs:
-        _run_ingest(run_dirs)
+        _run_ingest(run_dirs, role=role)
     return run_dirs
 
 
@@ -586,16 +638,28 @@ def main() -> int:
         description="Enrich X profiles (bio, metrics, posts, followers/following) via twikit"
     )
     parser.add_argument(
+        "--role",
+        choices=("hater", "apoyo"),
+        default="hater",
+        help="Landing + ingest target: hater (default) or apoyo (supporters)",
+    )
+    parser.add_argument(
         "--top-haters",
         type=int,
         default=None,
         help="Take top N haters from silver.tk_tw_user by hater_replies_count",
     )
     parser.add_argument(
+        "--top-supporters",
+        type=int,
+        default=None,
+        help="Take top N supporters from silver.tk_tw_user by apoyo_replies_count",
+    )
+    parser.add_argument(
         "--handles",
         type=str,
         default=None,
-        help="Comma-separated handles (overrides --top-haters)",
+        help="Comma-separated handles (overrides --top-haters / --top-supporters)",
     )
     parser.add_argument("--max-posts", type=int, default=DEFAULT_MAX_POSTS)
     parser.add_argument("--max-follows", type=int, default=DEFAULT_MAX_FOLLOWS)
@@ -622,8 +686,18 @@ def main() -> int:
         print("delays must be >= 0", file=sys.stderr)
         return 1
 
+    role = args.role
+    if args.top_supporters is not None:
+        role = "apoyo"
+
     if args.handles:
         handles = [h.strip().lstrip("@") for h in args.handles.split(",") if h.strip()]
+    elif args.top_supporters is not None:
+        if args.top_supporters < 1:
+            print("--top-supporters must be >= 1", file=sys.stderr)
+            return 1
+        handles = _load_top_supporters(args.top_supporters)
+        print(f"Top {args.top_supporters} supporters: {', '.join(handles)}")
     elif args.top_haters is not None:
         if args.top_haters < 1:
             print("--top-haters must be >= 1", file=sys.stderr)
@@ -631,7 +705,10 @@ def main() -> int:
         handles = _load_top_haters(args.top_haters)
         print(f"Top {args.top_haters} haters: {', '.join(handles)}")
     else:
-        print("Provide --top-haters N or --handles a,b,c", file=sys.stderr)
+        print(
+            "Provide --top-haters N, --top-supporters N, or --handles a,b,c",
+            file=sys.stderr,
+        )
         return 1
 
     if not handles:
@@ -654,6 +731,7 @@ def main() -> int:
                 profile_pause=args.profile_pause,
                 cookies_path=cookies_path,
                 ingest=args.ingest,
+                role=role,
             )
         )
         for d in run_dirs:

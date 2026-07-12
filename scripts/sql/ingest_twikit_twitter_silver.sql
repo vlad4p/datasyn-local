@@ -196,6 +196,7 @@ CREATE OR REPLACE TEMP TABLE staging_tk_tw_user_hater AS
 SELECT
   r.author_id AS user_id,
   COUNT(*) FILTER (WHERE c.criterio_label = 'derecha_o_troll') AS hater_replies_count,
+  COUNT(*) FILTER (WHERE c.criterio_label = 'apoyo_izquierda') AS apoyo_replies_count,
   COUNT(*) AS replies_observed_count,
   MIN(r.created_at_ts) AS first_seen_at,
   MAX(r.created_at_ts) AS last_seen_at
@@ -264,8 +265,10 @@ SELECT
   COALESCE(en.profile_image_url, b.profile_image_url) AS profile_image_url,
   COALESCE(en.profile_url, b.profile_url) AS profile_url,
   COALESCE(h.hater_replies_count, 0) AS hater_replies_count,
+  COALESCE(h.apoyo_replies_count, 0) AS apoyo_replies_count,
   COALESCE(h.replies_observed_count, 0) AS replies_observed_count,
   (COALESCE(h.hater_replies_count, 0) >= 1) AS is_hater,
+  (COALESCE(h.apoyo_replies_count, 0) >= 1) AS is_supporter,
   h.first_seen_at,
   h.last_seen_at,
   COALESCE(en.platform, b.platform, 'twitter') AS platform,

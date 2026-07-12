@@ -38,8 +38,9 @@ Contame qué personas y plataformas aparecen en el selector.
 | **Engagement** | Evolución del engagement por post |
 | **Audiencia** | Mix haters / apoyo / neutral + señal de bots (heurística) |
 | **Haters / Top 10** | Autores hostiles más activos |
-| **Narrativas** | Temas recurrentes en comentarios/replies |
-| **Grafos** | Comportamiento (FB), **Relaciones TW** (risk / puentes / co-seguidores — mismo análisis que `hater-profiles-graph`), clusters de narrativa |
+| **Apoyo / Top 10** | Defensores / reacciones positivas (TW) |
+| **Narrativas** | Temas recurrentes — toggle Haters/Apoyo |
+| **Grafos** | Toggle **Haters/Apoyo** en Relaciones TW (risk/señales, puentes, co-seguidores); comportamiento FB; clusters |
 | **Comparativa** | Varias personas en la misma línea de tiempo |
 | **Metodología** | Límites del dato (leelos siempre) |
 
@@ -53,8 +54,8 @@ Usá el selector **Persona** (arriba) y, si querés, filtrá por **Plataforma**.
 2. Revisá **Perfil**: ¿qué cuentas FB/TW están vinculadas? ¿followers?
 3. **Reacciones** y **Engagement**: ¿qué tipo de reacción domina? ¿hay picos?
 4. **Audiencia**: proporción de haters vs apoyo; ¿cuántos actores con señal bot?
-5. **Haters / Top 10** y **Narrativas**: ¿quiénes atacan y con qué temas?
-6. **Grafos**: en **Relaciones TW** mirá risk_band, puentes y co-seguidores (recordá: sincronía ≠ prueba de coordinación).
+5. **Haters / Top 10**, **Apoyo / Top 10** y **Narrativas**: ¿quiénes atacan, quiénes defienden, y con qué temas?
+6. **Grafos**: en **Relaciones TW** usá el toggle Haters/Apoyo; mirá risk_band/señales, puentes y co-seguidores (recordá: sincronía ≠ prueba de coordinación).
 
 <details>
 <summary><strong>Prompt — briefing de una persona</strong></summary>
@@ -62,7 +63,7 @@ Usá el selector **Persona** (arriba) y, si querés, filtrá por **Plataforma**.
 ```text
 Usando gold.v_monitor_* (skill social-monitor), hacé un briefing periodístico
 sobre la persona myriambregman: cuentas vinculadas, engagement reciente,
-mix de audiencia (haters/apoyo/bots), top 5 haters y top narrativas.
+mix de audiencia (haters/apoyo/bots), top 5 haters, top 5 defensores y top narrativas.
 Indicá límites del dato (FB legacy vs twikit, heurísticas).
 No pegues textos crudos de comentarios; usá agregados.
 ```
@@ -99,9 +100,10 @@ Resumí picos y diferencias entre plataformas. Sin PII de comentaristas.
 | Señal | Qué significa | Qué **no** significa |
 |-------|---------------|----------------------|
 | **Hater** | Clasificación LLM `derecha_o_troll` (u hostil) | Que la persona sea un “troll profesional” |
+| **Apoyo / defensor** | Clasificación LLM `apoyo_izquierda` | Militante orgánico confirmado |
 | **Bot (heurística)** | Cuenta nueva, ratio follow alto, bio vacía, alto output / baja audiencia | Automatización confirmada |
 | **co_rafaga** | Varios autores hostiles el mismo día/cuenta | Coordinación organizada |
-| **co_followers / bridge** | Audiencia compartida entre haters | Red de bots probada |
+| **co_followers / bridge** | Audiencia compartida entre haters **o** entre apoyos | Red de bots / coordinación probada |
 
 Siempre contrastá con el volumen y el contexto político del período.
 
@@ -124,6 +126,8 @@ Las personas y cuentas viven en seeds curados (solo figuras públicas de monitor
 - Bio y ubicación públicas
 - Sitio web y Wikidata/Wikipedia
 - Partido / rol / provincia
+
+**Defensores recurrentes:** las cuentas de `gold.v_monitor_apoyo_top10` que merezcan identidad propia se agregan **manualmente** a los seeds (no hay auto-link). Re-correr `ingest_identidades.sql`.
 
 <details>
 <summary><strong>Prompt — agregar o enriquecer una identidad</strong></summary>

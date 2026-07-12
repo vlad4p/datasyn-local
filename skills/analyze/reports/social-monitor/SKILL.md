@@ -3,8 +3,9 @@ name: social-monitor
 description: >-
   Unified social media monitoring report: curated persona identity across
   platforms (FB + Twitter/X, extensible to IG/TikTok), reactions, engagement,
-  audience (haters/followers/bots), top-10 haters, narratives, comparative
-  timelines, and graphs (behavior, coordination, narrative clusters).
+  audience (haters/supporters/bots), top-10 haters and apoyo/defensores,
+  narratives (hostile + support clusters), comparative timelines, and graphs
+  (behavior, coordination, narrative clusters) with Haters/Apoyo toggle.
   Use when the user asks for monitoreo de redes, dashboard unificado,
   comparar cuentas/personas, o estudiar un perfil multiplataforma.
 ---
@@ -26,7 +27,7 @@ Cross-platform monitoring keyed by **persona** (not by isolated account).
 | Monitor / dashboard unificado de redes | Refresh identity + gold + generate dashboard |
 | Estudiar a Myriam / Nicolás / PTS en FB+TW | Same — use persona selector in HTML |
 | Comparar cuentas en el tiempo | Sección **Comparativa** del dashboard |
-| Haters top 10 / narrativas / grafos | Secciones Haters, Narrativas, Grafos |
+| Haters top 10 / apoyo / narrativas / grafos | Secciones Haters, Apoyo, Narrativas, Grafos (toggle polaridad) |
 | Actualizar identidades / OSINT | Edit `config/identidades*.csv` → re-ingest |
 
 **Related (platform-specific):**
@@ -41,7 +42,7 @@ Cross-platform monitoring keyed by **persona** (not by isolated account).
 config/identidades.seed.csv + identidad_cuentas.seed.csv
         ↓  ingest_identidades.sql
 silver.identidad + silver.identidad_cuenta
-        ↓  (+ existing FB gold + twikit gold)
+        ↓  (+ existing FB gold + twikit gold + apoyo graph/narrativa)
         ↓  ingest_social_monitor_gold.sql
 gold.v_monitor_*
         ↓  generate_social_monitor_dashboard.py
@@ -59,6 +60,24 @@ uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_so
 Prereqs (if stale):
 - FB gold: `ingest_redes_gold.sql` (skill [`redes-gold`](../../../ingest/gold/redes-gold/SKILL.md))
 - Twikit gold: hater narrativa / profile graph / troll blacklist SQL
+- **Apoyo (supporters):** enrich + graph + narrativa (see below)
+
+### Apoyo / defensores pipeline (mirror of haters)
+
+```bash
+# After classify_tk_tw_replies.py has labeled apoyo_izquierda replies:
+uv run python scripts/python/db.py mcp-stop
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_twikit_twitter_silver.sql  # is_supporter
+uv run python scripts/python/enrich_twikit_profiles.py --role apoyo --top-supporters 30 \
+  --max-follows 2000 --ingest
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_tk_apoyo_profile_graph.sql
+uv run python scripts/python/classify_tk_tw_replies.py --cluster-only --cluster-apoyo
+uv run python scripts/python/db.py run-sql --ingest --file scripts/sql/ingest_social_monitor_gold.sql
+uv run python scripts/python/generate_social_monitor_dashboard.py
+```
+
+Landing: `data/landing/redes/twikit/profiles/apoyo/{slug}_{date}/` (separate from hater profiles).
+Gold: `gold.tk_apoyo_grafo_*`, `gold.tk_apoyo_profile_risk`, `gold.tk_apoyo_narrativa_*`, `gold.v_monitor_apoyo_top10`.
 
 ### 2. Generate dashboard
 
@@ -77,6 +96,7 @@ open reports/monitor/dashboard/report.html
 ```sql
 SELECT * FROM gold.v_monitor_perfil WHERE persona_id = 'myriambregman';
 SELECT * FROM gold.v_monitor_haters_top10 WHERE persona_id = 'myriambregman';
+SELECT * FROM gold.v_monitor_apoyo_top10 WHERE persona_id = 'myriambregman';
 SELECT * FROM gold.v_monitor_audiencia_resumen WHERE persona_id = 'myriambregman';
 SELECT * FROM gold.v_monitor_temporal ORDER BY dia DESC LIMIT 20;
 ```
@@ -92,8 +112,9 @@ SELECT * FROM gold.v_monitor_temporal ORDER BY dia DESC LIMIT 20;
 | **Engagement** | `gold.v_monitor_engagement` | Serie temporal eng/post |
 | **Audiencia** | `gold.v_monitor_audiencia*` | hater / apoyo / neutral / bot heurístico |
 | **Haters** | `gold.v_monitor_haters_top10` | Top 10 FB+TW |
-| **Narrativas** | `gold.v_monitor_narrativa` | Clusters / temas |
-| **Grafos** | `gold.v_monitor_grafo_*` + `gold.tk_hater_*` | comportamiento (FB) / **Relaciones TW** (risk, puentes, co-seguidores — mismo análisis que `hater-profiles-graph`) / narrativa |
+| **Apoyo** | `gold.v_monitor_apoyo_top10` | Top 10 defensores TW |
+| **Narrativas** | `gold.v_monitor_narrativa` | Clusters hostiles + apoyo (toggle polaridad) |
+| **Grafos** | `gold.tk_hater_*` + `gold.tk_apoyo_*` | Toggle **Haters/Apoyo** en Relaciones TW |
 | **Comparativa** | `gold.v_monitor_temporal*` | Multi-persona en el tiempo |
 
 ---
@@ -106,6 +127,8 @@ SELECT * FROM gold.v_monitor_temporal ORDER BY dia DESC LIMIT 20;
 | [`config/identidad_cuentas.seed.csv`](../../../../config/identidad_cuentas.seed.csv) | Bridge persona → plataforma / handle / user_id |
 
 **OSINT checklist** (fill in seed as available): handles cruzados, `platform_user_id` estable, verificación, fecha de creación, bio/ubicación, sitio oficial, Wikidata, partido/rol.
+
+**Promover defensores recurrentes:** cuentas de `v_monitor_apoyo_top10` que merezcan identidad propia se agregan **manualmente** a los seed CSVs (no auto-link). Re-correr `ingest_identidades.sql`.
 
 ---
 
@@ -120,7 +143,8 @@ SELECT * FROM gold.v_monitor_temporal ORDER BY dia DESC LIMIT 20;
 | `v_monitor_audiencia` | classified commenters/repliers |
 | `v_monitor_audiencia_resumen` | aggregates |
 | `v_monitor_haters_top10` | top haters per persona |
-| `v_monitor_narrativa` | narrative mix |
+| `v_monitor_apoyo_top10` | top supporters / defensores per persona |
+| `v_monitor_narrativa` | narrative mix (hater + apoyo TW clusters) |
 | `v_monitor_temporal` | comparable time series |
 | `v_monitor_temporal_engagement` | engagement time series |
 | `v_monitor_grafo_*` | behavior / narrative / coordination graphs |

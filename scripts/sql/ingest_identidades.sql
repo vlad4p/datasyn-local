@@ -159,33 +159,3 @@ SELECT
     fb_instagram_id,
     CURRENT_TIMESTAMP AS built_at
 FROM other_platforms;
-
--- ---------------------------------------------------------------------------
--- Convenience view: persona + accounts (one row per account)
--- ---------------------------------------------------------------------------
-CREATE OR REPLACE VIEW silver.v_identidad_cuentas AS
-SELECT
-    i.persona_id,
-    i.nombre_canonico,
-    i.alias,
-    i.tipo,
-    i.rol,
-    i.partido,
-    i.es_objetivo,
-    i.sitio_web,
-    i.wikidata_id,
-    i.genero,
-    i.provincia,
-    i.fuentes_osint,
-    i.notas,
-    c.plataforma,
-    c.platform_user_id,
-    c.handle,
-    c.url,
-    c.es_oficial,
-    c.fuente,
-    c.fb_fanpage,
-    c.fb_instagram_id
-FROM silver.identidad AS i
-LEFT JOIN silver.identidad_cuenta AS c
-    ON c.persona_id = i.persona_id;

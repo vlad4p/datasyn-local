@@ -245,24 +245,3 @@ ORDER BY
     COALESCE(a.comments_count, 0) + COALESCE(a.replies_count, 0)
         + COALESCE(a.tweets_count, 0) + COALESCE(a.posts_count, 0) DESC,
     a.display_name;
-
--- Backward-compatible view (subset of enriched columns)
-DROP VIEW IF EXISTS silver.network_profile_comment_stats;
-CREATE OR REPLACE VIEW silver.network_profile_comment_stats AS
-SELECT
-    profile_id,
-    canonical_key,
-    display_name,
-    networks_found,
-    twitter_username,
-    facebook_user_name,
-    is_tracked,
-    is_pts,
-    comentarios_clasificados,
-    comentarios_troll,
-    comentarios_apoyo,
-    primer_comentario_clasificado AS primer_comentario,
-    ultimo_comentario_clasificado AS ultimo_comentario,
-    resumen_modal,
-    built_at
-FROM silver.network_profile;
