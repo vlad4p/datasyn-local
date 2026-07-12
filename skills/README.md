@@ -22,7 +22,8 @@ Copy or link this folder into your tool's skills directory:
 |-------|---------|
 | [`datasyn-router`](datasyn-router/SKILL.md) | Map user intent → bucket → skill |
 | [`setup-uv`](infra/setup-uv/SKILL.md) | Python environment with uv |
-| [`configure-duckdb-mcp`](infra/configure-duckdb-mcp/SKILL.md) | MCP server setup |
+| [`configure-duckdb-mcp`](infra/configure-duckdb-mcp/SKILL.md) | MCP server setup; Quack client |
+| [`host-quack`](infra/host-quack/SKILL.md) | Host local datasyn.duckdb as Quack warehouse |
 | [`gitflow`](engineering/gitflow/SKILL.md) | Branching, releases, PRs |
 
 ## Scope buckets

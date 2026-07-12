@@ -6,7 +6,7 @@ Optional helpers under `scripts/python/`. **Ingest and reports are skills (SQL)*
 
 | Script | Usage |
 |--------|--------|
-| `db.py` | DuckDB paths, connection, MCP (`mcp-config`, `mcp-serve`, `run-sql`) |
+| `db.py` | DuckDB paths, connection, MCP (`mcp-config`, `mcp-serve`), Quack client + host (`quack-serve`, `quack-host`, `run-sql`) |
 | `classify_sv_comments.py` | LLM classification for SociaVault comments (`LLM_API_KEY` in `.env`) |
 | `classify_tk_tw_replies.py` | Batch LLM classify twikit replies + hater narrative clusters (`CHAT_MODEL`/`LLM_MODEL`) |
 | `embed_readme_diagrams.py` | Sync diagram `<img>` tags in README files from `docs/diagrams/*.svg` |

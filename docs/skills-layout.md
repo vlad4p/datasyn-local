@@ -84,7 +84,7 @@ Optional helpers live in [`scripts/python/`](../scripts/python/). Ingest and rep
 
 | Type | Frontmatter | Examples |
 |------|-------------|----------|
-| **User-invoked** | `disable-model-invocation: true` | `datasyn-router`, `gitflow`, `setup-uv`, `configure-duckdb-mcp` |
+| **User-invoked** | `disable-model-invocation: true` | `datasyn-router`, `gitflow`, `setup-uv`, `configure-duckdb-mcp`, `host-quack` |
 | **Model-invoked** | (default) | `ingest-data`, `scrape-sociavault`, `statistical-report`, `redes-analysis`, `data-privacy` |
 
 ## IDE setup

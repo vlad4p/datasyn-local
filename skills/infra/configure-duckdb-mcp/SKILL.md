@@ -260,6 +260,18 @@ SELECT * FROM "datasyn-rlab".query(
 
 Helpers in `db.py`: `attach_quack()`, `quack_remote_sql()`, `quack_execute()`, CLI `quack-sql`.
 
+### Host local DB as Quack warehouse
+
+To **serve** `data/duckdb/datasyn.duckdb` (not attach to fleet), use skill [`host-quack`](../host-quack/SKILL.md):
+
+```bash
+uv run python scripts/python/db.py quack-host          # default quack:127.0.0.1:9495
+uv run python scripts/python/db.py quack-host-status
+uv run python scripts/python/db.py quack-host-stop     # before local mcp-serve / ingest
+```
+
+`quack-serve` / `datasyn-quack` MCP remain **clients**. Do not confuse with `quack-host`.
+
 ---
 
 ## Built-in MCP tools
@@ -269,4 +281,5 @@ Helpers in `db.py`: `attach_quack()`, `quack_remote_sql()`, `quack_execute()`, C
 ## Prompts vs skills
 
 - Workflow rules: `AGENTS.md`
-- This file: MCP wiring and usage only
+- This file: MCP wiring and Quack *client* usage
+- Host local warehouse: [`host-quack`](../host-quack/SKILL.md)

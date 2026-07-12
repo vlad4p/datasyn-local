@@ -55,7 +55,7 @@ Use scope buckets in [`skills/README.md`](skills/README.md):
 | Ingest / clean / join | [`ingest/`](skills/ingest/README.md) | `ingest-data` |
 | Reports / graphs | [`analyze/`](skills/analyze/README.md) | `statistical-report`, `graph-ingest`, etc. |
 | Schema design | [`schema/`](skills/schema/create-table/SKILL.md) | `create-table` |
-| Setup / MCP | [`infra/`](skills/infra/README.md) | `setup-uv`, `configure-duckdb-mcp` |
+| Setup / MCP | [`infra/`](skills/infra/README.md) | `setup-uv`, `configure-duckdb-mcp`, `host-quack` |
 | Git / privacy | [`engineering/`](skills/engineering/README.md) | `data-privacy`, `gitflow` |
 
 User flow router: [`datasyn-router`](skills/datasyn-router/SKILL.md). Layout guide: [`docs/skills-layout.md`](docs/skills-layout.md).
@@ -80,12 +80,13 @@ collect → landing → ingest (skill, SQL) → DuckDB → analyze → reports/<
 
 ## SQL execution — split by task
 
-DuckDB allows **one writer** at a time. MCP (`mcp-serve`) holds the file lock while enabled in Cursor.
+DuckDB allows **one writer** at a time. MCP (`mcp-serve`) **or** Quack host (`quack-host`) holds the file lock while running.
 
 | Task | Tool | When |
 |------|------|------|
-| **Ingest / writes** (bronze, silver, scrape) | Python API — `db.connect_for_ingest()` or `db.py run-sql --ingest` | Stop MCP first: `db.py mcp-stop` |
+| **Ingest / writes** (bronze, silver, scrape) | Python API — `db.connect_for_ingest()` or `db.py run-sql --ingest` | Stop MCP and Quack host first: `db.py mcp-stop` / `db.py quack-host-stop` |
 | **Query / analysis** (reports, EDA, chat) | **MCP tools** (`query`, `list_tables`, `describe`) | MCP enabled in Cursor |
+| **Share local DB over Quack** | `db.py quack-host` | Skill [`host-quack`](skills/infra/host-quack/SKILL.md) — stops MCP; clients use `quack-sql` |
 
 ### Ingest (Python — writes)
 

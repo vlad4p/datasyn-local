@@ -9,7 +9,10 @@ Run from repo root:
   uv run python scripts/python/db.py mcp-serve
   uv run python scripts/python/db.py quack-info
   uv run python scripts/python/db.py quack-check
-  uv run python scripts/python/db.py quack-serve
+  uv run python scripts/python/db.py quack-serve   # MCP client → remote Quack
+  uv run python scripts/python/db.py quack-host    # HTTP warehouse on local datasyn.duckdb
+  uv run python scripts/python/db.py quack-host-status
+  uv run python scripts/python/db.py quack-host-stop
 """
 
 from __future__ import annotations
@@ -18,8 +21,11 @@ import argparse
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -40,6 +46,8 @@ _MCP_EXTENSION = "duckdb_mcp"
 # Quack remote warehouse defaults (fleet host for datasyn-duckdb)
 _QUACK_DEFAULT_HOST = "10.13.10.119"
 _QUACK_DEFAULT_PORT = 9494
+# Local Quack HTTP host (serves datasyn.duckdb) — port 9495 avoids fleet :9494
+_QUACK_DEFAULT_BIND_URI = "quack:127.0.0.1:9495"
 # Attach alias (quoted — hyphen). Non-main schemas need .query() — see quack_remote_sql.
 QUACK_ALIAS = "datasyn-rlab"
 
@@ -203,6 +211,32 @@ def get_quack_uri() -> str:
     return f"quack:{get_quack_host()}:{get_quack_port()}"
 
 
+def get_quack_bind_uri() -> str:
+    """URI for CALL quack_serve when hosting local datasyn.duckdb."""
+    raw = (os.getenv("QUACK_BIND_URI") or "").strip()
+    if raw:
+        return raw
+    settings = load_settings()
+    quack = settings.get("quack", {}) if isinstance(settings, dict) else {}
+    if isinstance(quack, dict):
+        configured = (quack.get("bind_uri") or "").strip()
+        if configured:
+            return configured
+    return _QUACK_DEFAULT_BIND_URI
+
+
+def get_quack_allow_other_hostname() -> bool:
+    """Whether quack_serve may bind non-localhost (LAN). Default False."""
+    raw = os.getenv("QUACK_ALLOW_OTHER_HOSTNAME")
+    if raw is not None and raw.strip() != "":
+        return _as_bool(raw, default=False)
+    settings = load_settings()
+    quack = settings.get("quack", {}) if isinstance(settings, dict) else {}
+    if isinstance(quack, dict) and "allow_other_hostname" in quack:
+        return bool(quack["allow_other_hostname"])
+    return False
+
+
 def resolve_landing_file(file_path: Path) -> Path:
     landing = get_landing_path().resolve()
     resolved = file_path.expanduser().resolve()
@@ -256,6 +290,63 @@ def mcp_stop() -> int:
     stopped = ", ".join(pid for pid, _ in processes)
     print(f"Stopped MCP server (PID {stopped}). Re-enable MCP in Cursor to query again.")
     return 0 if result.returncode in (0, 1) else result.returncode
+
+
+def _quack_host_pgrep() -> list[tuple[str, str]]:
+    """Return (pid, command) for running quack-host processes (not status/stop)."""
+    # Exact subcommand: avoid matching quack-host-status / quack-host-stop.
+    result = subprocess.run(
+        ["pgrep", "-fl", r"db\.py quack-host($| )"],
+        capture_output=True,
+        text=True,
+    )
+    rows: list[tuple[str, str]] = []
+    for line in result.stdout.splitlines():
+        if "quack-host-status" in line or "quack-host-stop" in line:
+            continue
+        parts = line.strip().split(maxsplit=1)
+        if len(parts) == 2:
+            rows.append((parts[0], parts[1]))
+    return rows
+
+
+def quack_host_status() -> dict[str, Any]:
+    """Report whether quack-host is holding the local DB file."""
+    processes = _quack_host_pgrep()
+    return {
+        "running": bool(processes),
+        "processes": [{"pid": pid, "command": cmd} for pid, cmd in processes],
+        "db_path": str(get_db_path()),
+        "bind_uri": get_quack_bind_uri(),
+    }
+
+
+def quack_host_stop() -> int:
+    """Stop db.py quack-host so MCP/ingest can open the DB file."""
+    processes = _quack_host_pgrep()
+    if not processes:
+        print("Quack host not running.")
+        return 0
+    for pid, _cmd in processes:
+        subprocess.run(["kill", pid], capture_output=True)
+    time.sleep(0.4)
+    remaining = _quack_host_pgrep()
+    if remaining:
+        for pid, _cmd in remaining:
+            subprocess.run(["kill", "-9", pid], capture_output=True)
+        time.sleep(0.2)
+        remaining = _quack_host_pgrep()
+    if remaining:
+        print("Failed to stop Quack host:", file=sys.stderr)
+        for pid, cmd in remaining:
+            print(f"  PID {pid}: {cmd}", file=sys.stderr)
+        return 1
+    stopped = ", ".join(pid for pid, _ in processes)
+    print(
+        f"Stopped Quack host (PID {stopped}). "
+        "Re-enable MCP or run quack-host again to serve the DB."
+    )
+    return 0
 
 
 def connect(read_only: bool = False) -> duckdb.DuckDBPyConnection:
@@ -486,13 +577,20 @@ def mcp_serve() -> None:
 
 
 def quack_info() -> int:
-    """Print resolved Quack connection settings (token redacted)."""
+    """Print resolved Quack client + host settings (token redacted)."""
     token = get_quack_token()
+    print("--- Quack client (ATTACH remote / fleet) ---")
     print(f"Quack URI:     {get_quack_uri()}")
     print(f"Host:          {get_quack_host()}")
     print(f"Port:          {get_quack_port()}")
     print(f"Disable SSL:   {get_quack_disable_ssl()}")
     print(f"Token:         {'set (' + str(len(token)) + ' chars)' if token else '(not set)'}")
+    print("--- Quack host (serve local datasyn.duckdb) ---")
+    print(f"Bind URI:      {get_quack_bind_uri()}")
+    print(f"Allow other hostname: {get_quack_allow_other_hostname()}")
+    print(f"DB path:       {get_db_path()}")
+    status = quack_host_status()
+    print(f"Host running:  {status['running']}")
     return 0
 
 
@@ -570,9 +668,132 @@ def quack_run_sql(sql: str) -> int:
 
 
 def quack_serve() -> None:
-    """Attach to Quack warehouse and start duckdb_mcp stdio server (blocks)."""
+    """Attach to Quack warehouse and start duckdb_mcp stdio server (blocks).
+
+    This is an MCP *client* bridge to a remote Quack warehouse — not the HTTP host.
+    To serve local datasyn.duckdb, use ``quack_host`` / ``db.py quack-host``.
+    """
     con = connect_quack()
     start_mcp_stdio_server(con)
+
+
+def start_quack_warehouse(
+    con: duckdb.DuckDBPyConnection,
+    bind_uri: str | None = None,
+    *,
+    token: str | None = None,
+    allow_other_hostname: bool | None = None,
+) -> str | None:
+    """Start Quack HTTP listener on an open RW connection. Returns auth token."""
+    bind_uri = (bind_uri or get_quack_bind_uri()).strip()
+    if token is None:
+        token = get_quack_token()
+    if allow_other_hostname is None:
+        allow_other_hostname = get_quack_allow_other_hostname()
+
+    con.execute("INSTALL quack;")
+    con.execute("LOAD quack;")
+    allow = "true" if allow_other_hostname else "false"
+    if token:
+        con.execute(
+            f"""
+            CALL quack_serve(
+                {_sql_str(bind_uri)},
+                allow_other_hostname => {allow},
+                token => {_sql_str(token)}
+            );
+            """
+        )
+        return token
+
+    result = con.execute(
+        f"""
+        CALL quack_serve(
+            {_sql_str(bind_uri)},
+            allow_other_hostname => {allow}
+        );
+        """
+    ).fetchall()
+    auth_token = None
+    if result and len(result[0]) >= 3 and result[0][2] is not None:
+        auth_token = str(result[0][2])
+    return auth_token
+
+
+def quack_host() -> int:
+    """Open local datasyn.duckdb as Quack HTTP warehouse (blocks until signal).
+
+    Stops local mcp-serve first (single file writer). Clients ATTACH via
+    QUACK_BIND_URI (default quack:127.0.0.1:9495). For classic ingest, stop
+    this process first (``db.py quack-host-stop``).
+    """
+    existing = _quack_host_pgrep()
+    # Current process will also match after start; only warn on *other* hosts.
+    # At entry we are not yet hosting, so any match is a prior instance.
+    if existing:
+        print(
+            "Quack host already running:",
+            file=sys.stderr,
+        )
+        for pid, cmd in existing:
+            print(f"  PID {pid}: {cmd}", file=sys.stderr)
+        print("Stop it first: uv run python scripts/python/db.py quack-host-stop", file=sys.stderr)
+        return 1
+
+    if mcp_stop() != 0:
+        print(
+            "Cannot start Quack host while mcp-serve holds the DB. "
+            "Disable MCP in Cursor or fix mcp-stop, then retry.",
+            file=sys.stderr,
+        )
+        return 1
+
+    bind_uri = get_quack_bind_uri()
+    allow = get_quack_allow_other_hostname()
+    ensure_dirs()
+    con = connect(read_only=False)
+    stop = threading.Event()
+
+    def _handle_signal(signum: int, _frame: object) -> None:
+        print(f"\nReceived signal {signum} — shutting down Quack host.", flush=True)
+        stop.set()
+
+    signal.signal(signal.SIGTERM, _handle_signal)
+    signal.signal(signal.SIGINT, _handle_signal)
+
+    try:
+        token = start_quack_warehouse(
+            con,
+            bind_uri,
+            allow_other_hostname=allow,
+        )
+        print(f"Quack host listening on {bind_uri}")
+        print(f"Database:  {get_db_path()}")
+        print(f"Allow other hostname: {allow}")
+        if token:
+            configured = get_quack_token()
+            if configured:
+                print(f"Token:     set ({len(token)} chars from QUACK_TOKEN)")
+            else:
+                print(
+                    f"Token (auto-generated — set QUACK_TOKEN in .env for a stable value):\n  {token}"
+                )
+        else:
+            print("Token:     (none returned — clients may need TOKEN from quack_serve result)")
+        print("Clients: prefer quack_query / db.py quack-sql (ATTACH may fail on rich schemas — Quack #132).")
+        print("Stop: Ctrl+C or `uv run python scripts/python/db.py quack-host-stop`")
+        while not stop.is_set():
+            time.sleep(1.0)
+        print("Quack host stopped.")
+        return 0
+    except Exception as exc:
+        print(f"Quack host failed ({bind_uri}): {exc}", file=sys.stderr)
+        return 1
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
 
 
 def cmd_info() -> int:
@@ -581,7 +802,8 @@ def cmd_info() -> int:
     print(f"Landing:  {get_landing_path()}")
     print(f"Reports:  {get_reports_path()}")
     print(f"MCP:      scripts/sh/mcp-serve.sh ({_MCP_EXTENSION})")
-    print(f"Quack:    {get_quack_uri()} (scripts/sh/quack-serve.sh)")
+    print(f"Quack client URI: {get_quack_uri()} (scripts/sh/quack-serve.sh → MCP)")
+    print(f"Quack host bind:  {get_quack_bind_uri()} (scripts/sh/quack-host.sh)")
     print("Tables:", ", ".join(list_tables()) or "(none)")
     return 0
 
@@ -626,9 +848,18 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("mcp-serve", help="Start MCP stdio server (blocking)")
     sub.add_parser("mcp-stop", help="Stop mcp-serve so Python can ingest (write)")
     sub.add_parser("mcp-status", help="Show whether mcp-serve is running")
-    sub.add_parser("quack-info", help="Show Quack remote connection settings")
+    sub.add_parser("quack-info", help="Show Quack client + host settings")
     sub.add_parser("quack-check", help="Attach to Quack warehouse and list tables")
-    sub.add_parser("quack-serve", help="Start MCP stdio server on Quack warehouse (blocking)")
+    sub.add_parser(
+        "quack-serve",
+        help="Start MCP stdio attached to remote Quack (client bridge, blocking)",
+    )
+    sub.add_parser(
+        "quack-host",
+        help="Host local datasyn.duckdb as Quack HTTP warehouse (blocking)",
+    )
+    sub.add_parser("quack-host-status", help="Show whether quack-host is running")
+    sub.add_parser("quack-host-stop", help="Stop quack-host so MCP/ingest can open the DB")
     quack_sql_parser = sub.add_parser(
         "quack-sql",
         help="Run SQL on remote Quack (uses .query() — required for non-main schemas)",
@@ -687,6 +918,23 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "quack-serve":
         quack_serve()
         return 0
+    if args.command == "quack-host":
+        return quack_host()
+    if args.command == "quack-host-status":
+        status = quack_host_status()
+        if status["running"]:
+            for proc in status["processes"]:
+                print(f"Quack host running: PID {proc['pid']} — {proc['command']}")
+            print(f"DB:   {status['db_path']}")
+            print(f"Bind: {status['bind_uri']}")
+            print("For ingest or local mcp-serve: db.py quack-host-stop first.")
+        else:
+            print(f"Quack host not running. DB: {status['db_path']}")
+            print(f"Bind URI (when started): {status['bind_uri']}")
+            print("Start: uv run python scripts/python/db.py quack-host")
+        return 0
+    if args.command == "quack-host-stop":
+        return quack_host_stop()
     if args.command == "quack-sql":
         if args.file:
             sql = Path(args.file).read_text()

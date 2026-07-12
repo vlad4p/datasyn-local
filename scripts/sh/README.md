@@ -5,6 +5,8 @@
 | `bootstrap.sh` | MCP config, MCP check, and `db.py info` |
 | `run_mcp.sh` | **MCP entrypoint** for Cursor/VS Code (→ `sh/mcp-serve.sh`) |
 | `mcp-serve.sh` | DuckDB MCP stdio server (`uv run` → `db.py mcp-serve`) |
+| `quack-serve.sh` | MCP stdio **client** attached to a remote Quack warehouse |
+| `quack-host.sh` | **Host** local `datasyn.duckdb` as Quack HTTP warehouse |
 | `gitflow.sh` | Gitflow branch status, naming validation, merged-feature cleanup |
 | `scrape_sociavault.sh` | SociaVault scrape + ingest + entities + classify (`--last N`) |
 
@@ -26,6 +28,18 @@ chmod +x scripts/sh/bootstrap.sh scripts/run_mcp.sh
 **Before ingest** (Python writes): `uv run python scripts/python/db.py mcp-stop`
 
 Full guide: [`skills/infra/configure-duckdb-mcp/SKILL.md`](../../skills/infra/configure-duckdb-mcp/SKILL.md)
+
+### Quack host (serve local DB)
+
+```bash
+chmod +x scripts/sh/quack-host.sh
+uv run python scripts/python/db.py quack-host          # or ./scripts/sh/quack-host.sh
+uv run python scripts/python/db.py quack-host-status
+uv run python scripts/python/db.py quack-host-stop     # before local mcp-serve / ingest
+```
+
+Skill: [`skills/infra/host-quack/SKILL.md`](../../skills/infra/host-quack/SKILL.md).  
+`quack-serve.sh` is different: MCP client to a *remote* warehouse.
 
 Skills layout: [`docs/skills-layout.md`](../../docs/skills-layout.md)
 

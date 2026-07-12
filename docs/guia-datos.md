@@ -214,7 +214,7 @@ IMPORT DATABASE en otro entorno.
 
 Antes de pasar un `.duckdb` o un export: revisá handles, textos y perfiles. Skill [`data-privacy`](../skills/engineering/data-privacy/SKILL.md).
 
-### 2.6 Warehouse remoto (Quack)
+### 2.6 Warehouse remoto (Quack) — cliente
 
 Attach alias: `"datasyn-rlab"`. Env: `QUACK_HOST`, `QUACK_PORT`, `QUACK_TOKEN`, `QUACK_DISABLE_SSL` (ver [`.env.example`](../.env.example)).
 
@@ -223,7 +223,7 @@ Attach alias: `"datasyn-rlab"`. Env: `QUACK_HOST`, `QUACK_PORT`, `QUACK_TOKEN`, 
 | `db.py quack-info` / `quack-check` | Settings + listar tablas remotas |
 | `db.py quack-sql "SELECT …"` | SQL remoto (requerido para schemas ≠ `main`) |
 | `db.py run-sql --ingest --attach-quack -f …` | Escribir local + leer remoto vía `.query()` |
-| `db.py quack-serve` | MCP `datasyn-quack` sobre el warehouse |
+| `db.py quack-serve` | MCP `datasyn-quack` (cliente) sobre el warehouse |
 
 Detalle: skill [`configure-duckdb-mcp`](../skills/infra/configure-duckdb-mcp/SKILL.md) § Remote warehouse.
 
@@ -239,6 +239,29 @@ social-monitor (sección Hechos × Redes). No subas .env ni .duckdb.
 
 </details>
 
+### 2.7 Hostear datasyn.duckdb (Quack server)
+
+Exponer **esta** base local por HTTP Quack (default `quack:127.0.0.1:9495`).
+
+| Comando | Uso |
+|---------|-----|
+| `db.py quack-host` | Arrancar warehouse (bloquea; corta MCP) |
+| `db.py quack-host-status` / `quack-host-stop` | Estado / liberar lock antes de ingest |
+
+Skill: [`host-quack`](../skills/infra/host-quack/SKILL.md). Env: `QUACK_BIND_URI`, `QUACK_ALLOW_OTHER_HOSTNAME`, `QUACK_TOKEN`.
+
+<details>
+<summary><strong>Prompt — hostear DuckDB local con Quack</strong></summary>
+
+```text
+Con skill host-quack, levantá quack-host sobre datasyn.duckdb,
+mostrá bind URI y status (sin pegar el token), y explicá cómo
+consultar con quack-sql apuntando QUACK_HOST/PORT al bind.
+Antes de ingest: quack-host-stop.
+```
+
+</details>
+
 ---
 
 ## Referencias rápidas
@@ -250,5 +273,6 @@ social-monitor (sección Hechos × Redes). No subas .env ni .duckdb.
 | Storage DuckDB | [`data/duckdb/README.md`](../data/duckdb/README.md) |
 | Reportes (skill) | [`skills/analyze/reports/statistical-report/SKILL.md`](../skills/analyze/reports/statistical-report/SKILL.md) |
 | Privacidad / git | [`skills/engineering/data-privacy/SKILL.md`](../skills/engineering/data-privacy/SKILL.md) |
-| MCP / Quack | [`skills/infra/configure-duckdb-mcp/SKILL.md`](../skills/infra/configure-duckdb-mcp/SKILL.md) |
+| MCP / Quack client | [`skills/infra/configure-duckdb-mcp/SKILL.md`](../skills/infra/configure-duckdb-mcp/SKILL.md) |
+| Quack host | [`skills/infra/host-quack/SKILL.md`](../skills/infra/host-quack/SKILL.md) |
 | Monitor técnico | [`docs/monitoreo-redes-tecnico.md`](monitoreo-redes-tecnico.md) |
