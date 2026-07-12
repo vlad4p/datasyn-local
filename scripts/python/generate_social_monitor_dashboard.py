@@ -583,22 +583,39 @@ def export_grafo_narrativa_polaridad(
     )
 
 
+def _nz(val, default=None):
+    """Null/NA/NaN → default (avoids pandas 'boolean value of NA is ambiguous')."""
+    if val is None:
+        return default
+    try:
+        if val != val:  # float NaN
+            return default
+    except (TypeError, ValueError):
+        pass
+    try:
+        import pandas as pd
+
+        if pd.isna(val):
+            return default
+    except Exception:
+        pass
+    return val
+
+
 def _risk_signals(row) -> str:
     parts = []
-    if getattr(row, "flag_empty_bio", False):
-        parts.append("bio vacía")
-    if getattr(row, "flag_new_account", False):
-        parts.append("cuenta ≥2024")
-    if getattr(row, "flag_follow_ratio_high", False):
-        parts.append("following/followers≥5")
-    if getattr(row, "flag_high_output_low_audience", False):
-        parts.append("statuses/follower≥100")
-    if getattr(row, "flag_low_followers_high_status", False):
-        parts.append("<50 fo + ≥1k statuses")
-    if getattr(row, "flag_low_likes_high_status", False):
-        parts.append("pocos likes + alto output")
-    if getattr(row, "flag_shared_audience", False):
-        parts.append("≥3 bridge followers")
+    flags = [
+        ("flag_empty_bio", "bio vacía"),
+        ("flag_new_account", "cuenta ≥2024"),
+        ("flag_follow_ratio_high", "following/followers≥5"),
+        ("flag_high_output_low_audience", "statuses/follower≥100"),
+        ("flag_low_followers_high_status", "<50 fo + ≥1k statuses"),
+        ("flag_low_likes_high_status", "pocos likes + alto output"),
+        ("flag_shared_audience", "≥3 bridge followers"),
+    ]
+    for attr, label in flags:
+        if bool(_nz(getattr(row, attr, False), False)):
+            parts.append(label)
     return "; ".join(parts)
 
 
@@ -762,41 +779,46 @@ def export_grafo_relaciones(con, data_dir: Path) -> tuple[int, int]:
 
     node_rows: list[dict] = []
     for row in haters.itertuples(index=False):
-        band = (row.risk_band or "low").lower()
+        band = str(_nz(row.risk_band, "low") or "low").lower()
         color = RISK_COLORS.get(band, RISK_COLORS["low"])
+        score = int(_nz(row.risk_score, 0) or 0)
+        fo = int(_nz(row.followers_count, 0) or 0)
+        label = str(_nz(row.label, "?") or "?")
         node_rows.append(
             {
                 "id": str(row.vertex_id),
-                "label": str(row.label or "?")[:18],
+                "label": label[:18],
                 "tipo": "hater",
                 "color": color,
                 "shape": "box",
                 "size": 26,
-                "title": f"@{row.label} [{band}] score={row.risk_score or 0}",
+                "title": f"@{label} [{band}] score={score}",
                 "plataforma": "twitter",
                 "risk_band": band,
-                "risk_score": int(row.risk_score or 0),
-                "followers_count": int(row.followers_count or 0),
+                "risk_score": score,
+                "followers_count": fo,
                 "haters_followed": 0,
             }
         )
     for row in bridges.itertuples(index=False):
         if str(row.vertex_id) in hater_ids:
             continue
-        hf = int(row.haters_followed or 0)
+        hf = int(_nz(row.haters_followed, 0) or 0)
+        label = str(_nz(row.label, "?") or "?")
+        fo = int(_nz(row.followers_count, 0) or 0)
         node_rows.append(
             {
                 "id": str(row.vertex_id),
-                "label": str(row.label or "?")[:18],
+                "label": label[:18],
                 "tipo": "neighbor",
                 "color": RISK_COLORS["neighbor"],
                 "shape": "dot",
                 "size": min(28, 10 + hf * 2),
-                "title": f"@{row.label} · puente ({hf} haters)",
+                "title": f"@{label} · puente ({hf} haters)",
                 "plataforma": "twitter",
                 "risk_band": "",
                 "risk_score": 0,
-                "followers_count": int(row.followers_count or 0),
+                "followers_count": fo,
                 "haters_followed": hf,
             }
         )
@@ -1020,41 +1042,46 @@ def export_grafo_apoyo_relaciones(con, data_dir: Path) -> tuple[int, int]:
 
     node_rows: list[dict] = []
     for row in supporters.itertuples(index=False):
-        band = (row.risk_band or "low").lower()
+        band = str(_nz(row.risk_band, "low") or "low").lower()
         color = SUPPORT_COLORS.get(band, SUPPORT_COLORS["low"])
+        score = int(_nz(row.risk_score, 0) or 0)
+        fo = int(_nz(row.followers_count, 0) or 0)
+        label = str(_nz(row.label, "?") or "?")
         node_rows.append(
             {
                 "id": str(row.vertex_id),
-                "label": str(row.label or "?")[:18],
+                "label": label[:18],
                 "tipo": "supporter",
                 "color": color,
                 "shape": "box",
                 "size": 26,
-                "title": f"@{row.label} [{band}] score={row.risk_score or 0}",
+                "title": f"@{label} [{band}] score={score}",
                 "plataforma": "twitter",
                 "risk_band": band,
-                "risk_score": int(row.risk_score or 0),
-                "followers_count": int(row.followers_count or 0),
+                "risk_score": score,
+                "followers_count": fo,
                 "apoyos_followed": 0,
             }
         )
     for row in bridges.itertuples(index=False):
         if str(row.vertex_id) in supporter_ids:
             continue
-        af = int(row.apoyos_followed or 0)
+        af = int(_nz(row.apoyos_followed, 0) or 0)
+        label = str(_nz(row.label, "?") or "?")
+        fo = int(_nz(row.followers_count, 0) or 0)
         node_rows.append(
             {
                 "id": str(row.vertex_id),
-                "label": str(row.label or "?")[:18],
+                "label": label[:18],
                 "tipo": "neighbor",
                 "color": SUPPORT_COLORS["neighbor"],
                 "shape": "dot",
                 "size": min(28, 10 + af * 2),
-                "title": f"@{row.label} · puente ({af} apoyos)",
+                "title": f"@{label} · puente ({af} apoyos)",
                 "plataforma": "twitter",
                 "risk_band": "",
                 "risk_score": 0,
-                "followers_count": int(row.followers_count or 0),
+                "followers_count": fo,
                 "apoyos_followed": af,
             }
         )
