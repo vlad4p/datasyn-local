@@ -7,6 +7,9 @@ Run from repo root:
   uv run python scripts/python/db.py mcp-stop
   uv run python scripts/python/db.py mcp-status
   uv run python scripts/python/db.py mcp-serve
+  uv run python scripts/python/db.py quack-info
+  uv run python scripts/python/db.py quack-check
+  uv run python scripts/python/db.py quack-serve
 """
 
 from __future__ import annotations
@@ -22,14 +25,21 @@ from typing import Any
 
 import duckdb
 import yaml
+from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+load_dotenv(PROJECT_ROOT / ".env", override=False)
+
 _TABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _MCP_JSON = PROJECT_ROOT / ".cursor" / "mcp.json"
 _MCP_JSON_EXAMPLE = PROJECT_ROOT / ".cursor" / "mcp.json.example"
 
 # duckdb_mcp stdio server — https://github.com/teaguesterling/duckdb_mcp
 _MCP_EXTENSION = "duckdb_mcp"
+
+# Quack remote warehouse defaults (fleet host for datasyn-duckdb)
+_QUACK_DEFAULT_HOST = "10.13.10.119"
+_QUACK_DEFAULT_PORT = 9494
 
 
 def load_settings() -> dict[str, Any]:
@@ -137,6 +147,60 @@ def quote_identifier(name: str) -> str:
     return f'"{escaped}"'
 
 
+def _sql_str(s: str) -> str:
+    return "'" + s.replace("'", "''") + "'"
+
+
+def _as_bool(raw: str | None, default: bool = False) -> bool:
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def get_quack_host() -> str:
+    host = (os.getenv("QUACK_HOST") or "").strip()
+    if host:
+        return host
+    settings = load_settings()
+    quack = settings.get("quack", {}) if isinstance(settings, dict) else {}
+    if isinstance(quack, dict):
+        configured = (quack.get("host") or "").strip()
+        if configured:
+            return configured
+    return _QUACK_DEFAULT_HOST
+
+
+def get_quack_port() -> int:
+    raw = (os.getenv("QUACK_PORT") or "").strip()
+    if raw:
+        return int(raw)
+    settings = load_settings()
+    quack = settings.get("quack", {}) if isinstance(settings, dict) else {}
+    if isinstance(quack, dict) and quack.get("port") is not None:
+        return int(quack["port"])
+    return _QUACK_DEFAULT_PORT
+
+
+def get_quack_token() -> str | None:
+    token = (os.getenv("QUACK_TOKEN") or "").strip()
+    return token or None
+
+
+def get_quack_disable_ssl() -> bool:
+    raw = os.getenv("QUACK_DISABLE_SSL")
+    if raw is not None and raw.strip() != "":
+        return _as_bool(raw, default=True)
+    settings = load_settings()
+    quack = settings.get("quack", {}) if isinstance(settings, dict) else {}
+    if isinstance(quack, dict) and "disable_ssl" in quack:
+        return bool(quack["disable_ssl"])
+    return True
+
+
+def get_quack_uri() -> str:
+    return f"quack:{get_quack_host()}:{get_quack_port()}"
+
+
 def resolve_landing_file(file_path: Path) -> Path:
     landing = get_landing_path().resolve()
     resolved = file_path.expanduser().resolve()
@@ -195,6 +259,27 @@ def mcp_stop() -> int:
 def connect(read_only: bool = False) -> duckdb.DuckDBPyConnection:
     ensure_dirs()
     return duckdb.connect(str(get_db_path()), read_only=read_only)
+
+
+def connect_quack() -> duckdb.DuckDBPyConnection:
+    """Open an in-memory DuckDB session attached to a remote Quack warehouse."""
+    host = get_quack_host()
+    port = get_quack_port()
+    token = get_quack_token()
+    disable_ssl = get_quack_disable_ssl()
+    attach_uri = f"quack:{host}:{port}"
+
+    con = duckdb.connect()
+    con.execute("INSTALL quack;")
+    con.execute("LOAD quack;")
+    opts = ["TYPE quack"]
+    if token:
+        opts.append(f"TOKEN {_sql_str(token)}")
+    if disable_ssl:
+        opts.append("DISABLE_SSL true")
+    con.execute(f"ATTACH {_sql_str(attach_uri)} AS warehouse ({', '.join(opts)});")
+    con.execute("USE warehouse;")
+    return con
 
 
 def connect_for_ingest(*, release_mcp: bool | None = None) -> duckdb.DuckDBPyConnection:
@@ -311,20 +396,41 @@ def _mcp_server_entry() -> dict[str, Any]:
     }
 
 
+def _quack_server_entry() -> dict[str, Any]:
+    quack_script = (PROJECT_ROOT / "scripts" / "sh" / "quack-serve.sh").resolve()
+    env: dict[str, str] = {
+        "QUACK_HOST": get_quack_host(),
+        "QUACK_PORT": str(get_quack_port()),
+        "QUACK_DISABLE_SSL": "true" if get_quack_disable_ssl() else "false",
+    }
+    token = get_quack_token()
+    if token:
+        env["QUACK_TOKEN"] = token
+    return {
+        "command": str(quack_script),
+        "cwd": str(PROJECT_ROOT),
+        "env": env,
+    }
+
+
 def mcp_config() -> int:
     """Write .cursor/mcp.json (gitignored). MCP bootstrap lives in this module."""
     _MCP_JSON.parent.mkdir(parents=True, exist_ok=True)
 
-    entry = _mcp_server_entry()
-    config = {"mcpServers": {"datasyn-duckdb": entry}}
+    config = {
+        "mcpServers": {
+            "datasyn-duckdb": _mcp_server_entry(),
+            "datasyn-quack": _quack_server_entry(),
+        }
+    }
 
     _MCP_JSON.write_text(json.dumps(config, indent=2) + "\n")
     print(f"Wrote {_MCP_JSON}")
     print(f"Template: {_MCP_JSON_EXAMPLE}")
     print()
-    print("Cursor: Settings → MCP → enable 'datasyn-duckdb' → Restart")
+    print("Cursor: Settings → MCP → enable 'datasyn-duckdb' and/or 'datasyn-quack' → Restart")
     print("If you use a global server 'duckdb-local', point command to:")
-    print(f"  {entry['command']}")
+    print(f"  {_mcp_server_entry()['command']}")
     return 0
 
 
@@ -334,12 +440,61 @@ def mcp_serve() -> None:
     start_mcp_stdio_server(con)
 
 
+def quack_info() -> int:
+    """Print resolved Quack connection settings (token redacted)."""
+    token = get_quack_token()
+    print(f"Quack URI:     {get_quack_uri()}")
+    print(f"Host:          {get_quack_host()}")
+    print(f"Port:          {get_quack_port()}")
+    print(f"Disable SSL:   {get_quack_disable_ssl()}")
+    print(f"Token:         {'set (' + str(len(token)) + ' chars)' if token else '(not set)'}")
+    return 0
+
+
+def quack_check() -> int:
+    """Attach to the remote Quack warehouse and list schemas/tables."""
+    uri = get_quack_uri()
+    try:
+        con = connect_quack()
+    except Exception as exc:
+        print(f"Quack attach failed ({uri}): {exc}", file=sys.stderr)
+        return 1
+    try:
+        rows = con.execute(
+            """
+            SELECT table_schema, table_name, table_type
+            FROM information_schema.tables
+            WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
+            ORDER BY table_schema, table_name
+            """
+        ).fetchall()
+        print(f"Quack OK. Attached {uri} AS warehouse (ssl_disabled={get_quack_disable_ssl()}).")
+        if not rows:
+            print("Tables: (none)")
+        else:
+            print(f"Tables ({len(rows)}):")
+            for schema, name, ttype in rows[:50]:
+                print(f"  {schema}.{name} ({ttype})")
+            if len(rows) > 50:
+                print(f"  ... and {len(rows) - 50} more")
+        return 0
+    finally:
+        con.close()
+
+
+def quack_serve() -> None:
+    """Attach to Quack warehouse and start duckdb_mcp stdio server (blocks)."""
+    con = connect_quack()
+    start_mcp_stdio_server(con)
+
+
 def cmd_info() -> int:
     print(f"Root:     {PROJECT_ROOT}")
     print(f"Database: {get_db_path()}")
     print(f"Landing:  {get_landing_path()}")
     print(f"Reports:  {get_reports_path()}")
     print(f"MCP:      scripts/sh/mcp-serve.sh ({_MCP_EXTENSION})")
+    print(f"Quack:    {get_quack_uri()} (scripts/sh/quack-serve.sh)")
     print("Tables:", ", ".join(list_tables()) or "(none)")
     return 0
 
@@ -374,6 +529,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("mcp-serve", help="Start MCP stdio server (blocking)")
     sub.add_parser("mcp-stop", help="Stop mcp-serve so Python can ingest (write)")
     sub.add_parser("mcp-status", help="Show whether mcp-serve is running")
+    sub.add_parser("quack-info", help="Show Quack remote connection settings")
+    sub.add_parser("quack-check", help="Attach to Quack warehouse and list tables")
+    sub.add_parser("quack-serve", help="Start MCP stdio server on Quack warehouse (blocking)")
     sql_parser = sub.add_parser("run-sql", help="Execute SQL statements")
     sql_parser.add_argument("sql", nargs="?", help="SQL statement(s) to execute")
     sql_parser.add_argument(
@@ -408,6 +566,13 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"MCP not running. DB: {status['db_path']}")
             print("Enable MCP in Cursor to query, or use db.py run-sql directly.")
+        return 0
+    if args.command == "quack-info":
+        return quack_info()
+    if args.command == "quack-check":
+        return quack_check()
+    if args.command == "quack-serve":
+        quack_serve()
         return 0
     if args.command == "run-sql":
         if args.file:

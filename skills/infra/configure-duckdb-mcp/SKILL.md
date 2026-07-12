@@ -173,9 +173,64 @@ uv run python scripts/python/db.py mcp-config    # write .cursor/mcp.json
 uv run python scripts/python/db.py mcp-check     # verify duckdb_mcp extension
 uv run python scripts/python/db.py mcp-status    # is mcp-serve running? which PID?
 uv run python scripts/python/db.py mcp-stop      # stop MCP before ingest (write)
+uv run python scripts/python/db.py quack-info    # show Quack host/port/token presence
+uv run python scripts/python/db.py quack-check   # attach to remote warehouse and list tables
 ```
 
 `mcp-serve` is started by Cursor automatically — do not run it manually unless debugging.
+`quack-serve` is the same for the remote warehouse (`datasyn-quack` MCP server).
+
+---
+
+## Remote warehouse (Quack)
+
+[DuckDB Quack](https://duckdb.org/docs/current/quack/overview) exposes a remote warehouse over HTTP.
+`datasyn-local` can attach as a Quack client (same protocol used by `datasyn-duckdb`'s MCP bridge).
+
+### Env (`.env` — never commit)
+
+Copy from `datasyn-duckdb/.env` / align with the fleet Quack server:
+
+```bash
+QUACK_HOST=10.13.10.119
+QUACK_PORT=9494
+QUACK_TOKEN=…          # same token as datasyn-duckdb QUACK_TOKEN
+QUACK_DISABLE_SSL=true
+```
+
+See `.env.example` for the template. Defaults in `db.py`: host `10.13.10.119`, port `9494`, SSL disabled.
+
+### Verify
+
+```bash
+uv run python scripts/python/db.py quack-info
+uv run python scripts/python/db.py quack-check
+```
+
+Attach under the hood:
+
+```sql
+INSTALL quack; LOAD quack;
+ATTACH 'quack:HOST:PORT' AS warehouse (TYPE quack, TOKEN '…', DISABLE_SSL true);
+USE warehouse;
+```
+
+### Cursor MCP (`datasyn-quack`)
+
+```bash
+uv run python scripts/python/db.py mcp-config
+```
+
+Writes both servers into `.cursor/mcp.json` (gitignored):
+
+| Server | Role |
+|--------|------|
+| `datasyn-duckdb` | Local file DB (`data/duckdb/datasyn.duckdb`) via `scripts/run_mcp.sh` |
+| `datasyn-quack` | Remote Quack warehouse via `scripts/sh/quack-serve.sh` |
+
+Enable **`datasyn-quack`** in Cursor → Settings → MCP → Restart. Query with the same MCP tools (`list_tables`, `query`, …) against the remote warehouse.
+
+Local ingest still uses the file DB (`mcp-stop` + `connect_for_ingest`). Quack is a separate opt-in connection.
 
 ---
 
