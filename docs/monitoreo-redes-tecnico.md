@@ -16,7 +16,6 @@ config/identidad_cuentas.seed.csv
         ▼  scripts/sql/ingest_identidades.sql
 silver.identidad
 silver.identidad_cuenta
-silver.v_identidad_cuentas
         │
         ├─ silver.fb_* + gold.v_* / grafo_*_trolls (legacy FB)
         └─ silver.tk_tw_* + gold.tk_hater_* / tk_troll_blacklist (twikit)
@@ -39,7 +38,6 @@ reports/monitor/dashboard/   (gitignored)
 |--------|------|
 | `silver.identidad` | Canonical person / org / media row + OSINT fields |
 | `silver.identidad_cuenta` | Bridge: `persona_id` → `plataforma` + `platform_user_id` / `handle` |
-| `silver.v_identidad_cuentas` | Convenience join view |
 
 ### Seed files (versioned, public figures only)
 
