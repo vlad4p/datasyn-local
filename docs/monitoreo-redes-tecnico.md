@@ -112,6 +112,40 @@ From `gold.tk_hater_profile_risk` **and** `gold.tk_apoyo_profile_risk` flags:
 
 These are **signals**, not labels of automation. On apoyo accounts they are profile-quality signals, not hostility risk.
 
+### Hechos × Redes (La Nación × Twitter)
+
+Contrasts daily La Nación política/sociedad coverage with Twitter activity for persona `myriambregman`. Correlation ≠ causation. Hater clusters are attack frames, not news agenda.
+
+| Step | Artifact |
+|------|----------|
+| Stage Quack → local bronze + silver LN | `scripts/sql/ingest_lanacion_silver.sql` (`--attach-quack`) |
+| Gold LN×TW series / picos / titulares | `scripts/sql/ingest_contexto_ln_tw.sql` |
+| LLM article → hater-cluster affinity | `scripts/python/classify_lanacion_to_hater_clusters.py` → `gold.ln_hecho_hater_cluster` |
+| Affinity views | `scripts/sql/ingest_contexto_ln_hater_afinidade.sql` |
+
+| View / table | Role |
+|--------------|------|
+| `gold.v_contexto_ln_hechos_diario` | Daily LN pol/soc counts |
+| `gold.v_contexto_ln_tw_diario` | Calendar join LN × tweets × replies (hostil/apoyo) |
+| `gold.v_contexto_ln_titulares_dia` | Top 5 LN headlines per day |
+| `gold.v_contexto_ln_tw_picos` | Peak days (z-scores) |
+| `gold.ln_hecho_hater_cluster` | Article URL → cluster + score |
+| `gold.v_contexto_ln_por_cluster` | Articles with cluster labels |
+
+```bash
+uv run python scripts/python/db.py mcp-stop
+uv run python scripts/python/db.py run-sql --ingest --attach-quack \
+  --file scripts/sql/ingest_lanacion_silver.sql
+uv run python scripts/python/db.py run-sql --ingest \
+  --file scripts/sql/ingest_contexto_ln_tw.sql
+uv run python scripts/python/classify_lanacion_to_hater_clusters.py
+uv run python scripts/python/db.py run-sql --ingest \
+  --file scripts/sql/ingest_contexto_ln_hater_afinidade.sql
+uv run python scripts/python/generate_social_monitor_dashboard.py
+```
+
+Dashboard section **Hechos × Redes** exports CSVs: `contexto_ln_tw_diario`, `contexto_ln_titulares`, `contexto_ln_tw_picos`, `contexto_ln_cluster_articulos`, `contexto_hater_cluster_diario`.
+
 ---
 
 ## Dashboard generator
@@ -191,6 +225,7 @@ Seeds under `config/identidades*.csv` contain **public figure** metadata only �
 - SociaVault IG/TikTok/FB modern: schema exists, no live rows in typical local DB.
 - Graph sparsity depends on upstream gold (e.g. FB troll graph may be thin if ráfagas are rare).
 - Classification and bot/coordination signals are probabilistic.
+- **Hechos × Redes:** La Nación is not full national coverage; section from URL path; LN→hater-cluster affinity is LLM thematic (low score → sin_afinidad); coincidence ≠ causation.
 
 ---
 

@@ -34,6 +34,9 @@ One writer at a time on `data/duckdb/datasyn.duckdb`.
 | **tk_tw_*** | Twikit Twitter/X (canonical). Hater/blacklist gold via twikit SQL. |
 | **identidad** | Curated persona dimension (`silver.identidad` / `identidad_cuenta`) linking public figures to platform accounts. Unified monitor: `gold.v_monitor_*` → skill `social-monitor`. |
 | **tk_tw_*** | Twikit Twitter/X — sole Twitter pipeline (`silver.tk_tw_*`, `silver.tk_tw_user`, `gold.tk_hater_*`, `gold.tk_troll_blacklist`). Legacy `tw_*` retired. |
+| **lanacion_*** | La Nación news (`bronze.lanacion_*` often staged from Quack; `silver.lanacion_*`). |
+| **contexto LN×TW** | Gold views `gold.v_contexto_ln_*` — daily La Nación pol/soc vs Twitter (persona `myriambregman`); dashboard section **Hechos × Redes**. |
+| **Quack / datasyn-rlab** | Remote DuckDB warehouse. Attach alias `"datasyn-rlab"`. Non-`main` schemas need `FROM "datasyn-rlab".query('…')` or `db.py quack-sql`. Hybrid ingest: `run-sql --ingest --attach-quack`. |
 
 Landing layout for SociaVault: `data/landing/redes/sociavault/<platform>/`.
 

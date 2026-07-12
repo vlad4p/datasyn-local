@@ -40,6 +40,8 @@ _MCP_EXTENSION = "duckdb_mcp"
 # Quack remote warehouse defaults (fleet host for datasyn-duckdb)
 _QUACK_DEFAULT_HOST = "10.13.10.119"
 _QUACK_DEFAULT_PORT = 9494
+# Attach alias (quoted — hyphen). Non-main schemas need .query() — see quack_remote_sql.
+QUACK_ALIAS = "datasyn-rlab"
 
 
 def load_settings() -> dict[str, Any]:
@@ -261,33 +263,73 @@ def connect(read_only: bool = False) -> duckdb.DuckDBPyConnection:
     return duckdb.connect(str(get_db_path()), read_only=read_only)
 
 
-def connect_quack() -> duckdb.DuckDBPyConnection:
-    """Open an in-memory DuckDB session attached to a remote Quack warehouse."""
-    host = get_quack_host()
-    port = get_quack_port()
-    token = get_quack_token()
-    disable_ssl = get_quack_disable_ssl()
-    attach_uri = f"quack:{host}:{port}"
-
-    con = duckdb.connect()
-    con.execute("INSTALL quack;")
-    con.execute("LOAD quack;")
+def _quack_attach_opts() -> list[str]:
     opts = ["TYPE quack"]
+    token = get_quack_token()
     if token:
         opts.append(f"TOKEN {_sql_str(token)}")
-    if disable_ssl:
+    if get_quack_disable_ssl():
         opts.append("DISABLE_SSL true")
-    con.execute(f"ATTACH {_sql_str(attach_uri)} AS warehouse ({', '.join(opts)});")
-    con.execute("USE warehouse;")
+    return opts
+
+
+def attach_quack(con: duckdb.DuckDBPyConnection, *, use: bool = False) -> None:
+    """ATTACH remote Quack warehouse as QUACK_ALIAS on an existing connection.
+
+    When ``use`` is False (default for local ingest), the connection's default
+    catalog stays on the local file DB so CREATE TABLE silver.* writes locally
+    while remote bronze is readable via ``"datasyn-rlab".query('…')``.
+    """
+    attach_uri = f"quack:{get_quack_host()}:{get_quack_port()}"
+    con.execute("INSTALL quack;")
+    con.execute("LOAD quack;")
+    opts = _quack_attach_opts()
+    con.execute(f'ATTACH {_sql_str(attach_uri)} AS "{QUACK_ALIAS}" ({", ".join(opts)});')
+    if use:
+        con.execute(f'USE "{QUACK_ALIAS}";')
+
+
+def connect_quack() -> duckdb.DuckDBPyConnection:
+    """Open an in-memory DuckDB session attached to a remote Quack warehouse."""
+    con = duckdb.connect()
+    attach_quack(con, use=True)
     return con
 
 
-def connect_for_ingest(*, release_mcp: bool | None = None) -> duckdb.DuckDBPyConnection:
+def quack_remote_sql(sql: str) -> str:
+    """Wrap SQL for Quack's attachment ``.query()`` macro.
+
+    Quack 1.5.x cannot scan non-``main`` schemas via ``FROM bronze.t`` after
+    ATTACH (duckdb/duckdb-quack#144). Push the statement to the server with
+    ``FROM "datasyn-rlab".query('…')`` instead.
+    """
+    return f'FROM "{QUACK_ALIAS}".query({_sql_str(sql)})'
+
+
+def quack_execute(con: duckdb.DuckDBPyConnection, sql: str):
+    """Run SQL on the remote Quack warehouse (works for any schema)."""
+    return con.execute(quack_remote_sql(sql))
+
+
+def quack_sql_relation(con: duckdb.DuckDBPyConnection, sql: str):
+    """Like quack_execute but returns a Relation (supports .show())."""
+    return con.sql(quack_remote_sql(sql))
+
+
+def connect_for_ingest(
+    *,
+    release_mcp: bool | None = None,
+    attach_quack_remote: bool = False,
+) -> duckdb.DuckDBPyConnection:
     """Open a read-write connection for ingest (bronze/silver writes).
 
     DuckDB allows one writer process at a time. When MCP is running it holds
     the file lock — pass release_mcp=True (or set DATASYN_RELEASE_MCP_FOR_WRITE=1)
     to stop mcp-serve before connecting.
+
+    When ``attach_quack_remote`` is True, also ATTACH the Quack warehouse as
+    ``datasyn-rlab`` without USE so local writes + remote ``.query()`` reads
+    share one session.
     """
     if release_mcp is None:
         release_mcp = os.getenv("DATASYN_RELEASE_MCP_FOR_WRITE", "").strip().lower() in {
@@ -298,7 +340,7 @@ def connect_for_ingest(*, release_mcp: bool | None = None) -> duckdb.DuckDBPyCon
     if release_mcp:
         mcp_stop()
     try:
-        return connect(read_only=False)
+        con = connect(read_only=False)
     except duckdb.IOException as exc:
         locked = _duckdb_lock_message(exc)
         if locked and locked[1]:
@@ -306,6 +348,9 @@ def connect_for_ingest(*, release_mcp: bool | None = None) -> duckdb.DuckDBPyCon
                 f"{locked[0]} Run: uv run python scripts/python/db.py mcp-stop"
             ) from exc
         raise
+    if attach_quack_remote:
+        attach_quack(con, use=False)
+    return con
 
 
 def list_tables(con: duckdb.DuckDBPyConnection | None = None) -> list[str]:
@@ -460,23 +505,65 @@ def quack_check() -> int:
         print(f"Quack attach failed ({uri}): {exc}", file=sys.stderr)
         return 1
     try:
+        # Quack often leaves information_schema.tables empty; columns is reliable.
         rows = con.execute(
             """
-            SELECT table_schema, table_name, table_type
-            FROM information_schema.tables
+            SELECT table_schema, table_name, count(*)::BIGINT AS ncols
+            FROM information_schema.columns
             WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
-            ORDER BY table_schema, table_name
+            GROUP BY 1, 2
+            ORDER BY 1, 2
             """
         ).fetchall()
-        print(f"Quack OK. Attached {uri} AS warehouse (ssl_disabled={get_quack_disable_ssl()}).")
+        print(
+            f'Quack OK. Attached {uri} AS "{QUACK_ALIAS}" '
+            f"(ssl_disabled={get_quack_disable_ssl()})."
+        )
+        print(
+            "Note: scan non-main schemas via "
+            f'FROM "{QUACK_ALIAS}".query(\'SELECT … FROM schema.table\') '
+            "or: db.py quack-sql '…'"
+        )
         if not rows:
             print("Tables: (none)")
         else:
             print(f"Tables ({len(rows)}):")
-            for schema, name, ttype in rows[:50]:
-                print(f"  {schema}.{name} ({ttype})")
+            for schema, name, ncols in rows[:50]:
+                n_rows = "?"
+                try:
+                    n_rows = quack_execute(
+                        con, f"SELECT count(*) FROM {schema}.{name}"
+                    ).fetchone()[0]
+                except Exception:
+                    pass
+                print(f"  {schema}.{name} ({ncols} cols, {n_rows} rows)")
             if len(rows) > 50:
                 print(f"  ... and {len(rows) - 50} more")
+        return 0
+    finally:
+        con.close()
+
+
+def quack_run_sql(sql: str) -> int:
+    """Execute SQL against the remote Quack warehouse via .query()."""
+    uri = get_quack_uri()
+    try:
+        con = connect_quack()
+    except Exception as exc:
+        print(f"Quack attach failed ({uri}): {exc}", file=sys.stderr)
+        return 1
+    try:
+        statements = [s.strip() for s in sql.split(";") if s.strip()]
+        for stmt in statements:
+            try:
+                result = quack_sql_relation(con, stmt)
+                if result is not None and result.description:
+                    result.show(max_width=120)
+                else:
+                    print("✅ OK")
+            except Exception as e:
+                print(f"❌ Error: {e}", file=sys.stderr)
+                return 1
         return 0
     finally:
         con.close()
@@ -499,9 +586,19 @@ def cmd_info() -> int:
     return 0
 
 
-def cmd_run_sql(sql: str, *, for_ingest: bool = False) -> int:
+def cmd_run_sql(
+    sql: str,
+    *,
+    for_ingest: bool = False,
+    attach_quack_remote: bool = False,
+) -> int:
     """Execute one or more SQL statements (;) and show results."""
-    con = connect_for_ingest() if for_ingest else connect()
+    if for_ingest:
+        con = connect_for_ingest(attach_quack_remote=attach_quack_remote)
+    else:
+        con = connect()
+        if attach_quack_remote:
+            attach_quack(con, use=False)
     try:
         statements = [s.strip() for s in sql.split(";") if s.strip()]
         for stmt in statements:
@@ -532,6 +629,14 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("quack-info", help="Show Quack remote connection settings")
     sub.add_parser("quack-check", help="Attach to Quack warehouse and list tables")
     sub.add_parser("quack-serve", help="Start MCP stdio server on Quack warehouse (blocking)")
+    quack_sql_parser = sub.add_parser(
+        "quack-sql",
+        help="Run SQL on remote Quack (uses .query() — required for non-main schemas)",
+    )
+    quack_sql_parser.add_argument("sql", nargs="?", help="SQL statement(s) to execute remotely")
+    quack_sql_parser.add_argument(
+        "--file", "-f", type=str, help="Read SQL from file instead of argument"
+    )
     sql_parser = sub.add_parser("run-sql", help="Execute SQL statements")
     sql_parser.add_argument("sql", nargs="?", help="SQL statement(s) to execute")
     sql_parser.add_argument(
@@ -541,6 +646,14 @@ def main(argv: list[str] | None = None) -> int:
         "--ingest",
         action="store_true",
         help="Write mode: release MCP lock before running (bronze/silver ingest)",
+    )
+    sql_parser.add_argument(
+        "--attach-quack",
+        action="store_true",
+        help=(
+            f'ATTACH remote Quack as "{QUACK_ALIAS}" without USE '
+            "(read remote via .query(); write local silver/gold)"
+        ),
     )
 
     args = parser.parse_args(argv)
@@ -574,6 +687,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "quack-serve":
         quack_serve()
         return 0
+    if args.command == "quack-sql":
+        if args.file:
+            sql = Path(args.file).read_text()
+        elif args.sql:
+            sql = args.sql
+        else:
+            sql = sys.stdin.read()
+        return quack_run_sql(sql)
     if args.command == "run-sql":
         if args.file:
             sql = Path(args.file).read_text()
@@ -581,7 +702,11 @@ def main(argv: list[str] | None = None) -> int:
             sql = args.sql
         else:
             sql = sys.stdin.read()
-        return cmd_run_sql(sql, for_ingest=args.ingest)
+        return cmd_run_sql(
+            sql,
+            for_ingest=args.ingest,
+            attach_quack_remote=args.attach_quack,
+        )
     return 1
 
 

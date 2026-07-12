@@ -107,6 +107,7 @@
       <a href="#narrativa" data-sec="narrativa">Narrativas</a>
       <a href="#grafos" data-sec="grafos">Grafos</a>
       <a href="#comparativa" data-sec="comparativa">Comparativa</a>
+      <a href="#contexto" data-sec="contexto">Hechos × Redes</a>
       <a href="#metodo" data-sec="metodo">Metodología</a>
     </nav>
     <main>
@@ -285,6 +286,57 @@
         <div class="panel"><div class="chart-box tall"><canvas id="chartComparativa"></canvas></div></div>
       </section>
 
+      <section id="sec-contexto">
+        <h2>Hechos × Redes</h2>
+        <p class="desc">
+          Contraste diario y por narrativas: hechos de política/sociedad en La Nación
+          vs Twitter/X de Myriam Bregman. Los clusters hater son marcos de ataque
+          (no agenda informativa); la afinidad LN→cluster es temática vía LLM.
+          Correlación temporal ≠ causalidad.
+        </p>
+        <div id="contexto-gate"></div>
+        <div id="contexto-body" style="display:none">
+          <div class="controls" style="margin-bottom:1rem">
+            <label>Desde: <input type="date" id="ctxDesde"></label>
+            <label>Hasta: <input type="date" id="ctxHasta"></label>
+            <button type="button" id="btnCtxPeriodo">Aplicar período</button>
+          </div>
+          <div class="kpi-grid secondary" id="kpi-contexto"></div>
+          <div class="panel"><div class="chart-box tall"><canvas id="chartContexto"></canvas></div></div>
+          <div class="panel" style="margin-top:1rem">
+            <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Qué hablaba LN vs de qué hablaban los haters (mismo período)</h3>
+            <div class="chart-box tall"><canvas id="chartContextoClusters"></canvas></div>
+          </div>
+          <div class="chart-row" style="margin-top:1rem">
+            <div class="panel">
+              <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Días pico (click para detalle)</h3>
+              <div style="overflow-x:auto;max-height:360px">
+                <table id="tblContextoPicos"><thead><tr>
+                  <th>#</th><th>Fecha</th><th>Hechos LN</th><th>Tweets</th><th>Hostil</th><th>Apoyo</th><th>Score</th><th>Flags</th>
+                </tr></thead><tbody></tbody></table>
+              </div>
+            </div>
+            <div class="panel">
+              <h3 style="font-size:0.9rem;margin-bottom:0.5rem" id="contexto-dia-titulo">Detalle del día</h3>
+              <div id="contexto-dia-kpis" class="kpi-grid secondary" style="margin-bottom:0.75rem"></div>
+              <div style="overflow-x:auto;max-height:280px">
+                <table id="tblContextoTitulares"><thead><tr>
+                  <th>#</th><th>Sección</th><th>Titular</th><th>Palabras</th>
+                </tr></thead><tbody></tbody></table>
+              </div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:1rem">
+            <h3 style="font-size:0.9rem;margin-bottom:0.5rem">Artículos LN del período → cluster afín</h3>
+            <div style="overflow-x:auto;max-height:360px">
+              <table id="tblContextoClusters"><thead><tr>
+                <th>Fecha</th><th>Sección</th><th>Cluster</th><th>Score</th><th>Titular</th>
+              </tr></thead><tbody></tbody></table>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="sec-metodo">
         <h2>Metodología y límites</h2>
         <div class="panel limits">
@@ -298,6 +350,7 @@
             <li><code>co_rafaga</code> / <code>co_followers</code> = sincronía o audiencia compartida, <em>no</em> prueba de coordinación.</li>
             <li>Muestra TW parcial (tweets seleccionados + replies). FB tiene más volumen clasificado.</li>
             <li>Campos OSINT (Wikidata, sitio, provincia) se completan en el seed curado — checklist en la doc técnica.</li>
+            <li><strong>Hechos × Redes:</strong> La Nación no es cobertura completa del país; sección derivada del path URL. Clusters hater = marcos de ataque (insultos, ideología, …), no tópicos de agenda; la afinidad artículo→cluster es LLM temática (score &lt; 0.35 → sin_afinidad). Solo persona <code>myriambregman</code>. Coincidencia en el período ≠ causalidad.</li>
           </ul>
         </div>
       </section>
@@ -878,6 +931,301 @@
       });
     }
 
+    let contextoSelectedDay = null;
+    let ctxRangeReady = false;
+
+    function dayKey(v) {
+      return String(v || '').slice(0, 10);
+    }
+
+    function contextoRows() {
+      return (DATA.contexto_ln_tw_diario || []).filter(r => r.persona_id === 'myriambregman');
+    }
+
+    function ctxBounds() {
+      const rows = contextoRows();
+      const days = rows.map(r => dayKey(r.fecha)).filter(Boolean).sort();
+      return { min: days[0] || '', max: days[days.length - 1] || '' };
+    }
+
+    function ctxRange() {
+      const desde = document.getElementById('ctxDesde')?.value || '';
+      const hasta = document.getElementById('ctxHasta')?.value || '';
+      return { desde, hasta };
+    }
+
+    function inRange(day, desde, hasta) {
+      const d = dayKey(day);
+      if (!d) return false;
+      if (desde && d < desde) return false;
+      if (hasta && d > hasta) return false;
+      return true;
+    }
+
+    function ensureCtxRangeInputs() {
+      const b = ctxBounds();
+      const desdeEl = document.getElementById('ctxDesde');
+      const hastaEl = document.getElementById('ctxHasta');
+      if (!desdeEl || !hastaEl || !b.min) return;
+      desdeEl.min = b.min; desdeEl.max = b.max;
+      hastaEl.min = b.min; hastaEl.max = b.max;
+      if (!ctxRangeReady) {
+        desdeEl.value = b.min;
+        hastaEl.value = b.max;
+        ctxRangeReady = true;
+      }
+    }
+
+    function renderContextoDia(fecha) {
+      contextoSelectedDay = fecha;
+      const day = dayKey(fecha);
+      document.getElementById('contexto-dia-titulo').textContent = 'Detalle · ' + day;
+      const row = contextoRows().find(r => dayKey(r.fecha) === day) || {};
+      document.getElementById('contexto-dia-kpis').innerHTML = [
+        kpi('Hechos LN', fmt(row.n_hechos || 0), `pol ${row.n_politica || 0} · seg ${row.n_seguridad || 0}`),
+        kpi('Tweets', fmt(row.n_tweets || 0), `likes ${fmt(row.likes || 0)}`),
+        kpi('Replies hostiles', fmt(row.n_hostil || 0), `apoyo ${fmt(row.n_apoyo || 0)}`, 'accent-hater'),
+        kpi('Replies total', fmt(row.n_replies || 0)),
+      ].join('');
+      const tits = (DATA.contexto_ln_titulares || [])
+        .filter(t => dayKey(t.fecha) === day)
+        .sort((a, b) => (a.rank_dia || 0) - (b.rank_dia || 0));
+      const tb = document.querySelector('#tblContextoTitulares tbody');
+      if (!tits.length) {
+        tb.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">Sin titulares pol/soc ese día en La Nación.</td></tr>';
+        return;
+      }
+      tb.innerHTML = tits.map(t => {
+        const title = t.url
+          ? `<a href="${t.url}" target="_blank" rel="noopener" style="color:var(--accent)">${(t.titulo || '').slice(0, 90)}</a>`
+          : (t.titulo || '').slice(0, 90);
+        return `<tr>
+          <td>${t.rank_dia || ''}</td>
+          <td>${t.seccion || ''}</td>
+          <td>${title}</td>
+          <td>${fmt(t.palabras)}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderContextoClusters(desde, hasta) {
+      const arts = (DATA.contexto_ln_cluster_articulos || [])
+        .filter(a => inRange(a.fecha, desde, hasta));
+      const hat = (DATA.contexto_hater_cluster_diario || [])
+        .filter(h => inRange(h.dia, desde, hasta));
+
+      const lnCount = {};
+      arts.forEach(a => {
+        const lab = a.cluster_label || 'sin_afinidad';
+        lnCount[lab] = (lnCount[lab] || 0) + 1;
+      });
+      const hatCount = {};
+      hat.forEach(h => {
+        const lab = h.narrativa_cluster || 'otros';
+        hatCount[lab] = (hatCount[lab] || 0) + (h.n_replies || 0);
+      });
+
+      const ranked = [...new Set([...Object.keys(lnCount), ...Object.keys(hatCount)])]
+        .map(lab => ({
+          lab,
+          ln: lnCount[lab] || 0,
+          hat: hatCount[lab] || 0,
+          score: (lnCount[lab] || 0) + (hatCount[lab] || 0),
+        }))
+        .sort((a, b) => b.score - a.score);
+
+      const top = ranked.slice(0, 12);
+      const rest = ranked.slice(12);
+      if (rest.length) {
+        top.push({
+          lab: 'otros',
+          ln: rest.reduce((s, r) => s + r.ln, 0),
+          hat: rest.reduce((s, r) => s + r.hat, 0),
+        });
+      }
+      const labels = top.map(r => r.lab);
+
+      destroyChart('contextoClusters');
+      const canvas = document.getElementById('chartContextoClusters');
+      if (canvas) {
+        charts.contextoClusters = new Chart(canvas, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Artículos LN (afinidad)',
+                data: top.map(r => r.ln),
+                backgroundColor: 'rgba(245,165,36,0.7)',
+              },
+              {
+                label: 'Replies hater',
+                data: top.map(r => r.hat),
+                backgroundColor: 'rgba(240,113,120,0.7)',
+              },
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+              title: { display: true, text: 'Distribución por cluster en el período' },
+              legend: { position: 'bottom' },
+            },
+            scales: { x: { beginAtZero: true } },
+          }
+        });
+      }
+
+      const tb = document.querySelector('#tblContextoClusters tbody');
+      if (tb) {
+        const rows = arts.slice().sort((a, b) => dayKey(b.fecha).localeCompare(dayKey(a.fecha)));
+        if (!rows.length) {
+          tb.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">Sin artículos asignados en el período (correr classify_lanacion_to_hater_clusters.py).</td></tr>';
+        } else {
+          tb.innerHTML = rows.slice(0, 80).map(a => {
+            const title = a.url
+              ? `<a href="${a.url}" target="_blank" rel="noopener" style="color:var(--accent)">${(a.titulo || '').slice(0, 80)}</a>`
+              : (a.titulo || '').slice(0, 80);
+            return `<tr>
+              <td>${dayKey(a.fecha)}</td>
+              <td>${a.seccion || ''}</td>
+              <td>${a.cluster_label || ''}</td>
+              <td>${a.score != null ? Number(a.score).toFixed(2) : '—'}</td>
+              <td>${title}</td>
+            </tr>`;
+          }).join('');
+        }
+      }
+
+      const sinAf = arts.filter(a => (a.cluster_label || '') === 'sin_afinidad').length;
+      return {
+        nArts: arts.length,
+        nHatReplies: hat.reduce((s, h) => s + (h.n_replies || 0), 0),
+        pctSin: arts.length ? (100 * sinAf) / arts.length : 0,
+      };
+    }
+
+    function renderContexto() {
+      const gate = document.getElementById('contexto-gate');
+      const body = document.getElementById('contexto-body');
+      const pid = selectedPersona();
+      if (pid !== 'myriambregman') {
+        gate.innerHTML = '<div class="panel limits"><p>Contexto La Nación × Twitter disponible para <strong>Myriam Bregman</strong>. Seleccioná esa persona arriba.</p></div>';
+        body.style.display = 'none';
+        return;
+      }
+      gate.innerHTML = '';
+      body.style.display = '';
+      ensureCtxRangeInputs();
+      const { desde, hasta } = ctxRange();
+
+      const rows = contextoRows()
+        .filter(r => inRange(r.fecha, desde, hasta))
+        .slice()
+        .sort((a, b) => dayKey(a.fecha).localeCompare(dayKey(b.fecha)));
+      const hechos = rows.reduce((a, r) => a + (r.n_hechos || 0), 0);
+      const tweets = rows.reduce((a, r) => a + (r.n_tweets || 0), 0);
+      const hostil = rows.reduce((a, r) => a + (r.n_hostil || 0), 0);
+      const apoyo = rows.reduce((a, r) => a + (r.n_apoyo || 0), 0);
+      const overlap = rows.filter(r => (r.n_hechos || 0) > 0 && ((r.n_tweets || 0) > 0 || (r.n_replies || 0) > 0)).length;
+      const clusterStats = renderContextoClusters(desde, hasta);
+
+      document.getElementById('kpi-contexto').innerHTML = [
+        kpi('Días en período', fmt(rows.length), `${fmt(overlap)} con overlap LN+TW`),
+        kpi('Hechos LN pol/soc', fmt(hechos)),
+        kpi('Tweets Bregman', fmt(tweets)),
+        kpi('Replies hostiles', fmt(hostil), `apoyo ${fmt(apoyo)}`, 'accent-hater'),
+        kpi('Arts. con cluster', fmt(clusterStats.nArts), `${fmt(clusterStats.pctSin)}% sin_afinidad`),
+        kpi('Replies hater (narr.)', fmt(clusterStats.nHatReplies), 'en clusters del período'),
+      ].join('');
+
+      const labels = rows.map(r => dayKey(r.fecha));
+      destroyChart('contexto');
+      charts.contexto = new Chart(document.getElementById('chartContexto'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              type: 'bar',
+              label: 'Tweets',
+              data: rows.map(r => r.n_tweets || 0),
+              backgroundColor: 'rgba(29,161,242,0.35)',
+              yAxisID: 'y',
+              order: 3,
+            },
+            {
+              type: 'line',
+              label: 'Hechos LN pol/soc',
+              data: rows.map(r => r.n_hechos || 0),
+              borderColor: '#f5a524',
+              backgroundColor: '#f5a524',
+              tension: 0.2,
+              pointRadius: 0,
+              yAxisID: 'y',
+              order: 1,
+            },
+            {
+              type: 'line',
+              label: 'Replies hostiles',
+              data: rows.map(r => r.n_hostil || 0),
+              borderColor: COLORS.hater,
+              backgroundColor: COLORS.hater,
+              tension: 0.2,
+              pointRadius: 0,
+              yAxisID: 'y1',
+              order: 2,
+            },
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            title: { display: true, text: `La Nación vs @myriambregman (${desde || '…'} → ${hasta || '…'})` },
+            legend: { position: 'bottom' },
+          },
+          scales: {
+            y: { position: 'left', title: { display: true, text: 'Hechos / tweets' }, beginAtZero: true },
+            y1: { position: 'right', title: { display: true, text: 'Replies hostiles' }, beginAtZero: true, grid: { drawOnChartArea: false } },
+          }
+        }
+      });
+
+      const picos = (DATA.contexto_ln_tw_picos || [])
+        .filter(r => r.persona_id === 'myriambregman' && inRange(r.fecha, desde, hasta))
+        .sort((a, b) => (a.rank_pico || 0) - (b.rank_pico || 0));
+      const tb = document.querySelector('#tblContextoPicos tbody');
+      tb.innerHTML = picos.map(p => {
+        const d = dayKey(p.fecha);
+        const flags = [
+          p.pico_ambos === true || p.pico_ambos === 'true' ? 'ambos' : null,
+          p.pico_hechos === true || p.pico_hechos === 'true' ? 'LN' : null,
+          p.pico_hostil === true || p.pico_hostil === 'true' ? 'TW' : null,
+        ].filter(Boolean).join('+') || '—';
+        return `<tr data-fecha="${d}" style="cursor:pointer">
+          <td>${p.rank_pico || ''}</td>
+          <td>${d}</td>
+          <td>${fmt(p.n_hechos)}</td>
+          <td>${fmt(p.n_tweets)}</td>
+          <td>${fmt(p.n_hostil)}</td>
+          <td>${fmt(p.n_apoyo)}</td>
+          <td>${fmt(p.score)}</td>
+          <td>${flags}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="8" style="color:var(--muted)">Sin picos en el período.</td></tr>';
+      tb.querySelectorAll('tr[data-fecha]').forEach(tr => {
+        tr.addEventListener('click', () => renderContextoDia(tr.dataset.fecha));
+      });
+      const defaultDay = (contextoSelectedDay && rows.some(r => dayKey(r.fecha) === contextoSelectedDay))
+        ? contextoSelectedDay
+        : (picos[0] ? dayKey(picos[0].fecha) : (labels[labels.length - 1] || null));
+      if (defaultDay) renderContextoDia(defaultDay);
+    }
+
     function refreshAll() {
       renderKpis();
       renderPerfil();
@@ -890,6 +1238,7 @@
       renderGrafoLocalKpis();
       if (document.getElementById('sec-grafos').classList.contains('active')) renderGrafo();
       renderComparativa();
+      renderContexto();
     }
 
     function initNav() {
@@ -902,6 +1251,7 @@
           const sec = document.getElementById('sec-' + a.dataset.sec);
           if (sec) sec.classList.add('active');
           if (a.dataset.sec === 'grafos') renderGrafo();
+          if (a.dataset.sec === 'contexto') renderContexto();
         });
       });
     }
@@ -925,6 +1275,12 @@
       document.getElementById('filterEdge').addEventListener('change', renderGrafo);
       document.getElementById('btnFitGrafo').addEventListener('click', () => network && network.fit());
       document.getElementById('selCompMetric').addEventListener('change', renderComparativa);
+      const btnCtx = document.getElementById('btnCtxPeriodo');
+      if (btnCtx) btnCtx.addEventListener('click', renderContexto);
+      ['ctxDesde', 'ctxHasta'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', renderContexto);
+      });
       initNav();
       refreshAll();
     }

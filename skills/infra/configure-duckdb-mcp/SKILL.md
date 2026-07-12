@@ -205,14 +205,20 @@ See `.env.example` for the template. Defaults in `db.py`: host `10.13.10.119`, p
 ```bash
 uv run python scripts/python/db.py quack-info
 uv run python scripts/python/db.py quack-check
+# Non-main schemas (bronze/silver/gold): use quack-sql — Quack 1.5.x cannot
+# scan them via FROM bronze.t after ATTACH (duckdb/duckdb-quack#144).
+uv run python scripts/python/db.py quack-sql "SELECT count(*) FROM bronze.clarin_noticias"
+uv run python scripts/python/db.py quack-sql "SELECT * FROM bronze.clarin_noticias LIMIT 3"
 ```
 
 Attach under the hood:
 
 ```sql
 INSTALL quack; LOAD quack;
-ATTACH 'quack:HOST:PORT' AS warehouse (TYPE quack, TOKEN '…', DISABLE_SSL true);
-USE warehouse;
+ATTACH 'quack:HOST:PORT' AS "datasyn-rlab" (TYPE quack, TOKEN '…', DISABLE_SSL true);
+USE "datasyn-rlab";
+-- main works directly; other schemas need the attachment query macro:
+FROM "datasyn-rlab".query('SELECT * FROM bronze.clarin_noticias LIMIT 10');
 ```
 
 ### Cursor MCP (`datasyn-quack`)
@@ -231,6 +237,28 @@ Writes both servers into `.cursor/mcp.json` (gitignored):
 Enable **`datasyn-quack`** in Cursor → Settings → MCP → Restart. Query with the same MCP tools (`list_tables`, `query`, …) against the remote warehouse.
 
 Local ingest still uses the file DB (`mcp-stop` + `connect_for_ingest`). Quack is a separate opt-in connection.
+
+### Hybrid: local write + remote read (`--attach-quack`)
+
+Stage remote bronze into the local file DB (default catalog stays local; no `USE`):
+
+```bash
+uv run python scripts/python/db.py mcp-stop
+uv run python scripts/python/db.py run-sql --ingest --attach-quack \
+  --file scripts/sql/ingest_lanacion_silver.sql
+```
+
+SQL pattern (one `.query()` per statement — Quack streaming limit):
+
+```sql
+CREATE OR REPLACE TABLE bronze.lanacion_noticias AS
+SELECT * FROM "datasyn-rlab".query(
+  'SELECT * FROM bronze.lanacion_noticias'
+);
+-- then transform into silver.* on the local catalog
+```
+
+Helpers in `db.py`: `attach_quack()`, `quack_remote_sql()`, `quack_execute()`, CLI `quack-sql`.
 
 ---
 

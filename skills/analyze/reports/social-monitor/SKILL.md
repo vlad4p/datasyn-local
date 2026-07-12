@@ -29,6 +29,7 @@ Cross-platform monitoring keyed by **persona** (not by isolated account).
 | Comparar cuentas en el tiempo | Sección **Comparativa** del dashboard |
 | Haters top 10 / apoyo / narrativas / grafos | Secciones Haters, Apoyo, Narrativas, Grafos (toggle polaridad) |
 | Actualizar identidades / OSINT | Edit `config/identidades*.csv` → re-ingest |
+| Hechos × Redes / La Nación vs TW | Stage LN from Quack + contexto gold (below) |
 
 **Related (platform-specific):**
 - Legacy FB only → [`redes-analysis`](redes-analysis/SKILL.md)
@@ -79,6 +80,21 @@ uv run python scripts/python/generate_social_monitor_dashboard.py
 Landing: `data/landing/redes/twikit/profiles/apoyo/{slug}_{date}/` (separate from hater profiles).
 Gold: `gold.tk_apoyo_grafo_*`, `gold.tk_apoyo_profile_risk`, `gold.tk_apoyo_narrativa_*`, `gold.v_monitor_apoyo_top10`.
 
+### Hechos × Redes (La Nación × Twitter)
+
+Persona scope: `myriambregman`. Docs: [`docs/monitoreo-redes-tecnico.md`](../../../../docs/monitoreo-redes-tecnico.md).
+
+```bash
+uv run python scripts/python/db.py mcp-stop
+uv run python scripts/python/db.py run-sql --ingest --attach-quack \
+  --file scripts/sql/ingest_lanacion_silver.sql
+uv run python scripts/python/db.py run-sql --ingest \
+  --file scripts/sql/ingest_contexto_ln_tw.sql
+uv run python scripts/python/classify_lanacion_to_hater_clusters.py
+uv run python scripts/python/db.py run-sql --ingest \
+  --file scripts/sql/ingest_contexto_ln_hater_afinidade.sql
+```
+
 ### 2. Generate dashboard
 
 ```bash
@@ -116,6 +132,7 @@ SELECT * FROM gold.v_monitor_temporal ORDER BY dia DESC LIMIT 20;
 | **Narrativas** | `gold.v_monitor_narrativa` | Clusters hostiles + apoyo (toggle polaridad) |
 | **Grafos** | `gold.tk_hater_*` + `gold.tk_apoyo_*` | Toggle **Haters/Apoyo** en Relaciones TW |
 | **Comparativa** | `gold.v_monitor_temporal*` | Multi-persona en el tiempo |
+| **Hechos × Redes** | `gold.v_contexto_ln_*` | LN pol/soc vs TW (picos, titulares, afinidad cluster) |
 
 ---
 

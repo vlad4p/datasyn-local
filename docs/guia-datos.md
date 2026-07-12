@@ -214,6 +214,31 @@ IMPORT DATABASE en otro entorno.
 
 Antes de pasar un `.duckdb` o un export: revisá handles, textos y perfiles. Skill [`data-privacy`](../skills/engineering/data-privacy/SKILL.md).
 
+### 2.6 Warehouse remoto (Quack)
+
+Attach alias: `"datasyn-rlab"`. Env: `QUACK_HOST`, `QUACK_PORT`, `QUACK_TOKEN`, `QUACK_DISABLE_SSL` (ver [`.env.example`](../.env.example)).
+
+| Comando | Uso |
+|---------|-----|
+| `db.py quack-info` / `quack-check` | Settings + listar tablas remotas |
+| `db.py quack-sql "SELECT …"` | SQL remoto (requerido para schemas ≠ `main`) |
+| `db.py run-sql --ingest --attach-quack -f …` | Escribir local + leer remoto vía `.query()` |
+| `db.py quack-serve` | MCP `datasyn-quack` sobre el warehouse |
+
+Detalle: skill [`configure-duckdb-mcp`](../skills/infra/configure-duckdb-mcp/SKILL.md) § Remote warehouse.
+
+<details>
+<summary><strong>Prompt — conectar Quack y stagedear La Nación</strong></summary>
+
+```text
+Con Quack (datasyn-rlab): verificá quack-check, stagedeá bronze.lanacion_*
+al local con ingest_lanacion_silver.sql (--attach-quack), construí
+contexto LN×TW (ingest_contexto_ln_tw.sql) y regenerá el dashboard
+social-monitor (sección Hechos × Redes). No subas .env ni .duckdb.
+```
+
+</details>
+
 ---
 
 ## Referencias rápidas
@@ -225,4 +250,5 @@ Antes de pasar un `.duckdb` o un export: revisá handles, textos y perfiles. Ski
 | Storage DuckDB | [`data/duckdb/README.md`](../data/duckdb/README.md) |
 | Reportes (skill) | [`skills/analyze/reports/statistical-report/SKILL.md`](../skills/analyze/reports/statistical-report/SKILL.md) |
 | Privacidad / git | [`skills/engineering/data-privacy/SKILL.md`](../skills/engineering/data-privacy/SKILL.md) |
-| MCP | [`skills/infra/configure-duckdb-mcp/SKILL.md`](../skills/infra/configure-duckdb-mcp/SKILL.md) |
+| MCP / Quack | [`skills/infra/configure-duckdb-mcp/SKILL.md`](../skills/infra/configure-duckdb-mcp/SKILL.md) |
+| Monitor técnico | [`docs/monitoreo-redes-tecnico.md`](monitoreo-redes-tecnico.md) |

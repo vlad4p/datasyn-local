@@ -146,6 +146,57 @@ SQL_EXPORTS: list[tuple[str, str]] = [
         ORDER BY dia, persona_id
         """,
     ),
+    (
+        "contexto_ln_tw_diario.csv",
+        """
+        SELECT persona_id, nombre_canonico,
+               CAST(fecha AS VARCHAR) AS fecha,
+               n_hechos, n_politica, n_seguridad, n_editoriales, n_opinion,
+               palabras_prom, n_tweets, likes, reply_count_posts, retweets, views,
+               n_replies, n_hostil, n_apoyo, n_neutral
+        FROM gold.v_contexto_ln_tw_diario
+        ORDER BY fecha, persona_id
+        """,
+    ),
+    (
+        "contexto_ln_titulares.csv",
+        """
+        SELECT CAST(fecha AS VARCHAR) AS fecha, rank_dia, titulo, seccion, tipo,
+               autor, palabras, url
+        FROM gold.v_contexto_ln_titulares_dia
+        ORDER BY fecha DESC, rank_dia
+        """,
+    ),
+    (
+        "contexto_ln_tw_picos.csv",
+        """
+        SELECT persona_id, nombre_canonico,
+               CAST(fecha AS VARCHAR) AS fecha,
+               n_hechos, n_politica, n_seguridad, n_editoriales, n_opinion,
+               n_tweets, n_replies, n_hostil, n_apoyo,
+               z_hechos, z_tw, score, pico_hechos, pico_hostil, pico_ambos, rank_pico
+        FROM gold.v_contexto_ln_tw_picos
+        ORDER BY rank_pico
+        """,
+    ),
+    (
+        "contexto_ln_cluster_articulos.csv",
+        """
+        SELECT CAST(fecha AS VARCHAR) AS fecha, seccion, titulo, url,
+               cluster_label, score, cluster_descripcion
+        FROM gold.v_contexto_ln_por_cluster
+        ORDER BY fecha DESC, score DESC
+        """,
+    ),
+    (
+        "contexto_hater_cluster_diario.csv",
+        """
+        SELECT CAST(dia AS VARCHAR) AS dia, narrativa_cluster, n_replies
+        FROM gold.v_tk_hater_narrativa_temporal
+        WHERE dia IS NOT NULL
+        ORDER BY dia, n_replies DESC
+        """,
+    ),
 ]
 
 CSV_KEY_MAP: dict[str, str] = {
@@ -159,6 +210,11 @@ CSV_KEY_MAP: dict[str, str] = {
     "narrativa.csv": "narrativa",
     "temporal.csv": "temporal",
     "temporal_engagement.csv": "temporal_engagement",
+    "contexto_ln_tw_diario.csv": "contexto_ln_tw_diario",
+    "contexto_ln_titulares.csv": "contexto_ln_titulares",
+    "contexto_ln_tw_picos.csv": "contexto_ln_tw_picos",
+    "contexto_ln_cluster_articulos.csv": "contexto_ln_cluster_articulos",
+    "contexto_hater_cluster_diario.csv": "contexto_hater_cluster_diario",
     "grafo_comportamiento_nodes.csv": "grafo_comportamiento_nodes",
     "grafo_comportamiento_edges.csv": "grafo_comportamiento_edges",
     "grafo_narrativa_nodes.csv": "grafo_narrativa_nodes",
@@ -1157,6 +1213,7 @@ open report.html
 | Apoyo | Top 10 defensores + narrativas de apoyo |
 | Grafos | Toggle Haters/Apoyo: Relaciones TW, comportamiento, narrativa |
 | Comparativa | Varias personas en la misma vista temporal |
+| Hechos × Redes | La Nación pol/soc vs Twitter Myriam Bregman (días pico + titulares) |
 | Metodología | Límites y pipeline |
 
 ## Regenerar
