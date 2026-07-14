@@ -22,6 +22,18 @@ You collect sources → the assistant saves the originals → DuckDB holds struc
 
 <p align="center"><img src="docs/diagrams/flow.svg" alt="From source to story — collect, landing, DuckDB, reports" width="860"/></p>
 
+## Table of contents
+
+1. [Install](#install)
+2. [Where to put a CSV in landing](#where-to-put-a-csv-in-landing)
+3. [How to ingest a CSV into DuckDB](#how-to-ingest-a-csv-into-duckdb)
+4. [Import another DuckDB and query tables](#import-another-duckdb-and-query-tables)
+5. [How it works](#how-it-works)
+6. [Full example](#full-example)
+7. [Create a new skill](#create-a-new-skill)
+8. [Gitflow](#gitflow)
+9. [Guides](#guides)
+10. [Tools](#tools)
 
 ---
 
@@ -33,7 +45,7 @@ You collect sources → the assistant saves the originals → DuckDB holds struc
 
 ---
 
-## 🧭 How it works
+## How it works
 
 ### Principles
 
@@ -110,29 +122,46 @@ Left: agent configuration and behavior. Right: your evidence and publishable out
 
 ---
 
-## 📌 Requirements
+## Install
 
-- **Python 3.11+** (the assistant installs it if missing)
-- **[uv](https://docs.astral.sh/uv/)** — Python environment (configured by the startup prompt)
+To get started you only need **(1)** an AI assistant and **(2)** to clone this repository. The [startup prompt](#get-started) configures the rest (`uv`, skills, MCP).
 
-### Install an IDE
+### 1. Install an AI assistant
 
-You need an editor with a built-in AI assistant:
+Use any of these (the most common ones):
 
-- **[OpenCode](https://opencode.ai):** `curl -fsSL https://opencode.ai/install | bash`
-- **[VS Code](https://code.visualstudio.com/):** [Download](https://code.visualstudio.com/download) · macOS: `brew install --cask visual-studio-code`
+- [Cursor](https://cursor.com/)
+- [Claude Code](https://claude.ai/code) (Anthropic)
+- [GitHub Copilot](https://github.com/features/copilot) in [VS Code](https://code.visualstudio.com/)
+- [Google Antigravity](https://antigravity.google/)
+- [OpenCode](https://opencode.ai/)
+
+### 2. Clone the repository
+
+```bash
+git clone <repository-URL>
+cd datasyn-local
+```
+
+Open the folder in your assistant and continue with [Get started](#get-started).
+
+### Configure tools
+
+The startup prompt installs and configures what you need. For reference, the project uses:
+
+- **Python 3.11+**
+- **[uv](https://docs.astral.sh/uv/)** — Python environment
+
+Other tools (for example **R**) are only required when a specific analysis asks for them.
 
 ---
 
-## 🚀 Get started — copy this prompt
+## Get started
 
-### Initial setup
+You already have the repo open in the assistant. Paste the prompt below: it configures `uv` (Python), links the [skills](skills/), and connects the DuckDB MCP server.
 
-Clone the repository, paste the prompt below, and follow the assistant's summary.
-
-1. **Clone** this repository and open it in your IDE.
-2. **Paste** the block into the assistant chat.
-3. **Follow** the summary — you shouldn't need to run commands yourself.
+1. **Paste** the block into the assistant chat.
+2. **Follow** the summary — you shouldn't need to run commands yourself.
 
 <details>
 <summary><strong>📋 Click to view the startup prompt</strong></summary>
@@ -182,7 +211,88 @@ Rules: ingest and reports are skills (SQL), not extra Python apps. External file
 
 ---
 
-## 🗞️ Full example — from headlines to sentiment
+## Where to put a CSV in landing
+
+Every raw file (CSV, JSON, scrape, export) goes first into **`data/landing/`**. That folder is the **originals** zone: do not edit files there; cleaning and analysis happen later inside DuckDB.
+
+Shared vocabulary: [`CONTEXT.md`](CONTEXT.md). Principle: **keep originals**.
+
+### Example with the sample CSV
+
+There is a fictional tweet-style dataset at [`examples/data_example.csv`](examples/data_example.csv). Copy it to landing:
+
+```bash
+cp examples/data_example.csv data/landing/
+```
+
+`data/landing/` is gitignored (not committed). The file under `examples/` is versioned so anyone can repeat the tutorial.
+
+More detail: [`examples/README.md`](examples/README.md).
+
+---
+
+## How to ingest a CSV into DuckDB
+
+**You do not write SQL.** Ask in plain language; the assistant uses the **skills** ([`ingest-data`](skills/ingest/ingest-data/SKILL.md) → [`ingest-data-bronze`](skills/ingest/bronze/ingest-data-bronze/SKILL.md)), generates the SQL, and loads the table into DuckDB for you.
+
+Short flow:
+
+1. The CSV is already in `data/landing/` (previous step).
+2. Paste the prompt below into the chat.
+3. The assistant creates `bronze.tweets_example`, validates rows, and can run a mini-analysis.
+
+<details>
+<summary><strong>📋 Prompt — ingest the sample CSV and analyze it</strong></summary>
+
+```text
+Ingest data/landing/data_example.csv into DuckDB as bronze.tweets_example
+(skill ingest-data). Then show COUNT(*), DESCRIBE, and 5 sample rows,
+plus a mini-analysis: top authors by likes and tweets per day.
+```
+
+</details>
+
+> **Optional note:** reads go through MCP; writes (CREATE TABLE / ingest) use `db.py run-sql --ingest` and may briefly stop MCP. Rules in [`AGENTS.md`](AGENTS.md).
+
+---
+
+## Import another DuckDB and query tables
+
+If someone gives you a file like **`warehouse-01.duckdb`** (for example with Twitter/X scrapes already loaded), you can use it as the main database.
+
+### Steps
+
+```bash
+# 1. Place the file under data/duckdb/
+cp /path/to/warehouse-01.duckdb data/duckdb/
+
+# 2. Point datasyn at that database
+export DATASYN_DB_PATH=data/duckdb/warehouse-01.duckdb
+
+# 3. Regenerate MCP config and verify
+uv run python scripts/python/db.py mcp-config
+uv run python scripts/python/db.py info
+```
+
+Restart the MCP server in your IDE so it picks up the new path. Then ask in chat, for example:
+
+```text
+List the tables in the database and show the 10 tweets with most likes
+from silver.tk_tw_tweet (or the equivalent table). What do the data show?
+```
+
+Tables named `silver.tk_tw_*` are the typical result of scraping an account with [`scrape-twikit-twitter`](skills/collect/twikit/scrape-twikit-twitter/SKILL.md).
+
+### Other options
+
+| Goal | How |
+|------|-----|
+| Combine two databases without replacing yours | read-only `ATTACH` — see [`docs/guia-datos.md`](docs/guia-datos.md) §2.3 |
+| Scrape an X account yourself | same guide §1 + skill `scrape-twikit-twitter` |
+
+---
+
+## Full example
 
 ### One prompt, full investigation
 
@@ -214,7 +324,7 @@ how we know, and what the caveats are.
 
 ---
 
-## 🔀 Gitflow — branches and releases
+## Gitflow
 
 This repo uses **Gitflow**: `main` is production-ready; `develop` holds integrated work; short-lived **feature** branches merge into `develop`.
 
@@ -260,7 +370,7 @@ Full agent workflow: [`skills/engineering/gitflow/SKILL.md`](skills/engineering/
 
 ---
 
-## 🧩 Create a new skill
+## Create a new skill
 
 A **skill** is a Markdown workflow guide — not executable code. The assistant reads `SKILL.md` and follows the steps (SQL templates, validation, output paths).
 
@@ -272,7 +382,7 @@ After creating a skill, add it to the bucket `README.md` and [`skills/README.md`
 
 ---
 
-## 📖 Guides
+## Guides
 
 | Guide | Contents |
 |-------|----------|
@@ -284,7 +394,7 @@ Diagrams: [`docs/diagrams/README.md`](docs/diagrams/README.md) — SVG sources i
 
 ---
 
-## 🛠️ Tools in use
+## Tools
 
 | Tool | Purpose | Docs |
 |------|---------|------|

@@ -26,32 +26,61 @@
 
 y tu **asistente de IA** traduce ese pedido y crea los scripts en **sql**, **python** o **sh**; que luego ejecutara para realizar el analisis
 
+## Índice
 
-## 📌 Requisitos
-
-### Instalar un IDE con un Asistente de IA
-
-- **[OpenCode](https://opencode.ai):** `curl -fsSL https://opencode.ai/install | bash`
-- **[VS Code](https://code.visualstudio.com/):** [Descargar](https://code.visualstudio.com/download) · macOS: `brew install --cask visual-studio-code`
-
-### Configurar herramientas
-
-Se requiere validar tener instaladas las siguientes herramientas, otras como **R-project** deben ser especificadas. 
-
-- **Python 3.11+** 
-- **[uv](https://docs.astral.sh/uv/)** — entorno Python (lo configura el prompt de arranque)
-
-Sino, las tienes instaladas, podria funcionar con el siguiente **prompt**
+1. [Instalar](#instalar)
+2. [Dónde guardar un CSV en landing](#donde-guardar-un-csv-en-landing)
+3. [Cómo ingestar un CSV en DuckDB](#como-ingestar-un-csv-en-duckdb)
+4. [Importar otra base DuckDB y consultar tablas](#importar-otra-base-duckdb-y-consultar-tablas)
+5. [Cómo funciona](#como-funciona)
+6. [Ejemplo completo](#ejemplo-completo)
+7. [Crear una nueva skill](#crear-una-nueva-skill)
+8. [Gitflow](#gitflow)
+9. [Guías](#guias)
+10. [Herramientas](#herramientas)
 
 ---
 
-## 🚀 Arranque — copia este prompt
+## Instalar
 
-No instalas nada a mano: clonas el repositorio, pegas el prompt de abajo en tu asistente y él configura `uv` (Python), enlaza los [skills](skills/) y conecta el servidor MCP de DuckDB.
+Para empezar solo necesitás **(1)** un asistente de IA y **(2)** clonar este repositorio. El [prompt de arranque](#arranque) configura el resto (`uv`, skills, MCP).
 
-1. **Clona** este repositorio y ábrelo en el IDE.
-2. **Pega** el bloque en el chat del asistente.
-3. **Sigue** el resumen — no deberías tener que ejecutar comandos por tu cuenta.
+### 1. Instalá un asistente de IA
+
+Usá cualquiera de estos (los más conocidos):
+
+- [Cursor](https://cursor.com/)
+- [Claude Code](https://claude.ai/code) (Anthropic)
+- [GitHub Copilot](https://github.com/features/copilot) en [VS Code](https://code.visualstudio.com/)
+- [Google Antigravity](https://antigravity.google/)
+- [OpenCode](https://opencode.ai/)
+
+### 2. Cloná el repositorio
+
+```bash
+git clone <URL-del-repositorio>
+cd datasyn-local
+```
+
+Abrí la carpeta en tu asistente y seguí con [Arranque](#arranque).
+
+### Configurar herramientas
+
+El prompt de arranque instala y configura lo necesario. Si querés saber qué usa el proyecto:
+
+- **Python 3.11+**
+- **[uv](https://docs.astral.sh/uv/)** — entorno Python
+
+Otras herramientas (por ejemplo **R**) se especifican solo si el análisis las pide.
+
+---
+
+## Arranque
+
+Ya tenés el repo abierto en el asistente. Pegá el prompt de abajo: él configura `uv` (Python), enlaza los [skills](skills/) y conecta el servidor MCP de DuckDB.
+
+1. **Pegá** el bloque en el chat del asistente.
+2. **Seguí** el resumen — no deberías tener que ejecutar comandos por tu cuenta.
 
 <details>
 <summary><strong>📋 Clic para ver el prompt de arranque</strong></summary>
@@ -101,7 +130,88 @@ Reglas: ingest y reportes son skills (SQL), no apps Python extra. Los archivos e
 
 ---
 
-## 🧭 Cómo funciona
+## Donde guardar un CSV en landing
+
+Todo archivo crudo (CSV, JSON, scrape, exportación) entra primero en **`data/landing/`**. Esa carpeta es la zona de **originales**: no se edita ahí; la limpieza y el análisis ocurren después, dentro de DuckDB.
+
+Vocabulario compartido: [`CONTEXT.md`](CONTEXT.md). Principio: **conservar originales**.
+
+### Ejemplo con el CSV de muestra
+
+Hay un dataset de tweets ficticios en [`examples/data_example.csv`](examples/data_example.csv). Copialo a landing:
+
+```bash
+cp examples/data_example.csv data/landing/
+```
+
+`data/landing/` está en `.gitignore` (no se sube a git). El archivo en `examples/` sí se versiona para que cualquiera pueda repetir el tutorial.
+
+Más detalle: [`examples/README.md`](examples/README.md).
+
+---
+
+## Como ingestar un CSV en DuckDB
+
+**No tenés que escribir SQL.** Pedís en lenguaje natural; el asistente usa las **skills** ([`ingest-data`](skills/ingest/ingest-data/SKILL.md) → [`ingest-data-bronze`](skills/ingest/bronze/ingest-data-bronze/SKILL.md)), genera el SQL y carga la tabla en DuckDB automáticamente.
+
+Flujo resumido:
+
+1. El CSV ya está en `data/landing/` (paso anterior).
+2. Pegás el prompt de abajo en el chat.
+3. El asistente crea `bronze.tweets_example`, valida filas y puede hacer un mini-análisis.
+
+<details>
+<summary><strong>📋 Prompt — ingestar el CSV de ejemplo y analizarlo</strong></summary>
+
+```text
+Ingestá data/landing/data_example.csv en DuckDB como bronze.tweets_example
+(skill ingest-data). Después mostrame COUNT(*), DESCRIBE y 5 filas,
+y un mini-análisis: top autores por likes y tweets por día.
+```
+
+</details>
+
+> **Nota técnica (opcional):** las consultas van por MCP; la escritura (CREATE TABLE / ingest) usa `db.py run-sql --ingest` y puede pedir parar MCP un momento. Reglas en [`AGENTS.md`](AGENTS.md).
+
+---
+
+## Importar otra base DuckDB y consultar tablas
+
+Si alguien te pasa un archivo como **`warehouse-01.duckdb`** (por ejemplo con scrapes de Twitter/X ya cargados), podés usarlo como base principal.
+
+### Pasos
+
+```bash
+# 1. Colocá el archivo en data/duckdb/
+cp /ruta/a/warehouse-01.duckdb data/duckdb/
+
+# 2. Apuntá datasyn a esa base
+export DATASYN_DB_PATH=data/duckdb/warehouse-01.duckdb
+
+# 3. Regenerá la config MCP y verificá
+uv run python scripts/python/db.py mcp-config
+uv run python scripts/python/db.py info
+```
+
+Reiniciá el servidor MCP en el IDE para que tome la nueva ruta. Luego pedí en el chat, por ejemplo:
+
+```text
+Listá las tablas de la base y mostrá los 10 tweets con más likes
+de silver.tk_tw_tweet (o la tabla equivalente). ¿Qué muestran los datos?
+```
+
+Las tablas `silver.tk_tw_*` son el resultado típico de scrapear una cuenta con [`scrape-twikit-twitter`](skills/collect/twikit/scrape-twikit-twitter/SKILL.md).
+
+### Otras opciones
+
+| Objetivo | Cómo |
+|----------|------|
+| Combinar dos bases sin reemplazar la tuya | `ATTACH` en solo lectura — ver [`docs/guia-datos.md`](docs/guia-datos.md) §2.3 |
+| Scrapear vos una cuenta de X | misma guía §1 + skill `scrape-twikit-twitter` |
+
+---
+
+## Como funciona
 
 ### Principios
 
@@ -170,7 +280,7 @@ Izquierda: configuración y comportamiento del agente. Derecha: evidencia y sali
 
 ---
 
-## 🗞️ Ejemplo completo — de titulares a *emociones...*
+## Ejemplo completo
 
 **Extraer → ingestar → reporte de analisis de sentimiento** en un solo mensaje:
 
@@ -198,7 +308,7 @@ cómo lo sabemos y cuáles son las salvedades.
 
 ---
 
-## 🧩 Crear una nueva skill
+## Crear una nueva skill
 
 En este proyecto, una **skill** es una guía de trabajo en Markdown que le enseña al asistente *cómo* hacer una tarea concreta (ingestar un CSV, limpiar duplicados, escribir un reporte). No es código que se ejecuta: es una receta en lenguaje claro con reglas, pasos y plantillas de SQL. Cuando pides algo, el asistente busca la skill adecuada y la sigue.
 
@@ -248,7 +358,7 @@ Pasos:
 
 ---
 
-## 🔀 Gitflow — ramas y releases
+## Gitflow
 
 El repo usa **Gitflow**: `main` es producción; `develop` integra el trabajo terminado; las features son ramas cortas que se fusionan en `develop`.
 
@@ -294,7 +404,7 @@ Guía completa para el asistente: [`skills/engineering/gitflow/SKILL.md`](skills
 
 ---
 
-## 📖 Guías
+## Guias
 
 | Guía | Contenido |
 |------|-----------|
@@ -306,7 +416,7 @@ Diagramas: [`docs/diagrams/README.md`](docs/diagrams/README.md) — fuentes SVG 
 
 ---
 
-## 🛠️ Herramientas que usa
+## Herramientas
 
 | Herramienta | Para qué sirve | Documentación |
 |-------------|----------------|----------------|
