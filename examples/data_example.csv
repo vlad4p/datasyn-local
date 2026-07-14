@@ -1,0 +1,16 @@
+tweet_id,username,created_at,text,likes,retweets
+1001,ana_datos,2026-07-01T09:15:00Z,"Buenos días: abriendo el día con café y un CSV recién exportado.",42,5
+1002,bruno_lab,2026-07-01T11:40:00Z,"Tip: guardá siempre el archivo crudo en landing antes de limpiar nada.",18,3
+1003,carla_os,2026-07-01T14:05:00Z,"Hoy el dashboard muestra un pico de engagement a la tarde.",67,9
+1004,diego_sql,2026-07-02T08:20:00Z,"DuckDB + lenguaje natural = menos fricción para investigar.",31,7
+1005,elena_news,2026-07-02T10:55:00Z,"Tres preguntas antes de publicar: ¿qué muestran los datos? ¿cómo lo sabemos? ¿cuáles son los límites?",54,12
+1006,ana_datos,2026-07-02T16:30:00Z,"Mini-análisis: top autores por likes, tweets por día, y listo.",23,2
+1007,fabio_x,2026-07-03T09:00:00Z,"Scrapeé una cuenta pública: ahora a listar tablas y mirar los 10 con más likes.",88,15
+1008,gina_mcp,2026-07-03T12:45:00Z,"MCP conectado: preguntale al asistente COUNT(*) y DESCRIBE sin tocar SQL a mano.",36,6
+1009,bruno_lab,2026-07-03T18:10:00Z,"Si cambiás de warehouse, regenerá mcp-config y reiniciá el servidor MCP.",19,4
+1010,helena_rw,2026-07-04T07:50:00Z,"Landing inmutable: no edites el CSV original; la limpieza va en silver.",27,5
+1011,diego_sql,2026-07-04T13:25:00Z,"bronze.tweets_example cargado. Siguiente: sample de 5 filas.",41,3
+1012,carla_os,2026-07-04T19:00:00Z,"Serie diaria lista: el miércoles concentró más actividad.",52,8
+1013,igor_etl,2026-07-05T10:10:00Z,"Importar warehouse-01.duckdb es setear DATASYN_DB_PATH y verificar con db.py info.",14,2
+1014,elena_news,2026-07-05T15:35:00Z,"Los handles de este CSV son ficticios — solo para el tutorial.",9,1
+1015,fabio_x,2026-07-05T20:05:00Z,"Cierre de la semana: menos ruido, más evidencia.",73,11
